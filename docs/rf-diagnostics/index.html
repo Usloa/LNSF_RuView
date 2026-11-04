@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>RuView RF Diagnostics</title><link rel="stylesheet" href="style.css"><script defer src="model.js"></script><script defer src="app.js"></script></head>
-<body><main><header><p class="eyebrow">COGNITUM / RUVIEW / W1700K</p><span id="mode" class="badge">NO DATA</span><h1>RF diagnostics.</h1><p class="intro">Understand the measurement before trusting the inference.</p></header>
-<section class="controls" aria-label="Import controls"><label class="button">Import local JSONL<input id="file" type="file" accept=".jsonl,.ndjson,.json,application/json"></label><button id="demo">Load synthetic demo</button><button id="clear">Clear</button><p>Local processing only. Maximum 10 MiB and 10,000 observations. No uploads.</p></section>
-<p id="status" role="status">Import bridge diagnostics or explore a clearly labelled synthetic example.</p>
-<aside>ADVISORY ONLY · Configuration is unverified. These records cannot establish presence, pose or CSI accuracy. Imported files are replay, never an active hardware connection.</aside>
-<section class="metrics" aria-label="Latest observation"><article><p>Latest RMS</p><strong id="rms">—</strong><small>relative dBFS, not calibrated RF power</small></article><article><p>Latest rails</p><strong id="rails">—</strong><small>samples at numeric limits</small></article><article><p>Reported missing</p><strong id="gaps">—</strong><small>sum of per record missing samples</small></article><article><p>Observations</p><strong id="count">0</strong><small>all v1 observations invalid</small></article></section>
-<section class="panel"><h2>Relative RMS history</h2><p>Record order, last 500 observations. Missing metrics break the line. Orange dots flag missing samples.</p><svg id="chart" viewBox="0 0 1000 240" role="img" aria-label="Relative RMS history; import a diagnostics file"></svg><p id="range">No observations</p></section>
-<div class="split"><section class="panel"><h2>Invalidation reasons</h2><ul id="reasons"><li>No observations</li></ul></section><section class="panel"><h2>Source metadata</h2><pre id="meta">No observations</pre></section></div>
-<footer>RuField evidence boundary · 1 second TTL is producer metadata. Host monotonic time is not wall time; file replay cannot establish freshness.</footer></main></body></html>
+<title>RuView 射频诊断</title><link rel="stylesheet" href="style.css"><script defer src="model.js"></script><script defer src="app.js"></script></head>
+<body><main><header><p class="eyebrow">COGNITUM / RUVIEW / W1700K</p><span id="mode" class="badge">无数据</span><h1>射频诊断。</h1><p class="intro">先理解测量本身，再信任由此得出的推断。</p></header>
+<section class="controls" aria-label="导入控制"><label class="button">导入本地 JSONL<input id="file" type="file" accept=".jsonl,.ndjson,.json,application/json"></label><button id="demo">加载合成演示数据</button><button id="clear">清空</button><p>仅在本地处理。上限 10 MiB、10,000 条观测。不会上传任何数据。</p></section>
+<p id="status" role="status">导入桥接诊断数据，或查看一份已明确标注的合成示例。</p>
+<aside>仅供参考 · 配置未经验证。这些记录无法确立在场、姿态或 CSI 精度。导入的文件属于重放数据，绝非与硬件的实时连接。</aside>
+<section class="metrics" aria-label="最新观测"><article><p>最新 RMS</p><strong id="rms">—</strong><small>相对 dBFS，非经校准的射频功率</small></article><article><p>最新触限</p><strong id="rails">—</strong><small>处于数值上下限的样本数</small></article><article><p>报告缺失</p><strong id="gaps">—</strong><small>各记录缺失样本数之和</small></article><article><p>观测数</p><strong id="count">0</strong><small>所有 v1 观测均无效</small></article></section>
+<section class="panel"><h2>相对 RMS 历史</h2><p>按记录顺序，最近 500 条观测。指标缺失处折线断开，橙色圆点标记缺失样本。</p><svg id="chart" viewBox="0 0 1000 240" role="img" aria-label="相对 RMS 历史；请导入诊断文件"></svg><p id="range">无观测</p></section>
+<div class="split"><section class="panel"><h2>失效原因</h2><ul id="reasons"><li>无观测</li></ul></section><section class="panel"><h2>来源元数据</h2><pre id="meta">无观测</pre></section></div>
+<footer>RuField 证据边界 · 1 秒 TTL 属于生产者元数据。主机单调时间并非墙钟时间；文件重放无法确立数据新鲜度。</footer></main></body></html>
