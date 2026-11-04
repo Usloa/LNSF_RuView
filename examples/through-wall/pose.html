@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>WiFlow · live WiFi-inferred pose</title>
+<title>WiFlow · 实时 WiFi 推断姿态</title>
 <style>
   :root{--bg:#0a0c10;--panel:#11151c;--amber:#ffb840;--green:#46e08a;--red:#ff5a5a;--mute:#7d8796;--line:#1d2430}
   *{box-sizing:border-box}
@@ -29,37 +29,37 @@
 </head>
 <body>
 <header>
-  <h1>WiFlow · <span>live WiFi-inferred pose</span></h1>
-  <div id="banner" class="down">CONNECTING…</div>
+  <h1>WiFlow · <span>实时 WiFi 推断姿态</span></h1>
+  <div id="banner" class="down">连接中…</div>
 </header>
 <main>
   <div class="card">
-    <div class="label">CSI → pose (skeleton) overlaid on your laptop camera</div>
+    <div class="label">将 CSI 推断的姿态骨架叠加到笔记本摄像头画面上</div>
     <div id="stage" style="width:420px;height:560px;border-radius:8px;overflow:hidden;background:#070a0e">
       <video id="cam" autoplay muted playsinline style="position:absolute;width:2px;height:2px;opacity:0;pointer-events:none"></video>
       <canvas id="cv" width="420" height="560"></canvas>
     </div>
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button id="camBtn" style="background:var(--amber);color:#0a0c10;border:0;border-radius:6px;padding:7px 14px;font:inherit;font-weight:600;cursor:pointer">enable laptop camera</button>
+      <button id="camBtn" style="background:var(--amber);color:#0a0c10;border:0;border-radius:6px;padding:7px 14px;font:inherit;font-weight:600;cursor:pointer">启用笔记本摄像头</button>
       <select id="camSel" style="display:none;background:var(--panel);color:#dfe6ee;border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit;max-width:220px"></select>
     </div>
-    <div id="camStatus" style="margin-top:6px;font-size:11px;color:var(--mute)">camera: off</div>
-    <div class="note" style="margin-top:8px">Camera is a <b>visual reference only</b> — it is NOT fed to the model. Overlay alignment is approximate (model trained in a different camera's frame).</div>
+    <div id="camStatus" style="margin-top:6px;font-size:11px;color:var(--mute)">摄像头：关闭</div>
+    <div class="note" style="margin-top:8px">摄像头<b>仅作视觉参考</b>——不会输入模型。叠加对齐为近似（模型在另一摄像头的坐标系下训练）。</div>
   </div>
   <div class="card stats">
-    <div class="label">live</div>
-    <div class="row"><span class="k">CSI source</span><span class="v" id="src">—</span></div>
-    <div class="row"><span class="k">nodes</span><span class="v" id="nodes">—</span></div>
-    <div class="row"><span class="k">presence</span><span class="v" id="pres">—</span></div>
-    <div class="row"><span class="k">motion</span><span class="v" id="motion">—</span></div>
-    <div class="row"><span class="k">pose fps</span><span class="v" id="fps">—</span></div>
+    <div class="label">实时</div>
+    <div class="row"><span class="k">CSI 来源</span><span class="v" id="src">—</span></div>
+    <div class="row"><span class="k">节点</span><span class="v" id="nodes">—</span></div>
+    <div class="row"><span class="k">在场</span><span class="v" id="pres">—</span></div>
+    <div class="row"><span class="k">运动</span><span class="v" id="motion">—</span></div>
+    <div class="row"><span class="k">姿态帧率</span><span class="v" id="fps">—</span></div>
     <div class="note">
-      This skeleton is inferred <b>from WiFi CSI only</b> — no camera in the loop here. A model was
-      trained on paired (camera-pose, CSI) data in this room (ADR-079/180).
+      该骨架<b>仅由 WiFi CSI 推断</b>——此链路不含摄像头。模型在本房间用成对的
+      （摄像头姿态, CSI）数据训练（ADR-079/180）。
       <br/><br/>
-      <b>Honest accuracy:</b> ~<b>59.5% PCK@0.10</b> on held-out data (vs a 50% mean-pose baseline →
-      <b>+9.4 pp real signal</b>). It captures <b>coarse</b> pose; fine detail is weak (PCK@0.05 ≈ 24%).
-      Same person / room / session — not validated cross-day or through-wall.
+      <b>诚实精度：</b> 留出集上约 <b>59.5% PCK@0.10</b>（50% 均值姿态基线 →
+      <b>真实信号增益 +9.4 个百分点</b>）。可捕捉<b>粗粒度</b>姿态；细节较弱（PCK@0.05 ≈ 24%）。
+      同一人 / 同一房间 / 同一会话——未做跨天或穿墙验证。
     </div>
   </div>
 </main>

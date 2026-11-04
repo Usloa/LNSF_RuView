@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>RuView · three.js demos · ADR-097 sensing-helpers scene</title>
+<title>RuView · three.js 演示 · ADR-097 感知辅助场景</title>
 <style>
   :root {
     --bg: #0a0e1a;
@@ -106,60 +106,59 @@
 <body>
 <div class="wrap">
 
-<h1>RuView · <span>three.js demos</span></h1>
+<h1>RuView · <span>three.js 演示</span></h1>
 <p class="lede">
-  Five progressively richer browser demos of the <a href="https://github.com/ruvnet/RuView/blob/main/docs/adr/ADR-097-adopt-rvcsi-as-ruview-csi-runtime.md">ADR-097</a>
-  sensing-helpers scene, ending with a live MediaPipe-Pose → Mixamo X Bot retargeting pipeline driven
-  by a real ESP32 CSI feed.
+  五个复杂度递进的浏览器演示，围绕 <a href="https://github.com/ruvnet/RuView/blob/main/docs/adr/ADR-097-adopt-rvcsi-as-ruview-csi-runtime.md">ADR-097</a>
+  感知辅助场景展开，最终以真实 ESP32 CSI 数据驱动的 MediaPipe-Pose → Mixamo X Bot 实时重定向流水线收尾。
 </p>
 
 <div class="grid">
 
   <a class="card" href="demos/01-helpers.html">
-    <h2>01 · Helpers <span class="pill ok">standalone</span></h2>
-    <div class="sub">Plain ADR-097 helpers in the point-cloud viewer. No external assets.</div>
-    <img src="screenshots/01-helpers.png" alt="01 screenshot">
+    <h2>01 · Helpers <span class="pill ok">独立运行</span></h2>
+    <div class="sub">点云查看器中的纯 ADR-097 辅助工具，无需外部资源。</div>
+    <img src="screenshots/01-helpers.png" alt="演示 01 截图">
   </a>
 
   <a class="card" href="demos/02-cinematic.html">
-    <h2>02 · Cinematic <span class="pill ok">standalone</span></h2>
-    <div class="sub">Cinematic camera + pseudo-CSI visualization on top of #01.</div>
-    <img src="screenshots/02-cinematic.png" alt="02 screenshot">
+    <h2>02 · Cinematic <span class="pill ok">独立运行</span></h2>
+    <div class="sub">在 #01 之上叠加电影感镜头与伪 CSI 可视化。</div>
+    <img src="screenshots/02-cinematic.png" alt="演示 02 截图">
   </a>
 
   <a class="card" href="demos/03-skinned.html">
-    <h2>03 · Skinned (GLTF) <span class="pill ok">standalone</span></h2>
-    <div class="sub">GLTF skinned mesh + additive animation blending in the ADR-097 scene.</div>
-    <img src="screenshots/03-skinned.png" alt="03 screenshot">
+    <h2>03 · Skinned (GLTF) <span class="pill ok">独立运行</span></h2>
+    <div class="sub">ADR-097 场景中的 GLTF 蒙皮网格与叠加式动画混合。</div>
+    <img src="screenshots/03-skinned.png" alt="演示 03 截图">
   </a>
 
   <a class="card" href="demos/04-skinned-fbx.html">
-    <h2>04 · Skinned FBX <span class="pill warn">needs FBX</span></h2>
-    <div class="sub">Mixamo X Bot via FBXLoader. Requires a local <code>assets/X Bot.fbx</code>.</div>
-    <img src="screenshots/04-skinned-fbx.png" alt="04 screenshot">
+    <h2>04 · Skinned FBX <span class="pill warn">需要 FBX</span></h2>
+    <div class="sub">通过 FBXLoader 加载 Mixamo X Bot，需要本地 <code>assets/X Bot.fbx</code>.</div>
+    <img src="screenshots/04-skinned-fbx.png" alt="演示 04 截图">
   </a>
 
   <a class="card" href="demos/05-skinned-realtime.html">
-    <h2>05 · Realtime (Pose + CSI) <span class="pill warn">needs FBX</span></h2>
-    <div class="sub">Webcam → MediaPipe Pose Heavy → Mixamo IK retarget, live ESP32 CSI overlay.</div>
-    <img src="screenshots/05-skinned-realtime.png" alt="05 screenshot">
+    <h2>05 · Realtime (Pose + CSI) <span class="pill warn">需要 FBX</span></h2>
+    <div class="sub">摄像头 → MediaPipe Pose Heavy → Mixamo IK 重定向，叠加实时 ESP32 CSI。</div>
+    <img src="screenshots/05-skinned-realtime.png" alt="演示 05 截图">
   </a>
 
 </div>
 
 <div class="note">
-  <b>Demos 04 and 05 need a Mixamo asset.</b> The Mixamo
-  <code>X Bot.fbx</code> file is intentionally <em>not</em> redistributed in
-  this deployment — it's licensed for end-users to download from
-  <a href="https://mixamo.com" target="_blank" rel="noopener">mixamo.com</a> directly.
-  To run these locally: clone the repo, download <code>X Bot.fbx</code>
-  (FBX Binary, T-Pose, Without Skin) into
-  <code>examples/three.js/assets/</code>, then run
-  <code>python examples/three.js/server/serve-demo.py</code>.
+  <b>演示 04 与 05 需要 Mixamo 资源。</b>Mixamo 的
+  <code>X Bot.fbx</code> 文件按授权约定<em>不</em>随本部署重新分发，
+  需由终端用户自行前往
+  <a href="https://mixamo.com" target="_blank" rel="noopener">mixamo.com</a> 下载。
+  本地运行步骤：克隆仓库，下载 <code>X Bot.fbx</code>
+  （FBX Binary、T-Pose、Without Skin）放入
+  <code>examples/three.js/assets/</code>，然后执行
+  <code>python examples/three.js/server/serve-demo.py</code>。
 </div>
 
 <div class="foot">
-  Source: <a href="https://github.com/ruvnet/RuView/tree/main/examples/three.js">github.com/ruvnet/RuView/tree/main/examples/three.js</a>
+  源码：<a href="https://github.com/ruvnet/RuView/tree/main/examples/three.js">github.com/ruvnet/RuView/tree/main/examples/three.js</a>
   &nbsp;·&nbsp; ADR-097 · three.js r128
 </div>
 
