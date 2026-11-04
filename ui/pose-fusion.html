@@ -12,7 +12,7 @@
   <header class="header">
     <div class="header-left">
       <div class="logo"><span class="pi">&pi;</span> RuView</div>
-      <div class="header-title">Dual-Modal Pose Estimation — Live Video + WiFi CSI Fusion</div>
+      <div class="header-title">双模态姿态估计 — 实时视频 + WiFi CSI 融合</div>
     </div>
     <div class="header-right">
       <select id="mode-select" class="mode-select">
@@ -42,7 +42,7 @@
       <div id="camera-prompt" class="camera-prompt">
         <div class="camera-prompt-label" id="prompt-mode-label">双模态融合</div>
         <p>启用摄像头以进行实时视频姿态估计。<br>
-           Or switch to <strong>仅 CSI</strong> mode for WiFi-based sensing.</p>
+           或切换为 <strong>仅 CSI</strong> 模式，使用基于 WiFi 的感知。</p>
         <button id="start-camera-btn">启用摄像头</button>
       </div>
     </div>
@@ -71,7 +71,7 @@
           </div>
         </div>
         <div style="margin-top:8px; font-size:10px; color:var(--text-label)">
-          Cross-modal: <span id="cross-modal-sim" style="color:var(--green-glow)">0.000</span>
+          跨模态相似度：<span id="cross-modal-sim" style="color:var(--green-glow)">0.000</span>
         </div>
       </div>
 
@@ -184,7 +184,7 @@
     <!-- Bottom Bar -->
     <div class="bottom-bar">
       <div>
-        RuView &middot; Dual-Modal Pose Estimation &middot;
+        RuView &middot; 双模态姿态估计 &middot;
         Architecture: Conv2D &rarr; RuVector 6-Stage Attention (Flash+MHA+Hyperbolic+Linear+MoE+L/G) &rarr; Fusion &rarr; 26-Keypoint Pose
       </div>
       <div>

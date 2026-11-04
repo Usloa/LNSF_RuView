@@ -5,20 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RuView · 穿墙 WiFi 感知 · 实时 CSI（无骨架、无模拟）</title>
     <!--
-      THROUGH-WALL WiFi-CSI SENSING DEMO  —  honest, real-data-only.
+      穿墙 WiFi-CSI 感知演示 —— 诚实呈现，仅使用真实数据。
 
-      Renders ONLY what the running sensing-server actually streams over
-      ws://localhost:8765/ws/sensing :
-        - the 20x20 `signal_field` floor heatmap (real values)
-        - a coarse RF-localization puck from persons[0].position (NOT pose)
-        - live motion / presence / rssi / confidence meters
-        - the real `source` ("esp32" = LIVE) verbatim in the banner
+      只渲染运行中的 sensing-server 通过
+      ws://localhost:8765/ws/sensing 实际推送的内容：
+        - 20x20 的 `signal_field` 地面热力图（真实数值）
+        - 由 persons[0].position 得出的粗粒度射频定位圆点（不是姿态）
+        - 实时的运动 / 在场 / RSSI / 置信度指标
+        - 横幅中原样展示真实的 `source`（"esp32" 表示实时）
 
-      It deliberately does NOT draw a skeleton. The server's
-      persons[].keypoints carry confidence:0.0 (image-pixel garbage, not
-      real 3D joints) so we never render them. WiFi CSI gives
-      motion/presence/coarse-position — that is the honest wow, and it
-      penetrates drywall. See README.md.
+      本演示刻意不绘制骨架。服务端返回的
+      persons[].keypoints 置信度为 0.0（只是图像像素垃圾数据，并非
+      真实三维关节），因此绝不渲染。WiFi CSI 提供的是
+      运动 / 在场 / 粗定位 —— 这才是经得起核验的亮点，且可
+      穿透石膏板墙。详见 README.md。
     -->
     <style>
         :root {

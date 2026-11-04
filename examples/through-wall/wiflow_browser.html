@@ -5,19 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>WiFlow 浏览器训练器 · 校准 → 采集 → 训练 → 推断，均在摄像头坐标系下</title>
 <!--
-  WiFlow in-browser trainer (ADR-079 / ADR-180 + ADR-151 empty-room baseline).
-  A 4-STAGE GATED FLOW, all in the LAPTOP camera's coordinate frame:
-    0. CALIBRATE — empty-room baseline (Welford mean+std over the 410-d CSI vector).
-                   Every CSI vector afterwards is expressed as deviation-from-baseline,
-                   so a body's perturbation stands out from the static channel.
-    1. CAPTURE   — MediaPipe Pose on the laptop camera = 17 COCO keypoints (the LABEL),
-                   paired with the baseline-normalized live ESP32 CSI vector (the INPUT).
-                   Guided, balanced routine with a per-pose coverage meter.
-    2. TRAIN     — a TF.js MLP (WebGPU/WASM/WebGL) learns CSI -> pose in-browser. Honest
-                   held-out PCK + a mean-pose baseline it must beat.
-    3. INFER     — the trained model drives a skeleton FROM WiFi CSI ONLY, drawn over the
-                   same camera frame, so it ALIGNS (the whole point of doing it in-browser).
-  Self-contained. CDN libs only. No bundler. Real data only — CSI source must read "esp32".
+  WiFlow 浏览器内训练器（ADR-079 / ADR-180 + ADR-151 空房间基线）。
+  四阶段门控流程，全部在笔记本摄像头坐标系下完成：
+    0. 校准   — 空房间基线（对 410 维 CSI 向量用 Welford 算法求均值与标准差）。
+                此后每个 CSI 向量都表示为相对基线的偏差，
+                使人体扰动从静态信道中凸显出来。
+    1. 采集   — 笔记本摄像头上的 MediaPipe Pose 产出的 17 个 COCO 关键点（标签），
+                与经基线归一化的实时 ESP32 CSI 向量（输入）配对。
+                采用带逐姿态覆盖度指示的引导式、均衡化采集流程。
+    2. 训练   — TF.js MLP（WebGPU/WASM/WebGL）在浏览器内学习 CSI → 姿态。
+                如实报告留出集 PCK，并给出必须超越的均值姿态基线。
+    3. 推断   — 训练好的模型仅凭 WiFi CSI 驱动骨架，叠加在同一摄像头画面上，
+                从而与图像对齐（这正是放在浏览器内完成的意义）。
+  自包含实现：仅依赖 CDN 库，无需打包器。只接受真实数据 —— CSI 的 source 必须为 "esp32"。
 -->
 <style>
   :root{--bg:#0a0c10;--panel:#11151c;--panel2:#0d1117;--amber:#ffb840;--green:#46e08a;
@@ -116,9 +116,9 @@
           <span id="detNodes" class="v">未检测到</span>
         </div>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button id="calBtn" class="btn">② calibrate baseline (10 s)</button>
+          <button id="calBtn" class="btn">② 校准基线（10 s）</button>
           <button id="recalBtn" class="ghost btn">重新校准</button>
-          <label class="note" style="margin:0">get-ready countdown
+          <label class="note" style="margin:0">准备倒计时
             <input id="calReady" type="number" value="5" min="3" max="15" style="width:64px"> s</label>
         </div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -135,13 +135,12 @@
         <div class="row"><span class="k">时长</span><span class="v" id="calAge">—</span></div>
         <div style="margin-top:8px"><div class="bar"><i id="calBar"></i></div></div>
         <div class="note">
-          The room's static WiFi channel is mostly constant. We capture ~10 s of the
-          <b>静默</b> field (you OUT of the space) and compute a per-feature running
-          <b>均值 + 标准差</b> (Welford) over the 410-d CSI vector. Afterwards every CSI vector
-          is expressed as <b>相对基线的偏差</b>:
-          <code>x_norm = (x − base_mean) / (base_std + ε)</code> — applied consistently in
-          capture, train, and infer. This makes a <b>人体扰动</b> stand out from
-          the static channel. You must calibrate before capturing.
+          房间内静态 WiFi 信道基本恒定。我们采集约 10 秒的
+          <b>静默</b>场（你需离开该空间），并对 410 维 CSI 向量逐特征计算滑动
+          <b>均值 + 标准差</b>（Welford 算法）。此后每个 CSI 向量都表示为
+          <b>相对基线的偏差</b>：
+          <code>x_norm = (x − base_mean) / (base_std + ε)</code> —— 在采集、训练与推断中
+          始终一致地应用。这样<b>人体扰动</b>就能从静态信道中凸显出来。采集前必须先完成校准。
         </div>
       </div>
     </div>
@@ -173,15 +172,15 @@
         <div class="row"><span class="k">预计耗时 / 样本</span><span class="v" id="capEst">—</span></div>
         <div class="row"><span class="k">最近跳过原因</span><span class="v" id="capSkip">—</span></div>
         <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <label class="note" style="margin:0">passes
+          <label class="note" style="margin:0">轮数
             <input id="capPasses" type="number" value="3" min="1" max="8" style="width:56px"></label>
-          <label class="note" style="margin:0">sec / activity
+          <label class="note" style="margin:0">秒 / 活动
             <input id="capSecs" type="number" value="12" min="4" max="40" style="width:56px"></label>
-          <label class="note" style="margin:0">get-ready
+          <label class="note" style="margin:0">准备时间
             <input id="capReady" type="number" value="3" min="0" max="10" style="width:56px"> s</label>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-          <button id="recBtn" class="btn" disabled>● start guided recording</button>
+          <button id="recBtn" class="btn" disabled>● 开始引导式录制</button>
           <button id="pauseBtn" class="ghost btn" disabled>暂停</button>
           <button id="skipBtn" class="ghost btn" disabled>跳过活动 ⏭</button>
           <button id="clrBtn" class="ghost btn">清空数据集</button>
@@ -792,7 +791,7 @@ function renderCoverage(){
 let pausedAt = 0;   // performance.now() captured at the moment of pause (used to rebase clocks on resume)
 function setCapControls(){
   const live = recording;
-  $('recBtn').textContent = live ? '◼ stop recording' : '● start guided recording';
+  $('recBtn').textContent = live ? '◼ stop recording' : '● 开始引导式录制';
   $('recBtn').classList.toggle('ghost', live);
   $('pauseBtn').disabled = !live; $('skipBtn').disabled = !live;
   $('pauseBtn').textContent = paused ? 'resume' : 'pause';
