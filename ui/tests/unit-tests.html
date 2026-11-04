@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RuView UI - Unit Tests</title>
+  <title>RuView 界面 — 单元测试</title>
   <style>
     * { margin: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 24px; }
@@ -21,8 +21,8 @@
   </style>
 </head>
 <body>
-  <h1>RuView UI - Unit Tests</h1>
-  <p class="subtitle">Tests for UI components and utility modules</p>
+  <h1>RuView 界面 — 单元测试</h1>
+  <p class="subtitle">界面组件与工具模块测试</p>
   <div id="output"></div>
   <div id="summary" class="summary"></div>
 
@@ -59,9 +59,9 @@
       c.innerHTML = `
         <header class="header"><div class="header-info"></div></header>
         <nav class="nav-tabs">
-          <button class="nav-tab active" data-tab="dashboard" role="tab" aria-selected="true">Dashboard</button>
-          <button class="nav-tab" data-tab="hardware" role="tab" aria-selected="false">Hardware</button>
-          <button class="nav-tab" data-tab="demo" role="tab" aria-selected="false">Live Demo</button>
+          <button class="nav-tab active" data-tab="dashboard" role="tab" aria-selected="true">仪表盘</button>
+          <button class="nav-tab" data-tab="hardware" role="tab" aria-selected="false">硬件</button>
+          <button class="nav-tab" data-tab="demo" role="tab" aria-selected="false">实时演示</button>
         </nav>
         <section id="dashboard" class="tab-content active" role="tabpanel"></section>
         <section id="hardware" class="tab-content" role="tabpanel"></section>

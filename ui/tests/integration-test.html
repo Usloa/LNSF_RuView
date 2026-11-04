@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFi DensePose Integration Test</title>
+    <title>WiFi DensePose 集成测试</title>
     <link rel="stylesheet" href="../style.css">
     <style>
         .test-controls {
@@ -94,26 +94,26 @@
 <body>
     <!-- Test Controls Panel -->
     <div class="test-controls">
-        <h3>Integration Tests</h3>
-        <button class="test-button" onclick="toggleMockMode()">Toggle Mock Mode</button>
-        <button class="test-button" onclick="checkBackendStatus()">Check Backend Status</button>
-        <button class="test-button" onclick="testHealthAPI()">Test Health API</button>
-        <button class="test-button" onclick="testPoseAPI()">Test Pose API</button>
-        <button class="test-button" onclick="testWebSocketStream()">Test WebSocket</button>
-        <button class="test-button" onclick="testFullIntegration()">Full Integration Test</button>
-        <button class="test-button" onclick="simulateErrors()">Simulate Errors</button>
+        <h3>集成测试</h3>
+        <button class="test-button" onclick="toggleMockMode()">切换模拟模式</button>
+        <button class="test-button" onclick="checkBackendStatus()">检查后端状态</button>
+        <button class="test-button" onclick="testHealthAPI()">测试健康检查 API</button>
+        <button class="test-button" onclick="testPoseAPI()">测试姿态 API</button>
+        <button class="test-button" onclick="testWebSocketStream()">测试 WebSocket</button>
+        <button class="test-button" onclick="testFullIntegration()">完整集成测试</button>
+        <button class="test-button" onclick="simulateErrors()">模拟错误</button>
         <div class="test-status" id="testStatus" style="display: none;"></div>
     </div>
 
     <!-- Mock Server Indicator -->
-    <div class="mock-indicator inactive" id="mockIndicator">Mock Server: Offline</div>
+    <div class="mock-indicator inactive" id="mockIndicator">模拟服务器：离线</div>
 
     <!-- Main Application -->
     <div class="container">
         <!-- Header -->
         <header class="header">
             <h1>WiFi DensePose</h1>
-            <p class="subtitle">Human Tracking Through Walls Using WiFi Signals</p>
+            <p class="subtitle">利用 WiFi 信号穿墙追踪人体</p>
             <div class="header-info">
                 <span class="api-version"></span>
                 <span class="api-environment"></span>
@@ -123,16 +123,16 @@
 
         <!-- Navigation -->
         <nav class="nav-tabs">
-            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
-            <button class="nav-tab" data-tab="hardware">Hardware</button>
-            <button class="nav-tab" data-tab="demo">Live Demo</button>
-            <button class="nav-tab" data-tab="architecture">Architecture</button>
+            <button class="nav-tab active" data-tab="dashboard">仪表盘</button>
+            <button class="nav-tab" data-tab="hardware">硬件</button>
+            <button class="nav-tab" data-tab="demo">实时演示</button>
+            <button class="nav-tab" data-tab="architecture">架构</button>
         </nav>
 
         <!-- Dashboard Tab -->
         <section id="dashboard" class="tab-content active">
             <div class="hero-section">
-                <h2>Integration Test Dashboard</h2>
+                <h2>集成测试仪表盘</h2>
                 <p class="hero-description">
                     This page demonstrates the full WiFi-DensePose UI with mock backend integration.
                     Use the test controls to interact with different components.
@@ -143,25 +143,25 @@
 
                 <!-- Live Status Panel -->
                 <div class="live-status-panel">
-                    <h3>System Status</h3>
+                    <h3>系统状态</h3>
                     <div class="status-grid">
                         <div class="component-status" data-component="api">
-                            <span class="component-name">API Server</span>
+                            <span class="component-name">API 服务</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="hardware">
-                            <span class="component-name">Hardware</span>
+                            <span class="component-name">硬件</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="inference">
-                            <span class="component-name">Inference</span>
+                            <span class="component-name">推理</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="streaming">
-                            <span class="component-name">Streaming</span>
+                            <span class="component-name">数据流</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
@@ -170,24 +170,24 @@
 
                 <!-- System Metrics -->
                 <div class="system-metrics-panel">
-                    <h3>System Metrics</h3>
+                    <h3>系统指标</h3>
                     <div class="metrics-grid">
                         <div class="metric-item">
-                            <span class="metric-label">CPU Usage</span>
+                            <span class="metric-label">CPU 占用</span>
                             <div class="progress-bar" data-type="cpu">
                                 <div class="progress-fill normal" style="width: 0%"></div>
                             </div>
                             <span class="cpu-usage">0%</span>
                         </div>
                         <div class="metric-item">
-                            <span class="metric-label">Memory Usage</span>
+                            <span class="metric-label">内存占用</span>
                             <div class="progress-bar" data-type="memory">
                                 <div class="progress-fill normal" style="width: 0%"></div>
                             </div>
                             <span class="memory-usage">0%</span>
                         </div>
                         <div class="metric-item">
-                            <span class="metric-label">Disk Usage</span>
+                            <span class="metric-label">磁盘占用</span>
                             <div class="progress-bar" data-type="disk">
                                 <div class="progress-fill normal" style="width: 0%"></div>
                             </div>
@@ -198,30 +198,30 @@
 
                 <!-- Features Status -->
                 <div class="features-panel">
-                    <h3>Features</h3>
+                    <h3>核心特性</h3>
                     <div class="features-status"></div>
                 </div>
 
                 <!-- Live Statistics -->
                 <div class="live-stats-panel">
-                    <h3>Live Statistics</h3>
+                    <h3>实时统计</h3>
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <span class="stat-label">Active Persons</span>
+                            <span class="stat-label">活跃人数</span>
                             <span class="person-count">0</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Avg Confidence</span>
+                            <span class="stat-label">平均置信度</span>
                             <span class="avg-confidence">0%</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Total Detections</span>
+                            <span class="stat-label">累计检测次数</span>
                             <span class="detection-count">0</span>
                         </div>
                     </div>
                     
                     <div class="zones-panel">
-                        <h4>Zone Occupancy</h4>
+                        <h4>区域占用</h4>
                         <div class="zones-summary"></div>
                     </div>
                 </div>
@@ -230,12 +230,12 @@
 
         <!-- Hardware Tab -->
         <section id="hardware" class="tab-content">
-            <h2>Hardware Configuration</h2>
+            <h2>硬件配置</h2>
             
             <div class="hardware-grid">
                 <div class="antenna-section">
                     <h3>3×3 Antenna Array</h3>
-                    <p class="help-text">Click antennas to toggle their state</p>
+                    <p class="help-text">点击天线可切换其状态</p>
                     <div class="antenna-array">
                         <div class="antenna-grid">
                             <div class="antenna tx active" data-type="TX1"></div>
@@ -251,11 +251,11 @@
                         <div class="antenna-legend">
                             <div class="legend-item">
                                 <div class="legend-color tx"></div>
-                                <span>Transmitters (3)</span>
+                                <span>发射端（3）</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-color rx"></div>
-                                <span>Receivers (6)</span>
+                                <span>接收端（6）</span>
                             </div>
                         </div>
                         <div class="array-status"></div>
@@ -263,38 +263,38 @@
                 </div>
 
                 <div class="config-section">
-                    <h3>WiFi Configuration</h3>
+                    <h3>WiFi 配置</h3>
                     <div class="config-grid">
                         <div class="config-item">
-                            <label>Frequency</label>
+                            <label>频率</label>
                             <div class="config-value">2.4GHz ± 20MHz</div>
                         </div>
                         <div class="config-item">
-                            <label>Subcarriers</label>
+                            <label>子载波</label>
                             <div class="config-value">30</div>
                         </div>
                         <div class="config-item">
-                            <label>Sampling Rate</label>
+                            <label>采样率</label>
                             <div class="config-value">100 Hz</div>
                         </div>
                         <div class="config-item">
-                            <label>Total Cost</label>
+                            <label>总成本</label>
                             <div class="config-value">$30</div>
                         </div>
                     </div>
 
                     <div class="csi-data">
-                        <h4>Real-time CSI Data</h4>
+                        <h4>实时 CSI 数据</h4>
                         <div class="csi-display">
                             <div class="csi-row">
-                                <span>Amplitude:</span>
+                                <span>幅度：</span>
                                 <div class="csi-bar">
                                     <div class="csi-fill amplitude" style="width: 75%"></div>
                                 </div>
                                 <span class="csi-value">0.75</span>
                             </div>
                             <div class="csi-row">
-                                <span>Phase:</span>
+                                <span>相位：</span>
                                 <div class="csi-bar">
                                     <div class="csi-fill phase" style="width: 60%"></div>
                                 </div>
@@ -308,50 +308,50 @@
 
         <!-- Demo Tab -->
         <section id="demo" class="tab-content">
-            <h2>Live Demonstration</h2>
+            <h2>实时演示</h2>
             
             <div class="demo-controls">
-                <button id="startDemo" class="btn btn--primary">Start Stream</button>
-                <button id="stopDemo" class="btn btn--secondary" disabled>Stop Stream</button>
+                <button id="startDemo" class="btn btn--primary">开始数据流</button>
+                <button id="stopDemo" class="btn btn--secondary" disabled>停止数据流</button>
                 <div class="demo-status">
-                    <span class="status status--info" id="demoStatus">Ready</span>
+                    <span class="status status--info" id="demoStatus">就绪</span>
                 </div>
             </div>
 
             <div class="demo-grid">
                 <div class="signal-panel">
-                    <h3>WiFi Signal Analysis</h3>
+                    <h3>WiFi 信号分析</h3>
                     <div class="signal-display">
                         <canvas id="signalCanvas" width="400" height="200"></canvas>
                     </div>
                     <div class="signal-metrics">
                         <div class="metric">
-                            <span>Signal Strength:</span>
+                            <span>信号强度：</span>
                             <span id="signalStrength">-45 dBm</span>
                         </div>
                         <div class="metric">
-                            <span>Processing Latency:</span>
+                            <span>处理延迟：</span>
                             <span id="latency">12 ms</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="pose-panel">
-                    <h3>Human Pose Detection</h3>
+                    <h3>人体姿态检测</h3>
                     <div class="pose-display">
                         <canvas id="poseCanvas" width="400" height="300"></canvas>
                     </div>
                     <div class="detection-info">
                         <div class="info-item">
-                            <span>Persons Detected:</span>
+                            <span>检测到人数：</span>
                             <span id="personCount">0</span>
                         </div>
                         <div class="info-item">
-                            <span>Confidence:</span>
+                            <span>置信度：</span>
                             <span id="confidence">0.0%</span>
                         </div>
                         <div class="info-item">
-                            <span>Keypoints:</span>
+                            <span>关键点：</span>
                             <span id="keypoints">0/0</span>
                         </div>
                     </div>
@@ -361,9 +361,9 @@
 
         <!-- Architecture Tab -->
         <section id="architecture" class="tab-content">
-            <h2>System Architecture</h2>
+            <h2>系统架构</h2>
             <div class="implementation-note">
-                <h3>Integration Test Mode</h3>
+                <h3>集成测试模式</h3>
                 <p>This page is running in integration test mode with a mock backend server. All API calls and WebSocket connections are intercepted and handled by mock implementations that simulate the real WiFi-DensePose backend.</p>
             </div>
         </section>

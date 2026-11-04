@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFi DensePose UI Tests</title>
+    <title>WiFi DensePose 界面测试</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -153,71 +153,71 @@
 </head>
 <body>
     <div class="test-header">
-        <h1>WiFi DensePose UI Test Suite</h1>
-        <p>Comprehensive testing for the modular UI components and API integration</p>
+        <h1>WiFi DensePose 界面测试套件</h1>
+        <p>模块化界面组件与 API 集成的综合测试</p>
     </div>
 
     <div class="controls">
-        <button id="runAllTests" class="run-tests-btn">Run All Tests</button>
-        <button id="runUnitTests" class="run-tests-btn">Run Unit Tests</button>
-        <button id="runIntegrationTests" class="run-tests-btn">Run Integration Tests</button>
-        <button id="clearResults" class="run-tests-btn" style="background: #dc3545;">Clear Results</button>
+        <button id="runAllTests" class="run-tests-btn">运行全部测试</button>
+        <button id="runUnitTests" class="run-tests-btn">运行单元测试</button>
+        <button id="runIntegrationTests" class="run-tests-btn">运行集成测试</button>
+        <button id="clearResults" class="run-tests-btn" style="background: #dc3545;">清空结果</button>
     </div>
 
     <div class="test-summary">
-        <h3>Test Summary</h3>
+        <h3>测试摘要</h3>
         <div class="summary-stats">
             <div class="stat-item">
                 <div class="stat-number" id="totalTests">0</div>
-                <div class="stat-label">Total Tests</div>
+                <div class="stat-label">测试总数</div>
             </div>
             <div class="stat-item">
                 <div class="stat-number" id="passedTests" style="color: #28a745;">0</div>
-                <div class="stat-label">Passed</div>
+                <div class="stat-label">通过</div>
             </div>
             <div class="stat-item">
                 <div class="stat-number" id="failedTests" style="color: #dc3545;">0</div>
-                <div class="stat-label">Failed</div>
+                <div class="stat-label">失败</div>
             </div>
             <div class="stat-item">
                 <div class="stat-number" id="pendingTests" style="color: #ffc107;">0</div>
-                <div class="stat-label">Pending</div>
+                <div class="stat-label">待运行</div>
             </div>
         </div>
     </div>
 
     <div class="test-suite">
-        <div class="test-suite-header">API Configuration Tests</div>
+        <div class="test-suite-header">API 配置测试</div>
         <div id="apiConfigTests"></div>
     </div>
 
     <div class="test-suite">
-        <div class="test-suite-header">API Service Tests</div>
+        <div class="test-suite-header">API 服务测试</div>
         <div id="apiServiceTests"></div>
     </div>
 
     <div class="test-suite">
-        <div class="test-suite-header">WebSocket Service Tests</div>
+        <div class="test-suite-header">WebSocket 服务测试</div>
         <div id="websocketServiceTests"></div>
     </div>
 
     <div class="test-suite">
-        <div class="test-suite-header">Pose Service Tests</div>
+        <div class="test-suite-header">姿态服务测试</div>
         <div id="poseServiceTests"></div>
     </div>
 
     <div class="test-suite">
-        <div class="test-suite-header">Health Service Tests</div>
+        <div class="test-suite-header">健康检查服务测试</div>
         <div id="healthServiceTests"></div>
     </div>
 
     <div class="test-suite">
-        <div class="test-suite-header">UI Component Tests</div>
+        <div class="test-suite-header">界面组件测试</div>
         <div id="uiComponentTests"></div>
     </div>
 
     <div class="test-suite">
-        <div class="test-suite-header">Integration Tests</div>
+        <div class="test-suite-header">集成测试</div>
         <div id="integrationTests"></div>
     </div>
 

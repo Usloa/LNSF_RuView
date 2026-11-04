@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RuView · Through-Wall WiFi Sensing · LIVE CSI (no skeleton, no simulation)</title>
+    <title>RuView · 穿墙 WiFi 感知 · 实时 CSI（无骨架、无模拟）</title>
     <!--
       THROUGH-WALL WiFi-CSI SENSING DEMO  —  honest, real-data-only.
 
@@ -156,57 +156,57 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
 </head>
 <body>
-    <div id="banner" class="noserver">NO SERVER — start the sensing-server <span class="src"></span></div>
-    <div id="banner-caption">Real WiFi CSI motion / presence / coarse-localization — penetrates drywall. Not skeletal pose.</div>
+    <div id="banner" class="noserver">无服务器 — 请启动 sensing-server<span class="src"></span></div>
+    <div id="banner-caption">真实 WiFi CSI 的运动 / 在场 / 粗定位——可穿透石膏板墙，但不提供骨架姿态。</div>
 
     <div class="overlay-frame"></div>
     <div class="scanlines"></div>
 
     <div class="panel" id="info">
-        <h1>THROUGH-WALL WiFi SENSING</h1>
-        <div class="sub">Live CSI · ws://localhost:8765/ws/sensing</div>
-        <div class="row"><span class="k">source</span><span class="v amber" id="m-source">—</span></div>
-        <div class="row"><span class="k">presence</span><span class="v" id="m-presence">—</span></div>
-        <div class="row"><span class="k">motion level</span><span class="v" id="m-motion">—</span></div>
-        <div class="row"><span class="k">confidence</span><span class="v cyan" id="m-conf">—</span></div>
-        <div class="row"><span class="k">est. persons</span><span class="v amber" id="m-persons">—</span></div>
-        <div class="row"><span class="k">active nodes</span><span class="v" id="m-nodes">—</span></div>
-        <div class="row"><span class="k">tick</span><span class="v" id="m-tick">—</span></div>
-        <div class="row"><span class="k">update rate</span><span class="v cyan" id="m-fps">—</span></div>
+        <h1>穿墙 WiFi 感知</h1>
+        <div class="sub">实时 CSI · ws://localhost:8765/ws/sensing</div>
+        <div class="row"><span class="k">来源</span><span class="v amber" id="m-source">—</span></div>
+        <div class="row"><span class="k">在场</span><span class="v" id="m-presence">—</span></div>
+        <div class="row"><span class="k">运动强度</span><span class="v" id="m-motion">—</span></div>
+        <div class="row"><span class="k">置信度</span><span class="v cyan" id="m-conf">—</span></div>
+        <div class="row"><span class="k">估计人数</span><span class="v amber" id="m-persons">—</span></div>
+        <div class="row"><span class="k">活跃节点</span><span class="v" id="m-nodes">—</span></div>
+        <div class="row"><span class="k">帧计数</span><span class="v" id="m-tick">—</span></div>
+        <div class="row"><span class="k">更新速率</span><span class="v cyan" id="m-fps">—</span></div>
     </div>
 
     <div class="panel" id="csi">
-        <h2>Live RF features</h2>
-        <div class="bar-row"><span class="label">motion</span><div class="bar-track"><div class="bar-fill" id="bar-motion"></div></div><span class="val" id="v-motion">—</span></div>
-        <div class="bar-row"><span class="label">breathing</span><div class="bar-track"><div class="bar-fill" id="bar-breath"></div></div><span class="val" id="v-breath">—</span></div>
-        <div class="bar-row"><span class="label">variance</span><div class="bar-track"><div class="bar-fill" id="bar-var"></div></div><span class="val" id="v-var">—</span></div>
-        <div class="bar-row"><span class="label">mean rssi</span><div class="bar-track"><div class="bar-fill" id="bar-rssi"></div></div><span class="val" id="v-rssi">—</span></div>
+        <h2>实时射频特征</h2>
+        <div class="bar-row"><span class="label">运动</span><div class="bar-track"><div class="bar-fill" id="bar-motion"></div></div><span class="val" id="v-motion">—</span></div>
+        <div class="bar-row"><span class="label">呼吸</span><div class="bar-track"><div class="bar-fill" id="bar-breath"></div></div><span class="val" id="v-breath">—</span></div>
+        <div class="bar-row"><span class="label">方差</span><div class="bar-track"><div class="bar-fill" id="bar-var"></div></div><span class="val" id="v-var">—</span></div>
+        <div class="bar-row"><span class="label">平均 RSSI</span><div class="bar-track"><div class="bar-fill" id="bar-rssi"></div></div><span class="val" id="v-rssi">—</span></div>
         <div class="spark"><canvas id="spark" width="252" height="38"></canvas></div>
-        <div class="legend">motion sparkline (last ~6s of real motion_band_power)</div>
+        <div class="legend">运动迷你曲线（最近约 6 秒的真实 motion_band_power）</div>
     </div>
 
     <div id="legend-nodes">
-        <h2>Sensor nodes</h2>
-        <div class="lr"><span class="dot" style="color:#4cf"></span><span>ESP32-S3 office <span class="muted">(node 9)</span></span></div>
-        <div class="lr"><span class="dot" style="color:#ff4cc8"></span><span>ESP32-S3 hallway <span class="muted">(node 13)</span></span></div>
-        <div class="lr" style="margin-top:6px"><span class="dot" style="color:#4f4"></span><span>RF localization <span class="muted">(coarse)</span></span></div>
-        <div class="lr"><span class="muted" style="font-size:10px;line-height:1.4">Office &amp; hallway split by a wall + doorway. WiFi motion still shows through drywall.</span></div>
+        <h2>传感器节点</h2>
+        <div class="lr"><span class="dot" style="color:#4cf"></span><span>ESP32-S3 办公室<span class="muted">(node 9)</span></span></div>
+        <div class="lr"><span class="dot" style="color:#ff4cc8"></span><span>ESP32-S3 走廊<span class="muted">(node 13)</span></span></div>
+        <div class="lr" style="margin-top:6px"><span class="dot" style="color:#4f4"></span><span>射频定位<span class="muted">(coarse)</span></span></div>
+        <div class="lr"><span class="muted" style="font-size:10px;line-height:1.4">办公室与走廊由墙体和门洞分隔。WiFi 仍能穿透石膏板墙显示运动。</span></div>
     </div>
 
     <div id="cam-tile">
-        <h2>camera — ground truth when visible</h2>
+        <h2>摄像头 — 可见时作为真值</h2>
         <video id="cam-video" autoplay muted playsinline></video>
         <button id="cam-btn">▶ enable webcam (optional)</button>
-        <div class="gt-note">Independent of the CSI sensing. The WiFi works in the dark and through walls; the camera does not.</div>
+        <div class="gt-note">与 CSI 感知相互独立。WiFi 在全黑环境和穿墙条件下仍可工作，摄像头则不行。</div>
     </div>
 
     <div id="waiting" class="show">
-        <div class="big pulse">Waiting for live sensing-server</div>
-        <div>No connection to <b>ws://localhost:8765/ws/sensing</b>. Start the real server, then this page connects automatically.</div>
+        <div class="big pulse">等待实时 sensing-server</div>
+        <div>未连接到<b>ws://localhost:8765/ws/sensing</b>. Start the real server, then this page connects automatically.</div>
         <code>cd v2
 cargo build -p wifi-densepose-sensing-server
 ./target/debug/sensing-server.exe --ws-port 8765 --udp-port 5005</code>
-        <div style="margin-top:10px; color:var(--text-mute); font-size:11px;">This demo renders ONLY real data. It never invents frames.</div>
+        <div style="margin-top:10px; color:var(--text-mute); font-size:11px;">本演示仅渲染真实数据，绝不伪造帧。</div>
     </div>
 
 <script>

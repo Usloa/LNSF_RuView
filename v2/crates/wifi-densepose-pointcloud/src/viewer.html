@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RuView — Camera + WiFi CSI Point Cloud</title>
+    <title>RuView — 摄像头 + WiFi CSI 点云</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="ruview-viewer-version" content="0.2.0-face-mesh">
@@ -32,7 +32,7 @@
     <div id="info">
         <h3 style="margin:0 0 4px 0">RuView · Seldon Vault</h3>
         <div style="font-size: 11px; color: #888; margin-bottom: 8px; max-width: 240px; line-height: 1.4; font-style: italic;">"Psychohistory deals with reactions of human conglomerates to fixed social and economic stimuli." — Hari Seldon</div>
-        <div id="stats">Loading...</div>
+        <div id="stats">加载中…</div>
     </div>
     <button id="cam-cta">▶ Project Subject — render your face into the Vault</button>
     <button id="esp-cta" title="Stream live CSI from a local ruview-pointcloud serve instance (e.g. http://127.0.0.1:9880)">📡 Connect ESP32…</button>
@@ -519,7 +519,7 @@
                 lastBackendError = err && err.message ? err.message : String(err);
                 if (requireLive) {
                     document.getElementById("stats").innerHTML =
-                        '<span class="demo">&#9679; OFFLINE</span><br>Live backend required (?live=1) but unreachable.<br><span class="label">' + lastBackendError + '</span>';
+                        '<span class="demo">&#9679; 离线</span><br>需要实时后端（?live=1），但无法连接。<br><span class="label">' + lastBackendError + '</span>';
                     // Even strict-live: back off so we don't spam.
                     currentIntervalMs = Math.min(currentIntervalMs * 2, MAX_INTERVAL_MS);
                     scheduleNextFetch(currentIntervalMs);
@@ -590,13 +590,13 @@
                     // Build info panel — badge reflects active transport
                     var mode;
                     if (transportMode === "live") {
-                        mode = '<span class="live">&#9679; LIVE</span> Local Backend';
+                        mode = '<span class="live">&#9679; 实时</span> 本地后端';
                     } else if (transportMode === "remote") {
                         mode = '<span class="live">&#9679; REMOTE</span> ' + backendArg;
                     } else if (data.source === "face-mesh") {
-                        mode = '<span class="face">&#9679; DEMO</span> Your Face (MediaPipe)';
+                        mode = '<span class="face">&#9679; 演示</span> 你的面部（MediaPipe）';
                     } else {
-                        mode = '<span class="demo">&#9679; DEMO</span> Synthetic';
+                        mode = '<span class="demo">&#9679; 演示</span> 合成数据';
                     }
                     if (data._faceOverlay) {
                         mode += ' <span class="face">+ face overlay</span>';
@@ -613,24 +613,24 @@
                     if (data._backendUnreachable) {
                         var nextSec = Math.round((data._retryInMs || 1000) / 1000);
                         html += '<div class="section">'
-                            + '<span class="demo">&#9679; ' + data._backendUrl + '</span> unreachable'
-                            + '<br><span class="label">' + (data._backendError || "connection failed") + '</span>'
-                            + '<br><span class="label">retry in ' + nextSec + 's</span>'
-                            + '<br><br><span class="label">start the server:</span>'
+                            + '<span class="demo">&#9679; ' + data._backendUrl + '</span> 无法连接'
+                            + '<br><span class="label">' + (data._backendError || "连接失败") + '</span>'
+                            + '<br><span class="label">' + nextSec + ' 秒后重试</span>'
+                            + '<br><br><span class="label">启动服务器：</span>'
                             + '<br><code style="color:#e8a634">cargo run -p wifi-densepose-pointcloud --release \\<br>&nbsp;&nbsp;-- serve --bind 127.0.0.1:9880</code>'
                             + '</div>';
                     }
 
                     // CSI frame rate
                     html += '<div class="section">'
-                        + '<span class="label">CSI Rate:</span> '
+                        + '<span class="label">CSI 速率：</span> '
                         + frameRateVal + " fps</div>";
 
                     // Skeleton confidence
                     if (pipe && pipe.skeleton && pipe.skeleton.confidence !== undefined) {
                         var conf = (pipe.skeleton.confidence * 100).toFixed(0);
                         html += '<div class="section">'
-                            + '<span class="label">Skeleton:</span> '
+                            + '<span class="label">骨架：</span> '
                             + conf + "% confidence</div>";
                     }
 
@@ -638,7 +638,7 @@
                     if (pipe && pipe.weather) {
                         var w = pipe.weather;
                         html += '<div class="section">'
-                            + '<span class="label">Weather:</span> ';
+                            + '<span class="label">天气：</span> ';
                         if (w.temperature !== undefined) {
                             html += w.temperature + "&deg;C";
                         }
@@ -651,7 +651,7 @@
                     // Building count from geo
                     if (pipe && pipe.geo && pipe.geo.building_count !== undefined) {
                         html += '<div class="section">'
-                            + '<span class="label">Buildings:</span> '
+                            + '<span class="label">楼宇：</span> '
                             + pipe.geo.building_count + "</div>";
                     }
 
@@ -659,7 +659,7 @@
                     if (pipe && pipe.vitals) {
                         var v = pipe.vitals;
                         html += '<div class="section">'
-                            + '<span class="label">Vitals:</span> ';
+                            + '<span class="label">生命体征：</span> ';
                         if (v.breathing_rate !== undefined) {
                             html += "BR " + v.breathing_rate + "/min";
                         }

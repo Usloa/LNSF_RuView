@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFi-Mat Disaster Response Dashboard</title>
+    <title>WiFi-Mat 灾害响应仪表盘</title>
     <style>
         * {
             margin: 0;
@@ -438,19 +438,19 @@
 </head>
 <body>
     <header class="header">
-        <h1>WiFi-Mat Disaster Response</h1>
-        <div class="event-info" id="eventInfo">No active event</div>
+        <h1>WiFi-Mat 灾害响应</h1>
+        <div class="event-info" id="eventInfo">无进行中的事件</div>
     </header>
 
     <div class="main-container">
         <section class="map-section">
             <div class="map-header">
-                <h2>Scan Zone Map</h2>
+                <h2>扫描区域地图</h2>
                 <div class="map-controls">
-                    <button class="btn-primary" onclick="showCreateEventModal()">New Event</button>
+                    <button class="btn-primary" onclick="showCreateEventModal()">新建事件</button>
                     <button class="btn-secondary" onclick="addRectZone()">+ Rectangle Zone</button>
                     <button class="btn-secondary" onclick="addCircleZone()">+ Circle Zone</button>
-                    <button class="btn-secondary" onclick="simulateSurvivor()">Simulate Detection</button>
+                    <button class="btn-secondary" onclick="simulateSurvivor()">模拟检测</button>
                 </div>
             </div>
             <div class="canvas-container">
@@ -460,64 +460,64 @@
 
         <aside class="sidebar">
             <div class="panel">
-                <h3>Statistics</h3>
+                <h3>统计</h3>
                 <div class="stats-grid">
                     <div class="stat-item stat-total">
                         <div class="stat-value" id="statTotal">0</div>
-                        <div class="stat-label">Total Survivors</div>
+                        <div class="stat-label">幸存者总数</div>
                     </div>
                     <div class="stat-item stat-immediate">
                         <div class="stat-value" id="statImmediate">0</div>
-                        <div class="stat-label">Immediate</div>
+                        <div class="stat-label">立即救治</div>
                     </div>
                     <div class="stat-item stat-delayed">
                         <div class="stat-value" id="statDelayed">0</div>
-                        <div class="stat-label">Delayed</div>
+                        <div class="stat-label">延迟救治</div>
                     </div>
                     <div class="stat-item stat-minor">
                         <div class="stat-value" id="statMinor">0</div>
-                        <div class="stat-label">Minor</div>
+                        <div class="stat-label">轻伤</div>
                     </div>
                 </div>
             </div>
 
             <div class="panel">
-                <h3>Triage Legend</h3>
+                <h3>分诊图例</h3>
                 <div class="legend">
                     <div class="legend-item">
                         <div class="legend-color legend-immediate"></div>
-                        <span>Immediate (Red) - Life-threatening</span>
+                        <span>立即救治（红）— 危及生命</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color legend-delayed"></div>
-                        <span>Delayed (Yellow) - Serious</span>
+                        <span>延迟救治（黄）— 严重</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color legend-minor"></div>
-                        <span>Minor (Green) - Walking wounded</span>
+                        <span>轻伤（绿）— 可行走</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color legend-deceased"></div>
-                        <span>Deceased (Black)</span>
+                        <span>死亡（黑）</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color legend-unknown"></div>
-                        <span>Unknown (Gray)</span>
+                        <span>未知（灰）</span>
                     </div>
                 </div>
             </div>
 
             <div class="panel">
-                <h3>Active Alerts</h3>
+                <h3>活动告警</h3>
                 <div class="alerts-list" id="alertsList">
-                    <p style="color: #666; font-size: 0.85rem;">No active alerts</p>
+                    <p style="color: #666; font-size: 0.85rem;">无活动告警</p>
                 </div>
             </div>
 
             <div class="panel">
-                <h3>Detected Survivors</h3>
+                <h3>已检出幸存者</h3>
                 <div class="survivors-list" id="survivorsList">
-                    <p style="color: #666; font-size: 0.85rem;">No survivors detected</p>
+                    <p style="color: #666; font-size: 0.85rem;">未检出幸存者</p>
                 </div>
             </div>
         </aside>
@@ -528,36 +528,36 @@
     <!-- Create Event Modal -->
     <div class="modal-overlay" id="createEventModal">
         <div class="modal">
-            <h2>Create Disaster Event</h2>
+            <h2>创建灾害事件</h2>
             <div class="modal-form">
                 <div class="form-group">
-                    <label>Disaster Type</label>
+                    <label>灾害类型</label>
                     <select id="disasterType">
-                        <option value="earthquake">Earthquake</option>
-                        <option value="building_collapse">Building Collapse</option>
-                        <option value="landslide">Landslide</option>
-                        <option value="avalanche">Avalanche</option>
-                        <option value="flood">Flood</option>
-                        <option value="mine_collapse">Mine Collapse</option>
-                        <option value="industrial">Industrial Accident</option>
-                        <option value="tunnel_collapse">Tunnel Collapse</option>
+                        <option value="earthquake">地震</option>
+                        <option value="building_collapse">建筑倒塌</option>
+                        <option value="landslide">滑坡</option>
+                        <option value="avalanche">雪崩</option>
+                        <option value="flood">洪水</option>
+                        <option value="mine_collapse">矿井塌方</option>
+                        <option value="industrial">工业事故</option>
+                        <option value="tunnel_collapse">隧道塌方</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Location (Latitude)</label>
+                    <label>位置（纬度）</label>
                     <input type="number" id="eventLat" value="37.7749" step="0.0001">
                 </div>
                 <div class="form-group">
-                    <label>Location (Longitude)</label>
+                    <label>位置（经度）</label>
                     <input type="number" id="eventLng" value="-122.4194" step="0.0001">
                 </div>
                 <div class="form-group">
-                    <label>Description</label>
+                    <label>描述</label>
                     <input type="text" id="eventDesc" placeholder="Enter event description">
                 </div>
                 <div class="form-actions">
-                    <button class="btn-secondary" onclick="hideCreateEventModal()">Cancel</button>
-                    <button class="btn-primary" onclick="createEvent()">Create Event</button>
+                    <button class="btn-secondary" onclick="hideCreateEventModal()">取消</button>
+                    <button class="btn-primary" onclick="createEvent()">创建事件</button>
                 </div>
             </div>
         </div>
@@ -970,7 +970,7 @@
             const container = document.getElementById('survivorsList');
 
             if (survivors.length === 0) {
-                container.innerHTML = '<p style="color: #666; font-size: 0.85rem;">No survivors detected</p>';
+                container.innerHTML = '<p style="color: #666; font-size: 0.85rem;">未检出幸存者</p>';
                 return;
             }
 
@@ -996,7 +996,7 @@
             const container = document.getElementById('alertsList');
 
             if (alerts.length === 0) {
-                container.innerHTML = '<p style="color: #666; font-size: 0.85rem;">No active alerts</p>';
+                container.innerHTML = '<p style="color: #666; font-size: 0.85rem;">无活动告警</p>';
                 return;
             }
 
