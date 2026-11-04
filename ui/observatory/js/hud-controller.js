@@ -66,19 +66,19 @@ export const PRESETS = {
 
 // Scenario descriptions shown below the dropdown
 const SCENARIO_DESCRIPTIONS = {
-  auto:              'Auto-cycling through all sensing scenarios.',
-  empty_room:        'Baseline calibration with no human presence in the monitored zone.',
-  single_breathing:  'Detecting vital signs through WiFi signal micro-variations.',
-  two_walking:       'Tracking multiple people simultaneously via CSI multiplex separation.',
-  fall_event:        'Sudden posture-change detection using acceleration feature analysis.',
-  sleep_monitoring:  'Monitoring breathing patterns and apnea events during sleep.',
-  intrusion_detect:  'Passive perimeter monitoring -- no cameras, pure RF sensing.',
-  gesture_control:   'DTW-based gesture recognition from hand/arm motion signatures.',
-  crowd_occupancy:   'Estimating room occupancy count from aggregate CSI variance.',
-  search_rescue:     'Through-wall survivor detection using WiFi-MAT multistatic mode.',
-  elderly_care:      'Continuous gait analysis for early mobility-decline detection.',
-  fitness_tracking:  'Rep counting and exercise classification from body kinematics.',
-  security_patrol:   'Multi-zone presence patrol with camera-free motion heatmaps.',
+  auto:              '自动轮播全部感知场景。',
+  empty_room:        '监测区域内无人时的基线校准。',
+  single_breathing:  '通过 WiFi 信号的微小波动检测生命体征。',
+  two_walking:       '通过 CSI 多路分离同时追踪多人。',
+  fall_event:        '基于加速度特征分析检测姿态骤变。',
+  sleep_monitoring:  '监测睡眠期间的呼吸模式与呼吸暂停事件。',
+  intrusion_detect:  '被动式周界监测——无摄像头，纯射频感知。',
+  gesture_control:   '基于手部/手臂运动特征的 DTW 手势识别。',
+  crowd_occupancy:   '由聚合 CSI 方差估算房间人数。',
+  search_rescue:     '使用 WiFi-MAT 多静态模式穿墙探测幸存者。',
+  elderly_care:      '持续步态分析，用于早期行动能力下降预警。',
+  fitness_tracking:  '由人体运动学特征进行次数统计与动作分类。',
+  security_patrol:   '多区域在场巡逻，配无摄像头运动热力图。',
 };
 
 // Edge modules active per scenario
@@ -363,9 +363,9 @@ export class HudController {
     const dot = document.querySelector('#data-source-badge .dot');
     const label = document.getElementById('data-source-label');
     if (dataSource === 'ws' && ws?.readyState === WebSocket.OPEN) {
-      dot.className = 'dot dot--live'; label.textContent = 'LIVE';
+      dot.className = 'dot dot--live'; label.textContent = '实时';
     } else {
-      dot.className = 'dot dot--demo'; label.textContent = 'DEMO';
+      dot.className = 'dot dot--demo'; label.textContent = '演示';
     }
   }
 
@@ -430,9 +430,9 @@ export class HudController {
     if (presEl) {
       const ml = cls.motion_level || 'absent';
       presEl.className = 'presence-state';
-      if (ml === 'active') { presEl.classList.add('presence--active'); presLabel.textContent = 'ACTIVE'; }
-      else if (cls.presence) { presEl.classList.add('presence--present'); presLabel.textContent = 'PRESENT'; }
-      else { presEl.classList.add('presence--absent'); presLabel.textContent = 'ABSENT'; }
+      if (ml === 'active') { presEl.classList.add('presence--active'); presLabel.textContent = '活跃'; }
+      else if (cls.presence) { presEl.classList.add('presence--present'); presLabel.textContent = '有人'; }
+      else { presEl.classList.add('presence--absent'); presLabel.textContent = '无人'; }
     }
 
     const fallEl = document.getElementById('fall-alert');
