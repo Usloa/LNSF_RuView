@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>WiFlow Browser Trainer · calibrate → capture → train → infer, in your camera's frame</title>
+<title>WiFlow 浏览器训练器 · 校准 → 采集 → 训练 → 推断，均在摄像头坐标系下</title>
 <!--
   WiFlow in-browser trainer (ADR-079 / ADR-180 + ADR-151 empty-room baseline).
   A 4-STAGE GATED FLOW, all in the LAPTOP camera's coordinate frame:
@@ -88,20 +88,20 @@
 </head>
 <body>
 <header>
-  <h1>WiFlow <span>Browser Trainer</span> — calibrate · capture · train · infer</h1>
-  <div id="compute">compute: …</div>
-  <div id="banner" class="down">CONNECTING…</div>
+  <h1>WiFlow <span>浏览器训练器</span> — calibrate · capture · train · infer</h1>
+  <div id="compute">算力：…</div>
+  <div id="banner" class="down">连接中…</div>
 </header>
 
 <!-- progress stepper, each gated on the previous -->
 <div class="steps">
-  <div class="step on"      data-stage="calibrate"><span class="num">0</span> CALIBRATE</div>
+  <div class="step on"      data-stage="calibrate"><span class="num">0</span>校准</div>
   <span class="arrow">→</span>
-  <div class="step locked"  data-stage="capture"><span class="num">1</span> CAPTURE</div>
+  <div class="step locked"  data-stage="capture"><span class="num">1</span>采集</div>
   <span class="arrow">→</span>
-  <div class="step locked"  data-stage="train"><span class="num">2</span> TRAIN</div>
+  <div class="step locked"  data-stage="train"><span class="num">2</span>训练</div>
   <span class="arrow">→</span>
-  <div class="step locked"  data-stage="infer"><span class="num">3</span> INFER</div>
+  <div class="step locked"  data-stage="infer"><span class="num">3</span>推断</div>
 </div>
 
 <main>
@@ -109,38 +109,38 @@
   <section id="stage-calibrate" class="panel on">
     <div class="cols">
       <div class="card">
-        <div class="label">empty-room baseline (ADR-151) — step OUT of the space</div>
+        <div class="label">空房间基线（ADR-151）——请离开该空间</div>
         <canvas id="calCv" width="420" height="300"></canvas>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button id="detBtn" class="btn">① detect ESP32 sensors</button>
-          <span id="detNodes" class="v">not detected</span>
+          <span id="detNodes" class="v">未检测到</span>
         </div>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button id="calBtn" class="btn">② calibrate baseline (10 s)</button>
-          <button id="recalBtn" class="ghost btn">recalibrate</button>
+          <button id="recalBtn" class="ghost btn">重新校准</button>
           <label class="note" style="margin:0">get-ready countdown
             <input id="calReady" type="number" value="5" min="3" max="15" style="width:64px"> s</label>
         </div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button id="calCamBtn" class="ghost btn">enable camera (to confirm room empty)</button>
+          <button id="calCamBtn" class="ghost btn">启用摄像头（确认房间为空）</button>
           <select id="calCamSel" style="display:none"></select>
         </div>
-        <div id="calCamStatus" class="note" style="margin-top:6px">camera: off</div>
+        <div id="calCamStatus" class="note" style="margin-top:6px">摄像头：关闭</div>
       </div>
       <div class="card stats">
-        <div class="label">baseline</div>
-        <div class="row"><span class="k">CSI source</span><span class="v" id="calSrc">—</span></div>
-        <div class="row"><span class="k">status</span><span class="v" id="calStatus">NOT CALIBRATED</span></div>
-        <div class="row"><span class="k">frames in baseline</span><span class="v" id="calN">0</span></div>
-        <div class="row"><span class="k">age</span><span class="v" id="calAge">—</span></div>
+        <div class="label">基线</div>
+        <div class="row"><span class="k">CSI 来源</span><span class="v" id="calSrc">—</span></div>
+        <div class="row"><span class="k">状态</span><span class="v" id="calStatus">未校准</span></div>
+        <div class="row"><span class="k">基线帧数</span><span class="v" id="calN">0</span></div>
+        <div class="row"><span class="k">时长</span><span class="v" id="calAge">—</span></div>
         <div style="margin-top:8px"><div class="bar"><i id="calBar"></i></div></div>
         <div class="note">
           The room's static WiFi channel is mostly constant. We capture ~10 s of the
-          <b>quiescent</b> field (you OUT of the space) and compute a per-feature running
-          <b>mean + std</b> (Welford) over the 410-d CSI vector. Afterwards every CSI vector
-          is expressed as <b>deviation from baseline</b>:
+          <b>静默</b> field (you OUT of the space) and compute a per-feature running
+          <b>均值 + 标准差</b> (Welford) over the 410-d CSI vector. Afterwards every CSI vector
+          is expressed as <b>相对基线的偏差</b>:
           <code>x_norm = (x − base_mean) / (base_std + ε)</code> — applied consistently in
-          capture, train, and infer. This makes a <b>body's perturbation</b> stand out from
+          capture, train, and infer. This makes a <b>人体扰动</b> stand out from
           the static channel. You must calibrate before capturing.
         </div>
       </div>
@@ -151,27 +151,27 @@
   <section id="stage-capture" class="panel">
     <div class="cols">
       <div class="card">
-        <div class="label">laptop camera <span class="pill gt">MediaPipe skeleton = GROUND TRUTH (the label)</span></div>
+        <div class="label">笔记本摄像头<span class="pill gt">MediaPipe 骨架 = 真值（标签）</span></div>
         <canvas id="capCv" width="420" height="480"></canvas>
-        <div id="prompt">stand still</div>
+        <div id="prompt">保持静止</div>
         <div id="countdown">—</div>
         <div style="margin-top:6px"><div class="bar"><i id="capProg"></i></div></div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button id="camBtn" class="btn">enable laptop camera</button>
+          <button id="camBtn" class="btn">启用笔记本摄像头</button>
           <select id="camSel" style="display:none"></select>
         </div>
-        <div id="camStatus" class="note" style="margin-top:6px">camera: off</div>
+        <div id="camStatus" class="note" style="margin-top:6px">摄像头：关闭</div>
       </div>
       <div class="card stats">
-        <div class="label">guided capture</div>
-        <div class="row"><span class="k">CSI source</span><span class="v" id="capSrc">—</span></div>
-        <div class="row"><span class="k">CSI nodes</span><span class="v" id="capNodes">—</span></div>
-        <div class="row"><span class="k">pose visibility</span><span class="v" id="capVis">—</span></div>
-        <div class="row"><span class="k">pass / activity</span><span class="v" id="capPass">— / —</span></div>
-        <div class="row"><span class="k">this activity samples</span><span class="v" id="capActN">0</span></div>
-        <div class="row"><span class="k">total samples</span><span class="v green" id="capN">0</span></div>
-        <div class="row"><span class="k">est. time / samples</span><span class="v" id="capEst">—</span></div>
-        <div class="row"><span class="k">last skip reason</span><span class="v" id="capSkip">—</span></div>
+        <div class="label">引导式采集</div>
+        <div class="row"><span class="k">CSI 来源</span><span class="v" id="capSrc">—</span></div>
+        <div class="row"><span class="k">CSI 节点</span><span class="v" id="capNodes">—</span></div>
+        <div class="row"><span class="k">姿态可见度</span><span class="v" id="capVis">—</span></div>
+        <div class="row"><span class="k">轮次 / 活动</span><span class="v" id="capPass">— / —</span></div>
+        <div class="row"><span class="k">本活动样本数</span><span class="v" id="capActN">0</span></div>
+        <div class="row"><span class="k">样本总数</span><span class="v green" id="capN">0</span></div>
+        <div class="row"><span class="k">预计耗时 / 样本</span><span class="v" id="capEst">—</span></div>
+        <div class="row"><span class="k">最近跳过原因</span><span class="v" id="capSkip">—</span></div>
         <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <label class="note" style="margin:0">passes
             <input id="capPasses" type="number" value="3" min="1" max="8" style="width:56px"></label>
@@ -182,24 +182,23 @@
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
           <button id="recBtn" class="btn" disabled>● start guided recording</button>
-          <button id="pauseBtn" class="ghost btn" disabled>pause</button>
-          <button id="skipBtn" class="ghost btn" disabled>skip activity ⏭</button>
-          <button id="clrBtn" class="ghost btn">clear dataset</button>
+          <button id="pauseBtn" class="ghost btn" disabled>暂停</button>
+          <button id="skipBtn" class="ghost btn" disabled>跳过活动 ⏭</button>
+          <button id="clrBtn" class="ghost btn">清空数据集</button>
         </div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button id="expBtn" class="ghost btn">export dataset (JSON)</button>
-          <button id="impBtn" class="ghost btn">import dataset</button>
+          <button id="expBtn" class="ghost btn">导出数据集（JSON）</button>
+          <button id="impBtn" class="ghost btn">导入数据集</button>
           <input id="impFile" type="file" accept="application/json,.json" style="display:none">
         </div>
-        <div class="label" style="margin-top:16px">per-pose coverage (balance the dataset)</div>
+        <div class="label" style="margin-top:16px">逐姿态覆盖度（平衡数据集）</div>
         <div id="cov" class="cov"></div>
         <div class="note">
-          A pair is recorded <b>only</b> when BOTH (a) a confident MediaPipe pose
-          (mean visibility &gt; 0.5) AND (b) a fresh <b>live</b> CSI frame (<code>source==esp32</code>)
-          exist. We store the <b>baseline-normalized</b> CSI + the 17 keypoints, mirrored to
-          IndexedDB so a refresh keeps them. The routine runs <b>multiple interleaved passes</b>
-          through every activity, so a chronological held-out split contains the same activity mix
-          as training (fixes the OOD split). Follow the prompt so every pose bucket fills up.
+          仅当同时满足 (a) 置信度足够的 MediaPipe 姿态（平均可见度 &gt; 0.5）与 (b) 一帧新鲜的
+          <b>实时</b> CSI 数据（<code>source==esp32</code>）时，才会记录一对样本。
+          我们保存<b>经基线归一化</b>的 CSI 与 17 个关键点，并镜像到 IndexedDB，使刷新页面后数据仍在。
+          采集流程会对每种活动执行<b>多轮交错采集</b>，因此按时间顺序切出的留出集与训练集
+          具有相同的活动分布（修复 OOD 划分问题）。请按提示操作，让每个姿态分桶都填满。
         </div>
       </div>
     </div>
@@ -209,35 +208,35 @@
   <section id="stage-train" class="panel">
     <div class="cols">
       <div class="card stats">
-        <div class="label">train (TensorFlow.js)</div>
-        <div class="row"><span class="k">total samples</span><span class="v" id="trN">0</span></div>
-        <div class="row"><span class="k">train / val split</span><span class="v" id="trSplit">— / — (chronological 80/20)</span></div>
-        <div class="row"><span class="k">epoch</span><span class="v" id="trEpoch">0</span></div>
-        <div class="row"><span class="k">train MSE</span><span class="v" id="trLoss">—</span></div>
-        <div class="row"><span class="k">val MSE</span><span class="v" id="trVal">—</span></div>
-        <div class="row"><span class="k">held-out PCK@0.10</span><span class="v green" id="trP10">—</span></div>
-        <div class="row"><span class="k">held-out PCK@0.05</span><span class="v" id="trP05">—</span></div>
-        <div class="row"><span class="k">held-out MPJPE</span><span class="v" id="trMpj">—</span></div>
-        <div class="row"><span class="k">mean-pose baseline PCK@0.10</span><span class="v red" id="trBase">—</span></div>
+        <div class="label">训练（TensorFlow.js）</div>
+        <div class="row"><span class="k">样本总数</span><span class="v" id="trN">0</span></div>
+        <div class="row"><span class="k">训练 / 验证划分</span><span class="v" id="trSplit">— / — （按时间顺序 80/20）</span></div>
+        <div class="row"><span class="k">轮次</span><span class="v" id="trEpoch">0</span></div>
+        <div class="row"><span class="k">训练 MSE</span><span class="v" id="trLoss">—</span></div>
+        <div class="row"><span class="k">验证 MSE</span><span class="v" id="trVal">—</span></div>
+        <div class="row"><span class="k">留出集 PCK@0.10</span><span class="v green" id="trP10">—</span></div>
+        <div class="row"><span class="k">留出集 PCK@0.05</span><span class="v" id="trP05">—</span></div>
+        <div class="row"><span class="k">留出集 MPJPE</span><span class="v" id="trMpj">—</span></div>
+        <div class="row"><span class="k">均值姿态基线 PCK@0.10</span><span class="v red" id="trBase">—</span></div>
         <div style="margin-top:8px"><div class="bar"><i id="trBar"></i></div></div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <label class="note" style="margin:0">epochs <input id="trEpochs" type="number" value="200" min="20" max="600" style="width:74px"></label>
-          <label class="note" style="margin:0">patience <input id="trPatience" type="number" value="30" min="5" max="200" style="width:64px"></label>
-          <button id="trainBtn" class="btn" disabled>train model</button>
-          <button id="trStop" class="ghost btn" disabled>stop</button>
+          <label class="note" style="margin:0">训练轮数<input id="trEpochs" type="number" value="200" min="20" max="600" style="width:74px"></label>
+          <label class="note" style="margin:0">早停耐心值<input id="trPatience" type="number" value="30" min="5" max="200" style="width:64px"></label>
+          <button id="trainBtn" class="btn" disabled>训练模型</button>
+          <button id="trStop" class="ghost btn" disabled>停止</button>
         </div>
-        <div id="verdict" class="verdict idle">no model yet — calibrate, capture, then train.</div>
+        <div id="verdict" class="verdict idle">尚无模型——请先校准、采集，再训练。</div>
         <div class="note">
-          <b>The bar to beat</b> is the mean-pose baseline (predict the train-mean pose for
-          everything). A model that doesn't clear it has learned <b>no usable CSI→pose signal</b> —
-          this page says so plainly. Inputs are standardized on the <b>train split only</b>
+          <b>需要超越的基线</b> is the mean-pose baseline (predict the train-mean pose for
+          everything). A model that doesn't clear it has learned <b>无可用 CSI→姿态信号</b> —
+          this page says so plainly. Inputs are standardized on the <b>仅训练集</b>
           (after baseline-normalization); the val split is the chronological last 20%, never trained on.
         </div>
       </div>
       <div class="card">
-        <div class="label">loss curve — train (amber) vs val (blue)</div>
+        <div class="label">损失曲线 — 训练（琥珀）vs 验证（蓝）</div>
         <canvas id="lossCv" width="460" height="300"></canvas>
-        <div class="note" id="trMsg">Idle.</div>
+        <div class="note" id="trMsg">空闲。</div>
       </div>
     </div>
   </section>
@@ -246,28 +245,27 @@
   <section id="stage-infer" class="panel">
     <div class="cols">
       <div class="card">
-        <div class="label">WiFi-inferred pose <span class="pill csi">CSI ONLY — no camera in the loop</span></div>
+        <div class="label">WiFi 推断姿态<span class="pill csi">仅 CSI — 链路中无摄像头</span></div>
         <canvas id="infCv" width="420" height="560"></canvas>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <label class="note" style="margin:0"><input type="checkbox" id="hideCam"> hide camera (skeleton on black)</label>
-          <button id="infCamBtn" class="ghost btn">enable camera</button>
+          <label class="note" style="margin:0"><input type="checkbox" id="hideCam">隐藏摄像头（黑底骨架）</label>
+          <button id="infCamBtn" class="ghost btn">启用摄像头</button>
           <select id="infCamSel" style="display:none"></select>
         </div>
-        <div id="infCamStatus" class="note" style="margin-top:6px">camera: off</div>
-        <div style="margin-top:6px"><span class="note" id="infModelState">no model loaded</span></div>
+        <div id="infCamStatus" class="note" style="margin-top:6px">摄像头：关闭</div>
+        <div style="margin-top:6px"><span class="note" id="infModelState">未加载模型</span></div>
       </div>
       <div class="card stats">
-        <div class="label">live inference</div>
-        <div class="row"><span class="k">CSI source</span><span class="v" id="infSrc">—</span></div>
-        <div class="row"><span class="k">CSI nodes</span><span class="v" id="infNodes">—</span></div>
-        <div class="row"><span class="k">presence</span><span class="v" id="infPres">—</span></div>
-        <div class="row"><span class="k">infer fps</span><span class="v" id="infFps">—</span></div>
-        <div class="row"><span class="k">measured held-out PCK@0.10</span><span class="v green" id="infPck">—</span></div>
+        <div class="label">实时推断</div>
+        <div class="row"><span class="k">CSI 来源</span><span class="v" id="infSrc">—</span></div>
+        <div class="row"><span class="k">CSI 节点</span><span class="v" id="infNodes">—</span></div>
+        <div class="row"><span class="k">在场</span><span class="v" id="infPres">—</span></div>
+        <div class="row"><span class="k">推断帧率</span><span class="v" id="infFps">—</span></div>
+        <div class="row"><span class="k">实测留出集 PCK@0.10</span><span class="v green" id="infPck">—</span></div>
         <div class="note">
-          This skeleton is inferred <b>from WiFi CSI only</b> (baseline-normalized, then through
-          the model). It is <b>coarse</b> — the held-out PCK above is the real number. It is drawn
-          over the <b>same</b> laptop-camera frame it trained in, so it <b>aligns</b> with the image.
-          Same person / room / session — not validated cross-day or through-wall.
+          该骨架<b>仅由 WiFi CSI 推断</b>（先做基线归一化，再送入模型）。结果是<b>粗粒度</b>的——
+          上方的留出集 PCK 才是真实数值。它叠加在训练时所用的<b>同一</b>笔记本摄像头画面上，
+          因此与图像<b>对齐</b>。同一人 / 同一房间 / 同一会话——未做跨天或穿墙验证。
         </div>
       </div>
     </div>
@@ -860,7 +858,7 @@ $('impFile').addEventListener('change', async (e)=>{
       merged++;
     }
     $('capN').textContent = SAMPLES.length; $('trN').textContent = SAMPLES.length;
-    $('capSkip').textContent = `imported ${merged} samples (merged)`;
+    $('capSkip').textContent = `已导入 ${merged} 条样本（已合并）`;
     renderCoverage(); await idbSave(); refreshGates();
   }catch(err){
     $('capSkip').textContent = 'import failed: ' + err.message;
@@ -889,21 +887,21 @@ function captureLoop(){
 
   // estimate (always shown): segments × seconds × ~recorded-fps
   const segs = totalSegments();
-  $('capEst').textContent = `~${Math.round(segs*capSecs()/60*10)/10} min · ${segs} segments`;
+  $('capEst').textContent = `约 ${Math.round(segs*capSecs()/60*10)/10} 分钟 · ${segs} 个片段`;
 
   if (recording && paused){
     $('prompt').textContent = '⏸ PAUSED — ' + BUCKETS[actIx];
-    $('countdown').textContent = `pass ${passIx+1}/${capPasses()} · activity ${actIx+1}/${BUCKETS.length}`;
+    $('countdown').textContent = `第 ${passIx+1}/${capPasses()} 轮 · 活动 ${actIx+1}/${BUCKETS.length}`;
   } else if (recording){
     const done = passIx*BUCKETS.length + actIx;             // segments completed so far
     $('capPass').textContent = `${passIx+1}/${capPasses()} · ${actIx+1}/${BUCKETS.length}`;
     $('capProg').style.width = Math.round(100*done/segs) + '%';
 
     if (segReadyUntil){
-      // GET-READY: "GET INTO FRAME" + countdown, NO samples recorded yet
+      // GET-READY: "请进入画面" + countdown, NO samples recorded yet
       const remain = Math.max(0, (segReadyUntil - nowMs)/1000);
-      $('prompt').textContent = 'GET INTO FRAME — ' + BUCKETS[actIx];
-      $('countdown').textContent = `starting in ${Math.ceil(remain)} s · pass ${passIx+1}/${capPasses()} · activity ${actIx+1}/${BUCKETS.length}`;
+      $('prompt').textContent = '请进入画面 — ' + BUCKETS[actIx];
+      $('countdown').textContent = `${Math.ceil(remain)} 秒后开始 · 第 ${passIx+1}/${capPasses()} 轮 · 活动 ${actIx+1}/${BUCKETS.length}`;
       capCtx.fillStyle='#ffb840'; capCtx.font='bold 20px monospace'; capCtx.textAlign='center';
       capCtx.fillText(Math.ceil(remain)+'', W/2, 40); capCtx.textAlign='start';
       if (remain <= 0){ segReadyUntil = 0; segT0 = nowMs; }
@@ -912,14 +910,14 @@ function captureLoop(){
       const el = (nowMs - segT0)/1000;
       const secs = capSecs();
       $('prompt').textContent = BUCKETS[actIx];
-      $('countdown').textContent = `${Math.max(0,Math.ceil(secs - el))} s · pass ${passIx+1}/${capPasses()} · activity ${actIx+1}/${BUCKETS.length}`;
+      $('countdown').textContent = `${Math.max(0,Math.ceil(secs - el))} 秒 · 第 ${passIx+1}/${capPasses()} 轮 · 活动 ${actIx+1}/${BUCKETS.length}`;
       if (el >= secs){
         if (!nextSegment()){ recording = false; paused = false; setCapControls();
           $('prompt').textContent = 'routine complete ✓'; $('countdown').textContent = `${SAMPLES.length} samples`; }
       } else {
         let skip = null;
         if (!latestKps || latestVis <= 0.5) skip = 'no confident pose';
-        else if (!freshLiveCSI()) skip = (latestCSI.source && latestCSI.source!=='esp32') ? 'CSI not esp32 (sim)' : 'no fresh CSI';
+        else if (!freshLiveCSI()) skip = (latestCSI.source && latestCSI.source!=='esp32') ? 'CSI 非 esp32（模拟）' : 'no fresh CSI';
         else if (!baseline) skip = 'no baseline';
         if (skip){ $('capSkip').textContent = skip; }
         else {
@@ -1018,10 +1016,10 @@ let lossHist = [];
 function refreshTrainAvail(){
   const ok = !!baseline && SAMPLES.length >= 200;
   $('trainBtn').disabled = !ok;
-  if (!baseline) $('trMsg').innerHTML = 'Calibrate a baseline first (stage 0).';
+  if (!baseline) $('trMsg').innerHTML = '请先完成基线校准（阶段 0）。';
   else $('trMsg').innerHTML = SAMPLES.length >= 200
-    ? `Ready: ${SAMPLES.length} samples. Click <b>train model</b>.`
-    : `Need ≥200 samples to train (have ${SAMPLES.length}). Capture more in stage 1.`;
+    ? `就绪：${SAMPLES.length} 条样本。点击<b>训练模型</b>。`
+    : `训练至少需要 200 条样本（当前 ${SAMPLES.length} 条）。请在阶段 1 继续采集。`;
 }
 
 function buildMatrices(){
@@ -1063,7 +1061,7 @@ async function trainModel(){
   const epochs = Math.max(20, Math.min(600, parseInt($('trEpochs').value)||200));
   const { X, Y, n } = buildMatrices();   // X is already baseline-normalized
   const cut = Math.floor(n*0.8);
-  $('trSplit').textContent = `${cut} / ${n-cut} (chronological 80/20)`;
+  $('trSplit').textContent = `${cut} / ${n-cut} （按时间顺序 80/20）`;
 
   // input standardization on TRAIN split only (on top of baseline-normalization)
   normMu = new Float32Array(CSI_DIM); normSd = new Float32Array(CSI_DIM);
@@ -1110,7 +1108,7 @@ async function trainModel(){
   const patience = Math.max(5, Math.min(200, parseInt($('trPatience').value)||30));
   let bestP10 = 0, bestVal = 1e9, bestWeights = null, sinceImprove = 0, stoppedEarly = false;
   const disposeBest = ()=>{ if (bestWeights){ bestWeights.forEach(w=>w.dispose()); bestWeights = null; } };
-  $('trMsg').innerHTML = 'Training… on <code>'+(BACKEND_LABEL[tf.getBackend()]||tf.getBackend())+'</code>';
+  $('trMsg').innerHTML = '训练中… 使用 <code>'+(BACKEND_LABEL[tf.getBackend()]||tf.getBackend())+'</code>';
   await model.fit(xtr, ytr, {
     epochs, batchSize:64, shuffle:true, verbose:0,
     callbacks:{ onEpochEnd: async (ep, logs)=>{
@@ -1138,7 +1136,7 @@ async function trainModel(){
 
       if (sinceImprove >= patience){
         stoppedEarly = true; model.stopTraining = true;
-        $('trMsg').innerHTML = `Early stop at epoch ${ep+1}: val MSE hasn't improved for ${patience} epochs. Restoring best weights (val ${bestVal.toFixed(4)}).`;
+        $('trMsg').innerHTML = `在第 ${ep+1} 轮提前停止：验证 MSE 已连续 ${patience} 轮未改善。正在恢复最优权重（验证 ${bestVal.toFixed(4)}).`;
       }
       if (trainStop) model.stopTraining = true;
       await tf.nextFrame();
@@ -1158,13 +1156,13 @@ async function trainModel(){
   const v = $('verdict');
   if (delta > 1){
     v.className='verdict good';
-    v.innerHTML = `model <b>BEATS</b> mean-pose baseline by <b>+${delta.toFixed(1)} pp</b> → real CSI→pose signal.`;
+    v.innerHTML = `模型<b>优于</b>均值姿态基线 <b>+${delta.toFixed(1)} 个百分点</b> → 存在真实的 CSI→姿态信号。`;
   } else {
     v.className='verdict bad';
-    v.innerHTML = `model does <b>NOT</b> beat baseline (Δ ${delta.toFixed(1)} pp) → <b>no usable signal (honest)</b>. Capture more / more varied data.`;
+    v.innerHTML = `模型<b>未</b>超越基线（Δ ${delta.toFixed(1)} 个百分点）→ <b>无可用信号（如实标注）</b>。请采集更多、更多样的数据。`;
   }
   stageDone.train = true;
-  $('infModelState').textContent = `model ready · held-out PCK@0.10 ${(finPck*100).toFixed(1)}%`;
+  $('infModelState').textContent = `模型就绪 · 留出集 PCK@0.10 ${(finPck*100).toFixed(1)}%`;
   const stopNote = stoppedEarly ? ' (early-stopped, best weights restored)' : '';
   $('trMsg').innerHTML = 'Done'+stopNote+'. Saving model to IndexedDB…';
   xtr.dispose(); ytr.dispose(); xva.dispose();
@@ -1191,7 +1189,7 @@ async function loadModel(){
       model = m; normMu = Float32Array.from(norm.mu); normSd = Float32Array.from(norm.sd);
       trainedPck10 = norm.pck10; stageDone.train = true;
       $('infPck').textContent = trainedPck10!=null ? (trainedPck10*100).toFixed(1)+'%' : '—';
-      $('infModelState').textContent = `model loaded · held-out PCK@0.10 ${trainedPck10!=null?(trainedPck10*100).toFixed(1)+'%':'?'}`;
+      $('infModelState').textContent = `模型已加载 · 留出集 PCK@0.10 ${trainedPck10!=null?(trainedPck10*100).toFixed(1)+'%':'?'}`;
     }
   }catch(e){ /* none yet */ }
 }
