@@ -13,7 +13,7 @@
 </head>
 <body>
     <!-- Skip to main content link for keyboard/screen reader users -->
-    <a href="#dashboard" class="skip-to-content">Skip to main content</a>
+    <a href="#dashboard" class="skip-to-content" data-i18n="nav.skipToContent">跳到主要内容</a>
 
     <div class="container">
         <!-- Header -->
@@ -29,26 +29,25 @@
 
         <!-- Navigation -->
         <nav class="nav-tabs" role="tablist" aria-label="Main navigation">
-            <button class="nav-tab active" data-tab="dashboard" role="tab" aria-selected="true" aria-controls="dashboard">Dashboard</button>
-            <button class="nav-tab" data-tab="hardware" role="tab" aria-selected="false" aria-controls="hardware">Hardware</button>
-            <button class="nav-tab" data-tab="demo" role="tab" aria-selected="false" aria-controls="demo">Live Demo</button>
-            <button class="nav-tab" data-tab="architecture" role="tab" aria-selected="false" aria-controls="architecture">Architecture</button>
-            <button class="nav-tab" data-tab="performance" role="tab" aria-selected="false" aria-controls="performance">Performance</button>
-            <button class="nav-tab" data-tab="applications" role="tab" aria-selected="false" aria-controls="applications">Applications</button>
-            <button class="nav-tab" data-tab="sensing" role="tab" aria-selected="false" aria-controls="sensing">Sensing</button>
-            <button class="nav-tab" data-tab="training" role="tab" aria-selected="false" aria-controls="training">Training</button>
-            <a href="pose-fusion.html" class="nav-tab" style="text-decoration:none">Pose Fusion</a>
-            <a href="observatory.html" class="nav-tab" style="text-decoration:none">Observatory</a>
+            <button class="nav-tab active" data-tab="dashboard" role="tab" aria-selected="true" aria-controls="dashboard" data-i18n="nav.dashboard">仪表盘</button>
+            <button class="nav-tab" data-tab="hardware" role="tab" aria-selected="false" aria-controls="hardware" data-i18n="nav.hardware">硬件</button>
+            <button class="nav-tab" data-tab="demo" role="tab" aria-selected="false" aria-controls="demo" data-i18n="nav.demo">实时演示</button>
+            <button class="nav-tab" data-tab="architecture" role="tab" aria-selected="false" aria-controls="architecture" data-i18n="nav.architecture">架构</button>
+            <button class="nav-tab" data-tab="performance" role="tab" aria-selected="false" aria-controls="performance" data-i18n="nav.performance">性能</button>
+            <button class="nav-tab" data-tab="applications" role="tab" aria-selected="false" aria-controls="applications" data-i18n="nav.applications">应用场景</button>
+            <button class="nav-tab" data-tab="sensing" role="tab" aria-selected="false" aria-controls="sensing" data-i18n="nav.sensing">感知</button>
+            <button class="nav-tab" data-tab="training" role="tab" aria-selected="false" aria-controls="training" data-i18n="nav.training">训练</button>
+            <a href="pose-fusion.html" class="nav-tab" style="text-decoration:none" data-i18n="nav.poseFusion">姿态融合</a>
+            <a href="observatory.html" class="nav-tab" style="text-decoration:none" data-i18n="nav.observatory">观测站</a>
         </nav>
 
         <!-- Dashboard Tab -->
         <section id="dashboard" class="tab-content active" role="tabpanel" aria-labelledby="dashboard">
             <div class="hero-section">
                 <h2 data-i18n="dashboard.title">Revolutionary WiFi-Based Human Pose Detection</h2>
-                <p class="hero-description">
-                    AI can track your full-body movement through walls using just WiFi signals. 
-                    Researchers at Carnegie Mellon have trained a neural network to turn basic WiFi 
-                    signals into detailed wireframe models of human bodies.
+                <p class="hero-description" data-i18n="dashboard.description">
+                    AI 仅凭 WiFi 信号即可穿墙追踪你的全身动作。卡内基梅隆大学的研究者训练了一个神经网络，
+                    把普通 WiFi 信号转化为精细的人体骨架模型。
                 </p>
                 
                 <!-- Error container -->
@@ -59,27 +58,27 @@
                     <h3 data-i18n="dashboard.status">System Status</h3>
                     <div class="status-grid">
                         <div class="component-status" data-component="api">
-                            <span class="component-name">API Server</span>
+                            <span class="component-name" data-i18n="status.apiServer">API 服务</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="hardware">
-                            <span class="component-name">Hardware</span>
+                            <span class="component-name" data-i18n="status.hardware">硬件</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="inference">
-                            <span class="component-name">Inference</span>
+                            <span class="component-name" data-i18n="status.inference">推理</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="streaming">
-                            <span class="component-name">Streaming</span>
+                            <span class="component-name" data-i18n="status.streaming">数据流</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
                         <div class="component-status" data-component="datasource" id="dashboard-datasource">
-                            <span class="component-name">Data Source</span>
+                            <span class="component-name" data-i18n="status.dataSource">数据源</span>
                             <span class="status-text">-</span>
                             <span class="status-message"></span>
                         </div>
@@ -125,21 +124,21 @@
                     <h3 data-i18n="dashboard.liveStats">Live Statistics</h3>
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <span class="stat-label">Active Persons</span>
+                            <span class="stat-label" data-i18n="dashboard.activePersons">活跃人数</span>
                             <span class="person-count">0</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Avg Confidence</span>
+                            <span class="stat-label" data-i18n="dashboard.avgConfidence">平均置信度</span>
                             <span class="avg-confidence">0%</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Total Detections</span>
+                            <span class="stat-label" data-i18n="dashboard.totalDetections">累计检测次数</span>
                             <span class="detection-count">0</span>
                         </div>
                     </div>
                     
                     <div class="zones-panel">
-                        <h4>Zone Occupancy</h4>
+                        <h4 data-i18n="dashboard.zoneOccupancy">区域占用</h4>
                         <div class="zones-summary"></div>
                     </div>
                 </div>
@@ -147,42 +146,42 @@
                 <div class="key-benefits">
                     <div class="benefit-card">
                         <div class="benefit-icon">🏠</div>
-                        <h3>Through Walls</h3>
-                        <p>Works through solid barriers with no line of sight required</p>
+                        <h3 data-i18n="benefit.throughWalls">可穿墙</h3>
+                        <p data-i18n="benefit.throughWallsDesc">可穿透实体屏障工作，无需视距</p>
                     </div>
                     <div class="benefit-card">
                         <div class="benefit-icon">🔒</div>
-                        <h3>Privacy-Preserving</h3>
-                        <p>No cameras or visual recording - just WiFi signal analysis</p>
+                        <h3 data-i18n="benefit.privacy">保护隐私</h3>
+                        <p data-i18n="benefit.privacyDesc">无摄像头、无影像录制——仅分析 WiFi 信号</p>
                     </div>
                     <div class="benefit-card">
                         <div class="benefit-icon">⚡</div>
-                        <h3>Real-Time</h3>
-                        <p>Maps 24 body regions in real-time at 100Hz sampling rate</p>
+                        <h3 data-i18n="benefit.realtime">实时</h3>
+                        <p data-i18n="benefit.realtimeDesc">以 100Hz 采样率实时映射 24 个人体区域</p>
                     </div>
                     <div class="benefit-card">
                         <div class="benefit-icon">💰</div>
-                        <h3>Low Cost</h3>
-                        <p>Built using $30 commercial WiFi hardware</p>
+                        <h3 data-i18n="benefit.lowCost">低成本</h3>
+                        <p data-i18n="benefit.lowCostDesc">基于 30 美元的商用 WiFi 硬件构建</p>
                     </div>
                 </div>
 
                 <div class="system-stats">
                     <div class="stat" data-stat="body-regions">
                         <span class="stat-value">24</span>
-                        <span class="stat-label">Body Regions</span>
+                        <span class="stat-label" data-i18n="stat.bodyRegions">人体区域</span>
                     </div>
                     <div class="stat" data-stat="sampling-rate">
                         <span class="stat-value">100Hz</span>
-                        <span class="stat-label">Sampling Rate</span>
+                        <span class="stat-label" data-i18n="stat.samplingRate">采样率</span>
                     </div>
                     <div class="stat" data-stat="accuracy">
                         <span class="stat-value">87.2%</span>
-                        <span class="stat-label">Accuracy (AP@50)</span>
+                        <span class="stat-label" data-i18n="stat.accuracy">准确率（AP@50）</span>
                     </div>
                     <div class="stat" data-stat="hardware-cost">
                         <span class="stat-value">$30</span>
-                        <span class="stat-label">Hardware Cost</span>
+                        <span class="stat-label" data-i18n="stat.hardwareCost">硬件成本</span>
                     </div>
                 </div>
             </div>

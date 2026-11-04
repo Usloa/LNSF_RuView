@@ -1,4 +1,4 @@
-// Internationalization - EN/PL language support
+// Internationalization - EN/PL/ZH language support
 // Detects browser language, persists choice, translates UI strings
 
 const translations = {
@@ -12,6 +12,9 @@ const translations = {
     'nav.applications': 'Applications',
     'nav.sensing': 'Sensing',
     'nav.training': 'Training',
+    'nav.poseFusion': 'Pose Fusion',
+    'nav.observatory': 'Observatory',
+    'nav.skipToContent': 'Skip to main content',
 
     // Dashboard
     'dashboard.title': 'Revolutionary WiFi-Based Human Pose Detection',
@@ -90,6 +93,9 @@ const translations = {
     'nav.applications': 'Aplikacje',
     'nav.sensing': 'Czujniki',
     'nav.training': 'Trening',
+    'nav.poseFusion': 'Fuzja pozy',
+    'nav.observatory': 'Obserwatorium',
+    'nav.skipToContent': 'Przejdz do tresci',
 
     // Dashboard
     'dashboard.title': 'Rewolucyjne wykrywanie pozy czlowieka przez WiFi',
@@ -156,6 +162,87 @@ const translations = {
     'misc.confirm': 'Potwierdz',
     'misc.settings': 'Ustawienia',
     'misc.language': 'Jezyk'
+  },
+
+  zh: {
+    // 导航
+    'nav.dashboard': '仪表盘',
+    'nav.hardware': '硬件',
+    'nav.demo': '实时演示',
+    'nav.architecture': '架构',
+    'nav.performance': '性能',
+    'nav.applications': '应用场景',
+    'nav.sensing': '感知',
+    'nav.training': '训练',
+    'nav.poseFusion': '姿态融合',
+    'nav.observatory': '观测站',
+    'nav.skipToContent': '跳到主要内容',
+
+    // 仪表盘
+    'dashboard.title': '基于 WiFi 的人体姿态检测',
+    'dashboard.subtitle': '利用 WiFi 信号穿墙追踪人体',
+    'dashboard.description': 'AI 仅凭 WiFi 信号即可穿墙追踪你的全身动作。卡内基梅隆大学的研究者训练了一个神经网络，把普通 WiFi 信号转化为精细的人体骨架模型。',
+    'dashboard.status': '系统状态',
+    'dashboard.metrics': '系统指标',
+    'dashboard.features': '核心特性',
+    'dashboard.liveStats': '实时统计',
+    'dashboard.activePersons': '活跃人数',
+    'dashboard.avgConfidence': '平均置信度',
+    'dashboard.totalDetections': '累计检测次数',
+    'dashboard.zoneOccupancy': '区域占用',
+
+    // 状态
+    'status.apiServer': 'API 服务',
+    'status.hardware': '硬件',
+    'status.inference': '推理',
+    'status.streaming': '数据流',
+    'status.dataSource': '数据源',
+
+    // 指标
+    'metrics.cpu': 'CPU 占用',
+    'metrics.memory': '内存占用',
+    'metrics.disk': '磁盘占用',
+
+    // 优势
+    'benefit.throughWalls': '可穿墙',
+    'benefit.throughWallsDesc': '可穿透实体屏障工作，无需视距',
+    'benefit.privacy': '保护隐私',
+    'benefit.privacyDesc': '无摄像头、无影像录制——仅分析 WiFi 信号',
+    'benefit.realtime': '实时',
+    'benefit.realtimeDesc': '以 100Hz 采样率实时映射 24 个人体区域',
+    'benefit.lowCost': '低成本',
+    'benefit.lowCostDesc': '基于 30 美元的商用 WiFi 硬件构建',
+
+    // 统计
+    'stat.bodyRegions': '人体区域',
+    'stat.samplingRate': '采样率',
+    'stat.accuracy': '准确率（AP@50）',
+    'stat.hardwareCost': '硬件成本',
+
+    // 操作
+    'action.startDetection': '开始检测',
+    'action.stopDetection': '停止检测',
+    'action.toggleTheme': '切换主题',
+    'action.exportData': '导出数据',
+    'action.screenshot': '截取屏幕',
+
+    // 连接
+    'conn.connected': '已连接',
+    'conn.connecting': '连接中…',
+    'conn.offline': '离线',
+    'conn.reconnecting': '正在重连…',
+    'conn.live': '实时',
+    'conn.simulated': '模拟',
+
+    // 其他
+    'misc.loading': '加载中…',
+    'misc.error': '发生错误',
+    'misc.noData': '暂无数据',
+    'misc.close': '关闭',
+    'misc.cancel': '取消',
+    'misc.confirm': '确认',
+    'misc.settings': '设置',
+    'misc.language': '语言'
   }
 };
 
@@ -172,6 +259,7 @@ export class I18n {
 
   detectLocale() {
     const lang = navigator.language?.toLowerCase() || 'en';
+    if (lang.startsWith('zh')) return 'zh';
     if (lang.startsWith('pl')) return 'pl';
     return 'en';
   }
@@ -239,6 +327,7 @@ export class I18n {
       <select id="lang-selector" class="lang-selector" aria-label="Language">
         <option value="en">EN</option>
         <option value="pl">PL</option>
+        <option value="zh">中文</option>
       </select>
     `;
 
