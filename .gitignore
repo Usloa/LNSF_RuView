@@ -327,3 +327,6 @@ scripts/fal-visual-teacher/output/
 
 # Trained adaptive classifier (auto-created at runtime; #2135)
 /v2/data/adaptive_model.json
+
+# Local AI workspace data (session logs, memory, local indexes) -- never commit
+.workbuddy-ai/

@@ -1,0 +1,1 @@
+是 esp32-csi-node 生产固件的前置验证工具。拿到一块新 ESP32 板子后，先烧这个固件确认芯片型号、Flash/PSRAM 大小、WiFi/CSI 是否可用，然后再烧录完整的生产 CSI 节点固件。H:\meddle\ruview\firmware\openwrt-wn586x3
