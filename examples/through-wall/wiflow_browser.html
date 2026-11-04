@@ -194,7 +194,7 @@
         <div class="label" style="margin-top:16px">逐姿态覆盖度（平衡数据集）</div>
         <div id="cov" class="cov"></div>
         <div class="note">
-          仅当同时满足 (a) 置信度足够的 MediaPipe 姿态（平均可见度 &gt; 0.5）与 (b) 一帧新鲜的
+          <b>仅</b>当同时满足 (a) 置信度足够的 MediaPipe 姿态（平均可见度 &gt; 0.5）与 (b) 一帧新鲜的
           <b>实时</b> CSI 数据（<code>source==esp32</code>）时，才会记录一对样本。
           我们保存<b>经基线归一化</b>的 CSI 与 17 个关键点，并镜像到 IndexedDB，使刷新页面后数据仍在。
           采集流程会对每种活动执行<b>多轮交错采集</b>，因此按时间顺序切出的留出集与训练集
