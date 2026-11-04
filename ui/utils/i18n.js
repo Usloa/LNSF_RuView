@@ -1,5 +1,5 @@
-// Internationalization - EN/PL/ZH language support
-// Detects browser language, persists choice, translates UI strings
+// Internationalization - EN/PL/ZH language support, defaults to ZH
+// Persists user choice, translates UI strings via data-i18n attributes
 
 const translations = {
   en: {
@@ -246,6 +246,9 @@ const translations = {
   }
 };
 
+/** 默认语言：中文。用户在选择器中的选择会持久化到 localStorage 并优先生效。 */
+const DEFAULT_LOCALE = 'zh';
+
 export class I18n {
   constructor() {
     this.locale = this.getSavedLocale() || this.detectLocale();
@@ -253,20 +256,27 @@ export class I18n {
   }
 
   init() {
+    document.documentElement.setAttribute('lang', this.locale);
     this.createSelector();
     this.applyTranslations();
   }
 
+  /**
+   * 返回默认语言。
+   *
+   * 本方法原按 navigator.language 自动检测 zh 与 pl 前缀，
+   * 现按产品要求统一默认中文；用户仍可通过语言选择器切换到 EN / PL，
+   * 切换结果由 getSavedLocale() 持久化并在下次访问时优先采用。
+   */
   detectLocale() {
-    const lang = navigator.language?.toLowerCase() || 'en';
-    if (lang.startsWith('zh')) return 'zh';
-    if (lang.startsWith('pl')) return 'pl';
-    return 'en';
+    return DEFAULT_LOCALE;
   }
 
   getSavedLocale() {
-    try { return localStorage.getItem('ruview-locale'); }
-    catch { return null; }
+    try {
+      const saved = localStorage.getItem('ruview-locale');
+      return saved && translations[saved] ? saved : null;
+    } catch { return null; }
   }
 
   saveLocale(locale) {
@@ -324,10 +334,10 @@ export class I18n {
     const wrapper = document.createElement('div');
     wrapper.className = 'lang-selector-wrap';
     wrapper.innerHTML = `
-      <select id="lang-selector" class="lang-selector" aria-label="Language">
+      <select id="lang-selector" class="lang-selector" aria-label="语言">
+        <option value="zh">中文</option>
         <option value="en">EN</option>
         <option value="pl">PL</option>
-        <option value="zh">中文</option>
       </select>
     `;
 
