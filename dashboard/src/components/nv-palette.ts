@@ -65,32 +65,31 @@ export class NvPalette extends LitElement {
   `;
 
   private cmds: Cmd[] = [
-    { ico: '▶', label: 'Run pipeline', kbd: 'Space', run: async () => { await getClient()?.run(); running.value = true; toast('Pipeline running', '▶'); } },
-    { ico: '❚', label: 'Pause pipeline', run: async () => { await getClient()?.pause(); running.value = false; toast('Paused', '❚❚'); } },
-    { ico: '+', label: 'New scene…', kbd: '⌘N', run: () => openModal({
-      title: 'New scene',
-      body: `<p>Build a fresh magnetic scene. The dashboard generates the JSON
-        and pushes it to the running pipeline (or you can copy the JSON
-        for offline use).</p>
-        <label>Name</label>
+    { ico: '▶', label: '运行流水线', kbd: 'Space', run: async () => { await getClient()?.run(); running.value = true; toast('流水线运行中', '▶'); } },
+    { ico: '❚', label: '暂停流水线', run: async () => { await getClient()?.pause(); running.value = false; toast('已暂停', '❚❚'); } },
+    { ico: '+', label: '新建场景…', kbd: '⌘N', run: () => openModal({
+      title: '新建场景',
+      body: `<p>构建一个新的磁场场景。仪表盘会生成 JSON 并推送到运行中的流水线
+        （你也可以复制该 JSON 供离线使用）。</p>
+        <label>名称</label>
         <input type="text" id="ns-name" value="custom-scene-${Date.now().toString(36)}" />
-        <label>Heart-proxy dipole moment (A·m²)</label>
+        <label>心脏等效偶极矩（A·m²）</label>
         <input type="text" id="ns-moment" value="1.0e-6" />
-        <label>Distance heart → sensor (m)</label>
+        <label>心脏到传感器的距离（m）</label>
         <input type="text" id="ns-distance" value="0.5" />
-        <label>Add ferrous distractor at +x = 1 m?</label>
+        <label>在 +x = 1 m 处添加铁磁干扰物？</label>
         <select id="ns-ferrous">
-          <option value="0">No</option>
-          <option value="1" selected>Yes (steel coil, χ=5000)</option>
+          <option value="0">否</option>
+          <option value="1" selected>是（钢线圈，χ=5000）</option>
         </select>
-        <label>Add 60 Hz mains-current loop?</label>
+        <label>添加 60 Hz 市电电流环？</label>
         <select id="ns-mains">
-          <option value="0">No</option>
-          <option value="1" selected>Yes (2 A loop, 5 cm radius, +y = 1 m)</option>
+          <option value="0">否</option>
+          <option value="1" selected>是（2 A 环，半径 5 cm，+y = 1 m）</option>
         </select>`,
       buttons: [
-        { label: 'Cancel', variant: 'ghost' },
-        { label: 'Create', variant: 'primary', onClick: async () => {
+        { label: '取消', variant: 'ghost' },
+        { label: '创建', variant: 'primary', onClick: async () => {
           const root = document.querySelector('nv-app')?.shadowRoot?.querySelector('nv-modal')?.shadowRoot;
           if (!root) return;
           const name = (root.querySelector<HTMLInputElement>('#ns-name')?.value ?? 'custom').trim();
@@ -111,14 +110,14 @@ export class NvPalette extends LitElement {
             ambient_field: [1e-6, 0, 0] as [number, number, number],
           };
           await getClient()?.loadScene(scene);
-          pushLog('ok', `scene <span class="s">${name}</span> loaded · 1 dipole · ${mains ? '1 loop · ' : ''}${ferr ? '1 ferrous · ' : ''}1 sensor`);
-          toast(`Scene "${name}" loaded`, '+');
+          pushLog('ok', `场景 <span class="s">${name}</span> 已加载 · 1 个偶极子 · ${mains ? '1 loop · ' : ''}${ferr ? '1 ferrous · ' : ''}1 sensor`);
+          toast(`场景「${name}」已加载`, '+');
         } },
       ],
     }) },
-    { ico: '📦', label: 'Export proof bundle…', kbd: '⌘E', run: async () => {
+    { ico: '📦', label: '导出证明包…', kbd: '⌘E', run: async () => {
       const c = getClient(); if (!c) return;
-      pushLog('dbg', 'building proof bundle…');
+      pushLog('dbg', '正在构建证明包…');
       try {
         const blob = await c.exportProofBundle();
         const url = URL.createObjectURL(blob);
@@ -127,51 +126,51 @@ export class NvPalette extends LitElement {
         a.download = `nvsim-proof-${Date.now()}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        pushLog('ok', `proof bundle exported · ${blob.size} bytes`);
-        toast(`Proof bundle saved (${blob.size} B)`, '📦');
-      } catch (e) { pushLog('err', `export failed: ${(e as Error).message}`); }
+        pushLog('ok', `证明包已导出 · ${blob.size} 字节`);
+        toast(`证明包已保存（${blob.size} B）`, '📦');
+      } catch (e) { pushLog('err', `导出失败：${(e as Error).message}`); }
     } },
-    { ico: '⟳', label: 'Reset pipeline', kbd: '⌘R', run: () => openModal({
-      title: 'Reset pipeline?',
-      body: '<p>Clears the frame stream and rewinds <code>t</code> to 0.</p>',
+    { ico: '⟳', label: '重置流水线', kbd: '⌘R', run: () => openModal({
+      title: '重置流水线？',
+      body: '<p>清空帧流并将 <code>t</code> 回退到 0。</p>',
       buttons: [
-        { label: 'Cancel', variant: 'ghost' },
-        { label: 'Reset', variant: 'danger', onClick: async () => { await getClient()?.reset(); pushLog('warn', 'pipeline reset · t=0'); toast('Pipeline reset', '⟳'); } },
+        { label: '取消', variant: 'ghost' },
+        { label: '重置', variant: 'danger', onClick: async () => { await getClient()?.reset(); pushLog('warn', '流水线已重置 · t=0'); toast('流水线已重置', '⟳'); } },
       ],
     }) },
-    { ico: '✓', label: 'Verify witness', run: async () => {
+    { ico: '✓', label: '校验见证', run: async () => {
       const c = getClient(); if (!c) return;
       witnessVerified.value = 'pending';
       const exp = expectedWitness.value;
       const eb = new Uint8Array(32);
       for (let i = 0; i < 32; i++) eb[i] = parseInt(exp.slice(i * 2, i * 2 + 2), 16);
       const r = await c.verifyWitness(eb);
-      if (r.ok) { witnessVerified.value = 'ok'; witnessHex.value = exp; toast('Witness verified', '✓'); }
-      else { witnessVerified.value = 'fail'; toast('Witness mismatch!', '✗'); }
+      if (r.ok) { witnessVerified.value = 'ok'; witnessHex.value = exp; toast('见证校验通过', '✓'); }
+      else { witnessVerified.value = 'fail'; toast('见证不匹配！', '✗'); }
     } },
-    { ico: '☼', label: 'Toggle theme', kbd: '⌘/', run: () => { theme.value = theme.value === 'dark' ? 'light' : 'dark'; } },
-    { ico: '⚙', label: 'Open settings', kbd: '⌘,', run: () => window.dispatchEvent(new CustomEvent('open-settings')) },
-    { ico: '?', label: 'Keyboard shortcuts…', run: () => openModal({
-      title: 'Keyboard shortcuts',
+    { ico: '☼', label: '切换主题', kbd: '⌘/', run: () => { theme.value = theme.value === 'dark' ? 'light' : 'dark'; } },
+    { ico: '⚙', label: '打开设置', kbd: '⌘,', run: () => window.dispatchEvent(new CustomEvent('open-settings')) },
+    { ico: '?', label: '键盘快捷键…', run: () => openModal({
+      title: '键盘快捷键',
       body: `<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;">
-        <div><code>⌘K / Ctrl K</code></div><div>Command palette</div>
-        <div><code>Space</code></div><div>Play / pause</div>
-        <div><code>⌘R</code></div><div>Reset</div>
-        <div><code>⌘,</code></div><div>Settings</div>
-        <div><code>⌘/</code></div><div>Toggle theme</div>
-        <div><code>\`</code></div><div>Debug HUD</div>
-        <div><code>1 · 2 · 3</code></div><div>Inspector tabs</div>
-        <div><code>Esc</code></div><div>Close modal/palette</div>
-        <div><code>/</code></div><div>Focus REPL</div>
+        <div><code>⌘K / Ctrl K</code></div><div>命令面板</div>
+        <div><code>Space</code></div><div>播放 / 暂停</div>
+        <div><code>⌘R</code></div><div>重置</div>
+        <div><code>⌘,</code></div><div>设置</div>
+        <div><code>⌘/</code></div><div>切换主题</div>
+        <div><code>\`</code></div><div>调试 HUD</div>
+        <div><code>1 · 2 · 3</code></div><div>检查器标签页</div>
+        <div><code>Esc</code></div><div>关闭弹窗 / 面板</div>
+        <div><code>/</code></div><div>聚焦 REPL</div>
       </div>`,
-      buttons: [{ label: 'Close', variant: 'primary' }],
+      buttons: [{ label: '关闭', variant: 'primary' }],
     }) },
-    { ico: 'i', label: 'About nvsim…', run: () => openModal({
-      title: 'About nvsim',
-      body: `<p><b>nvsim</b> is a deterministic, byte-reproducible forward simulator for nitrogen-vacancy diamond magnetometry.</p>
-        <p>This dashboard runs nvsim as WASM in a Web Worker. Same <code>(scene, config, seed)</code> → byte-identical SHA-256 witness across runs and machines.</p>
-        <p>License: MIT OR Apache-2.0 · See ADR-089, ADR-092.</p>`,
-      buttons: [{ label: 'Close', variant: 'primary' }],
+    { ico: 'i', label: '关于 nvsim…', run: () => openModal({
+      title: '关于 nvsim',
+      body: `<p><b>nvsim</b> 是面向氮-空位（NV）色心金刚石磁测量的确定性、字节可复现前向模拟器。</p>
+        <p>本仪表盘以 WASM 形式在 Web Worker 中运行 nvsim。相同的 <code>(scene, config, seed)</code> 在不同运行与不同机器上产生字节完全一致的 SHA-256 见证。</p>
+        <p>许可证：MIT OR Apache-2.0 · 参见 ADR-089、ADR-092。</p>`,
+      buttons: [{ label: '关闭', variant: 'primary' }],
     }) },
   ];
 
@@ -225,7 +224,7 @@ export class NvPalette extends LitElement {
     return html`
       <div class="palette" data-id="palette">
         <div class="input">
-          <input id="palette-input" type="text" placeholder="Type a command…"
+          <input id="palette-input" type="text" placeholder="输入命令…"
             .value=${this.filter}
             @input=${(e: Event) => { this.filter = (e.target as HTMLInputElement).value; this.idx = 0; }} />
         </div>
