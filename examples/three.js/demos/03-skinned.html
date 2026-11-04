@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RuView · Skinned · ADR-097 + GLTF skinned mesh + additive animation blending</title>
+    <title>RuView · 蒙皮网格 · ADR-097 + GLTF 蒙皮网格 + 叠加式动画混合</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='10' fill='%23e8a634'/></svg>">
     <style>
         :root {
@@ -158,29 +158,29 @@
     <div id="loading"><div class="text">▸ Loading skinned subject · Xbot.glb · 2.9 MB</div></div>
 
     <div class="panel" id="info">
-        <h1>RuView · Skinned</h1>
-        <div class="sub">ADR-097 · GLTF skinned mesh · additive animation blending</div>
-        <div class="row"><span class="k">Subject</span><span class="v amber">● Tracked</span></div>
-        <div class="row"><span class="k">Model</span><span class="v">Xbot.glb · 14k tris</span></div>
-        <div class="row"><span class="k">Base anim</span><span class="v amber" id="base-name">walk</span></div>
-        <div class="row"><span class="k">Additive</span><span class="v mag" id="add-name">headShake · 0.40</span></div>
-        <div class="row"><span class="k">Mesh nodes</span><span class="v cyan">4 · multistatic</span></div>
-        <div class="row"><span class="k">Coherence</span><span class="v" id="coh-val">— %</span></div>
-        <div class="row"><span class="k">Heart rate</span><span class="v amber" id="hr-val">— bpm</span></div>
-        <div class="row"><span class="k">Bbox vol</span><span class="v" id="bbox-vol">— m³</span></div>
-        <div class="row"><span class="k">Render</span><span class="v" id="fps-val">— fps</span></div>
+        <h1>RuView · 蒙皮网格</h1>
+        <div class="sub">ADR-097 · GLTF 蒙皮网格 · 叠加式动画混合</div>
+        <div class="row"><span class="k">受试者</span><span class="v amber">● Tracked</span></div>
+        <div class="row"><span class="k">模型</span><span class="v">Xbot.glb · 14k tris</span></div>
+        <div class="row"><span class="k">基础动画</span><span class="v amber" id="base-name">walk</span></div>
+        <div class="row"><span class="k">叠加动画</span><span class="v mag" id="add-name">headShake · 0.40</span></div>
+        <div class="row"><span class="k">组网节点</span><span class="v cyan">4 · multistatic</span></div>
+        <div class="row"><span class="k">相干性</span><span class="v" id="coh-val">— %</span></div>
+        <div class="row"><span class="k">心率</span><span class="v amber" id="hr-val">— bpm</span></div>
+        <div class="row"><span class="k">包围盒体积</span><span class="v" id="bbox-vol">— m³</span></div>
+        <div class="row"><span class="k">渲染</span><span class="v" id="fps-val">— fps</span></div>
     </div>
 
     <div id="anim">
         <h2>AnimationMixer</h2>
         <div class="group">
-            <div class="group-label">Base · loops</div>
-            <button data-base="idle">idle</button>
+            <div class="group-label">基础 · 循环</div>
+            <button data-base="idle">空闲</button>
             <button data-base="walk" class="active">walk</button>
             <button data-base="run">run</button>
         </div>
         <div class="group">
-            <div class="group-label">Additive · layered</div>
+            <div class="group-label">叠加 · 分层</div>
             <button data-add="agree">agree</button>
             <button data-add="headShake" class="active">headShake</button>
             <button data-add="sad_pose">sad</button>
@@ -188,12 +188,12 @@
         </div>
         <div class="group">
             <div class="slider-row">
-                <span class="label">add weight</span>
+                <span class="label">增加权重</span>
                 <input type="range" id="add-weight" min="0" max="1" step="0.01" value="0.40">
                 <span class="val" id="add-weight-val">0.40</span>
             </div>
             <div class="slider-row">
-                <span class="label">time scale</span>
+                <span class="label">时间缩放</span>
                 <input type="range" id="time-scale" min="0.1" max="2" step="0.05" value="1.0">
                 <span class="val" id="time-scale-val">1.00</span>
             </div>
@@ -201,7 +201,7 @@
     </div>
 
     <div class="panel" id="csi">
-        <h2>Per-node CSI</h2>
+        <h2>逐节点 CSI</h2>
         <div class="bar-row"><span class="label">N1·BL</span><div class="bar-track"><div class="bar-fill" id="bar-0" style="width:0"></div></div><span class="val" id="val-0">—</span></div>
         <div class="bar-row"><span class="label">N2·BR</span><div class="bar-track"><div class="bar-fill" id="bar-1" style="width:0"></div></div><span class="val" id="val-1">—</span></div>
         <div class="bar-row"><span class="label">N3·FL</span><div class="bar-track"><div class="bar-fill" id="bar-2" style="width:0"></div></div><span class="val" id="val-2">—</span></div>
@@ -209,24 +209,24 @@
     </div>
 
     <div id="helpers">
-        <h2>ADR-097 helpers</h2>
+        <h2>ADR-097 辅助工具</h2>
         <label><input type="checkbox" id="t-grid" checked>GridHelper<span class="swatch" style="color:#666"></span></label>
         <label><input type="checkbox" id="t-polar" checked>PolarGridHelper<span class="swatch" style="color:#ffb840"></span></label>
-        <label><input type="checkbox" id="t-bbox" checked>BoxHelper on mesh<span class="swatch" style="color:#ffe09f"></span></label>
+        <label><input type="checkbox" id="t-bbox" checked>网格上的 BoxHelper<span class="swatch" style="color:#ffe09f"></span></label>
         <label><input type="checkbox" id="t-skel">SkeletonHelper<span class="swatch" style="color:#4cf"></span></label>
-        <label><input type="checkbox" id="t-nodebox" checked>Per-node BoxHelpers<span class="swatch" style="color:#4cf"></span></label>
-        <label><input type="checkbox" id="t-pings" checked>Sonar pings<span class="swatch" style="color:#4cf"></span></label>
-        <label><input type="checkbox" id="t-tomo" checked>Tomography sweep<span class="swatch" style="color:#ff4cc8"></span></label>
+        <label><input type="checkbox" id="t-nodebox" checked>逐节点 BoxHelper<span class="swatch" style="color:#4cf"></span></label>
+        <label><input type="checkbox" id="t-pings" checked>声呐脉冲<span class="swatch" style="color:#4cf"></span></label>
+        <label><input type="checkbox" id="t-tomo" checked>层析扫描<span class="swatch" style="color:#ff4cc8"></span></label>
     </div>
 
     <div id="titlecard">
         RuView · Seldon Vault
-        <div class="sub">skinned · ADR-097 · CCDIKSolver next</div>
+        <div class="sub">蒙皮网格 · ADR-097 · 下一步 CCDIKSolver</div>
     </div>
 
     <div id="adr-badge">
-        <a href="https://threejs.org/examples/#webgl_animation_skinning_additive_blending" target="_blank" rel="noopener">additive blend</a>
-        <a href="https://threejs.org/examples/#webgl_animation_skinning_ik" target="_blank" rel="noopener" style="margin-top:4px;">skinning IK</a>
+        <a href="https://threejs.org/examples/#webgl_animation_skinning_additive_blending" target="_blank" rel="noopener">叠加混合</a>
+        <a href="https://threejs.org/examples/#webgl_animation_skinning_ik" target="_blank" rel="noopener" style="margin-top:4px;">蒙皮 IK</a>
     </div>
 
     <script>

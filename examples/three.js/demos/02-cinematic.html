@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RuView · Cinematic · ADR-097 helpers + pseudo-CSI visualization</title>
+    <title>RuView · 电影感 · ADR-097 辅助工具 + 伪 CSI 可视化</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='10' fill='%23e8a634'/></svg>">
     <style>
         :root {
@@ -164,32 +164,32 @@
     <div class="scan-flash" id="scan-flash"></div>
 
     <div class="panel" id="info">
-        <h1>RuView · Cinematic</h1>
-        <div class="sub">ADR-097 · pseudo-CSI visualization layer</div>
-        <div class="row"><span class="k">Subject</span><span class="v amber">● Tracked</span></div>
-        <div class="row"><span class="k">Pose</span><span class="v" id="pose-state">walking</span></div>
-        <div class="row"><span class="k">Heart rate</span><span class="v amber" id="hr-val">— bpm</span></div>
-        <div class="row"><span class="k">Breathing</span><span class="v amber" id="br-val">— bpm</span></div>
-        <div class="row"><span class="k">Mesh nodes</span><span class="v cyan">4 · multistatic</span></div>
-        <div class="row"><span class="k">Coherence</span><span class="v" id="coh-val">— %</span></div>
-        <div class="row"><span class="k">Tomography</span><span class="v mag" id="tomo-val">idle</span></div>
-        <div class="row"><span class="k">Bbox vol</span><span class="v" id="bbox-vol">— m³</span></div>
-        <div class="row"><span class="k">Render</span><span class="v" id="fps-val">— fps</span></div>
+        <h1>RuView · 电影感</h1>
+        <div class="sub">ADR-097 · 伪 CSI 可视化层</div>
+        <div class="row"><span class="k">受试者</span><span class="v amber">● Tracked</span></div>
+        <div class="row"><span class="k">姿态</span><span class="v" id="pose-state">行走</span></div>
+        <div class="row"><span class="k">心率</span><span class="v amber" id="hr-val">— bpm</span></div>
+        <div class="row"><span class="k">呼吸</span><span class="v amber" id="br-val">— bpm</span></div>
+        <div class="row"><span class="k">组网节点</span><span class="v cyan">4 · multistatic</span></div>
+        <div class="row"><span class="k">相干性</span><span class="v" id="coh-val">— %</span></div>
+        <div class="row"><span class="k">层析成像</span><span class="v mag" id="tomo-val">空闲</span></div>
+        <div class="row"><span class="k">包围盒体积</span><span class="v" id="bbox-vol">— m³</span></div>
+        <div class="row"><span class="k">渲染</span><span class="v" id="fps-val">— fps</span></div>
     </div>
 
     <div class="panel" id="controls">
-        <h2>Helpers · ADR-097</h2>
+        <h2>辅助工具 · ADR-097</h2>
         <label><input type="checkbox" id="t-grid" checked>GridHelper<span class="swatch" style="color:#666;background:#666"></span></label>
         <label><input type="checkbox" id="t-polar" checked>PolarGridHelper<span class="swatch" style="color:#ffb840;background:#ffb840"></span></label>
         <label><input type="checkbox" id="t-bbox" checked>BoxHelper<span class="swatch" style="color:#ffb840;background:#ffe09f"></span></label>
         <label><input type="checkbox" id="t-axes">AxesHelper<span class="swatch" style="color:#4cf;background:linear-gradient(45deg,#f44,#4f4,#4cf)"></span></label>
-        <label><input type="checkbox" id="t-nodebox" checked>Per-node BoxHelpers<span class="swatch" style="color:#4cf;background:#4cf"></span></label>
-        <label><input type="checkbox" id="t-pings" checked>Sonar pings<span class="swatch" style="color:#4cf;background:#4cf"></span></label>
-        <label><input type="checkbox" id="t-tomo" checked>Tomography sweep<span class="swatch" style="color:#ff4cc8;background:#ff4cc8"></span></label>
+        <label><input type="checkbox" id="t-nodebox" checked>逐节点 BoxHelper<span class="swatch" style="color:#4cf;background:#4cf"></span></label>
+        <label><input type="checkbox" id="t-pings" checked>声呐脉冲<span class="swatch" style="color:#4cf;background:#4cf"></span></label>
+        <label><input type="checkbox" id="t-tomo" checked>层析扫描<span class="swatch" style="color:#ff4cc8;background:#ff4cc8"></span></label>
     </div>
 
     <div class="panel" id="csi">
-        <h2>Per-node CSI · synthetic</h2>
+        <h2>逐节点 CSI · 合成</h2>
         <div class="bar-row"><span class="label">N1·BL</span><div class="bar-track"><div class="bar-fill" id="bar-0" style="width:0"></div></div><span class="val" id="val-0">—</span></div>
         <div class="bar-row"><span class="label">N2·BR</span><div class="bar-track"><div class="bar-fill" id="bar-1" style="width:0"></div></div><span class="val" id="val-1">—</span></div>
         <div class="bar-row"><span class="label">N3·FL</span><div class="bar-track"><div class="bar-fill" id="bar-2" style="width:0"></div></div><span class="val" id="val-2">—</span></div>
@@ -199,11 +199,11 @@
 
     <div id="titlecard">
         RuView · Seldon Vault
-        <div class="sub">multistatic wifi pose · ADR-097</div>
+        <div class="sub">多静态 WiFi 姿态 · ADR-097</div>
     </div>
 
     <div id="adr-badge">
-        ADR-097 · <a href="https://threejs.org/examples/#webgl_helpers" target="_blank" rel="noopener">three.js helpers</a> · cinematic
+        ADR-097 · <a href="https://threejs.org/examples/#webgl_helpers" target="_blank" rel="noopener">three.js 辅助工具</a> · cinematic
     </div>
 
     <script>

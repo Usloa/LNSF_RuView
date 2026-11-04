@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="build-stamp" content="2026-05-15-fps-tune">
-    <title>RuView · Skinned Realtime · MediaPipe Pose → Mixamo IK retargeting</title>
+    <title>RuView · 实时蒙皮网格 · MediaPipe Pose → Mixamo IK 重定向</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='10' fill='%23e8a634'/></svg>">
     <style>
         :root {
@@ -174,62 +174,62 @@
     <div id="loading"><div class="text">▸ Loading skinned subject · X Bot.fbx</div></div>
 
     <div class="panel" id="info">
-        <h1>RuView · Skinned Realtime</h1>
-        <div class="sub">MediaPipe Pose → Mixamo direct-retargeting · live CSI from real keypoints</div>
-        <div class="row"><span class="k">Subject</span><span class="v amber" id="subj-state">● Idle (no webcam)</span></div>
-        <div class="row"><span class="k">Source</span><span class="v">X Bot.fbx · 1.75 MB</span></div>
-        <div class="row"><span class="k">Bones</span><span class="v" id="bone-count">—</span></div>
-        <div class="row"><span class="k">Pose tracker</span><span class="v" id="pose-state">idle</span></div>
-        <div class="row"><span class="k">Tracking conf</span><span class="v" id="track-conf">— %</span></div>
-        <div class="row"><span class="k">Retargets</span><span class="v" id="retarget-count">0 / 12</span></div>
-        <div class="row"><span class="k">RSSI / Wrist L</span><span class="v cyan" id="dist-L">— m</span></div>
-        <div class="row"><span class="k">Yield / Wrist R</span><span class="v cyan" id="dist-R">— m</span></div>
-        <div class="row"><span class="k">Bbox vol</span><span class="v" id="bbox-vol">— m³</span></div>
-        <div class="row"><span class="k">Render</span><span class="v" id="fps-val">— fps</span></div>
+        <h1>RuView · 实时蒙皮网格</h1>
+        <div class="sub">MediaPipe Pose → Mixamo 直接重定向 · 来自真实关键点的实时 CSI</div>
+        <div class="row"><span class="k">受试者</span><span class="v amber" id="subj-state">● Idle (no webcam)</span></div>
+        <div class="row"><span class="k">来源</span><span class="v">X Bot.fbx · 1.75 MB</span></div>
+        <div class="row"><span class="k">骨骼</span><span class="v" id="bone-count">—</span></div>
+        <div class="row"><span class="k">姿态追踪器</span><span class="v" id="pose-state">空闲</span></div>
+        <div class="row"><span class="k">追踪置信度</span><span class="v" id="track-conf">— %</span></div>
+        <div class="row"><span class="k">重定向次数</span><span class="v" id="retarget-count">0 / 12</span></div>
+        <div class="row"><span class="k">RSSI / 左腕</span><span class="v cyan" id="dist-L">— m</span></div>
+        <div class="row"><span class="k">产出 / 右腕</span><span class="v cyan" id="dist-R">— m</span></div>
+        <div class="row"><span class="k">包围盒体积</span><span class="v" id="bbox-vol">— m³</span></div>
+        <div class="row"><span class="k">渲染</span><span class="v" id="fps-val">— fps</span></div>
     </div>
 
     <div id="pose-panel">
         <h2>MediaPipe Pose</h2>
-        <div class="status s-idle" id="pose-status"><span class="dot"></span><span id="pose-status-txt">Webcam disabled</span></div>
+        <div class="status s-idle" id="pose-status"><span class="dot"></span><span id="pose-status-txt">摄像头已禁用</span></div>
         <div class="preview">
             <video id="cam-video" playsinline muted autoplay></video>
             <canvas id="cam-overlay"></canvas>
         </div>
         <div class="stats">
-            <div class="row"><span class="k">Landmarks</span><span class="v" id="lm-count">0 / 33</span></div>
-            <div class="row"><span class="k">Visible</span><span class="v" id="lm-visible">0 / 33</span></div>
-            <div class="row"><span class="k">Pose fps</span><span class="v" id="pose-fps">— fps</span></div>
+            <div class="row"><span class="k">关键点</span><span class="v" id="lm-count">0 / 33</span></div>
+            <div class="row"><span class="k">可见</span><span class="v" id="lm-visible">0 / 33</span></div>
+            <div class="row"><span class="k">姿态帧率</span><span class="v" id="pose-fps">— fps</span></div>
         </div>
         <button id="cam-btn">▶ Enable webcam tracking</button>
         <button id="demo-btn" style="margin-top:6px;background:transparent;color:var(--cyan);border:1px solid var(--cyan);">▶ Demo mode (synthetic pose)</button>
         <button id="forcetest-btn" style="margin-top:6px;background:transparent;color:var(--magenta);border:1px solid var(--magenta);">⚡ Force test rotation (bypass retarget)</button>
-        <div id="build-banner" style="margin-top:8px;padding:4px 6px;font-size:9px;color:var(--magenta);border:1px dashed var(--magenta);text-align:center;letter-spacing:1px;">build 2026-05-15-fps-tune · default Holistic@Full 20fps · ?cnn=2 ?infer=30 to crank</div>
+        <div id="build-banner" style="margin-top:8px;padding:4px 6px;font-size:9px;color:var(--magenta);border:1px dashed var(--magenta);text-align:center;letter-spacing:1px;">构建 2026-05-15-fps-tune · 默认 Holistic@Full 20fps · 可用 ?cnn=2 ?infer=30 提升</div>
     </div>
 
     <div class="panel" id="csi">
-        <h2>Per-node CSI · LIVE</h2>
+        <h2>逐节点 CSI · 实时</h2>
         <div class="bar-row"><span class="label">N1·BL</span><div class="bar-track"><div class="bar-fill" id="bar-0"></div></div><span class="val" id="val-0">—</span></div>
         <div class="bar-row"><span class="label">N2·BR</span><div class="bar-track"><div class="bar-fill" id="bar-1"></div></div><span class="val" id="val-1">—</span></div>
         <div class="bar-row"><span class="label">N3·FL</span><div class="bar-track"><div class="bar-fill" id="bar-2"></div></div><span class="val" id="val-2">—</span></div>
         <div class="bar-row"><span class="label">N4·FR</span><div class="bar-track"><div class="bar-fill" id="bar-3"></div></div><span class="val" id="val-3">—</span></div>
-        <div class="legend" id="csi-legend">connecting to ESP32-S3 via ruvultra (Tailscale ws://100.104.125.72:8766)…</div>
+        <div class="legend" id="csi-legend">正在经 ruvultra 连接 ESP32-S3（Tailscale ws://100.104.125.72:8766）…</div>
     </div>
 
     <div id="helpers">
-        <h2>ADR-097 helpers</h2>
+        <h2>ADR-097 辅助工具</h2>
         <label><input type="checkbox" id="t-grid" checked>GridHelper<span class="swatch" style="color:#666"></span></label>
         <label><input type="checkbox" id="t-polar" checked>PolarGridHelper<span class="swatch" style="color:#ffb840"></span></label>
-        <label><input type="checkbox" id="t-bbox" checked>BoxHelper on mesh<span class="swatch" style="color:#ffe09f"></span></label>
+        <label><input type="checkbox" id="t-bbox" checked>网格上的 BoxHelper<span class="swatch" style="color:#ffe09f"></span></label>
         <label><input type="checkbox" id="t-skel">SkeletonHelper<span class="swatch" style="color:#4cf"></span></label>
-        <label><input type="checkbox" id="t-nodebox" checked>Per-node BoxHelpers<span class="swatch" style="color:#4cf"></span></label>
-        <label><input type="checkbox" id="t-rays" checked>RF illumination cones<span class="swatch" style="color:#ffb840"></span></label>
-        <label><input type="checkbox" id="t-tomo" checked>Tomography sweep<span class="swatch" style="color:#ff4cc8"></span></label>
-        <label><input type="checkbox" id="t-kpdots" checked>Live keypoint dots<span class="swatch" style="color:#4cf"></span></label>
+        <label><input type="checkbox" id="t-nodebox" checked>逐节点 BoxHelper<span class="swatch" style="color:#4cf"></span></label>
+        <label><input type="checkbox" id="t-rays" checked>射频照射锥<span class="swatch" style="color:#ffb840"></span></label>
+        <label><input type="checkbox" id="t-tomo" checked>层析扫描<span class="swatch" style="color:#ff4cc8"></span></label>
+        <label><input type="checkbox" id="t-kpdots" checked>实时关键点圆点<span class="swatch" style="color:#4cf"></span></label>
     </div>
 
     <div id="titlecard">
         RuView · Seldon Vault
-        <div class="sub">Live · MediaPipe Pose · Mixamo retarget</div>
+        <div class="sub">实时 · MediaPipe Pose · Mixamo 重定向</div>
     </div>
 
     <script>
@@ -738,20 +738,20 @@
                     box-shadow: 0 6px 24px rgba(0,0,0,0.5);
                 ">
                     <div style="font-size:16px; color:#4ecdc4; font-weight:600; margin-bottom:6px;">
-                        🦴 Mixamo asset not bundled in this deployment
+                        🦴 本部署未附带 Mixamo 资源
                     </div>
                     <div style="color:#c8cee0; margin-bottom:12px;">
-                        This realtime pose demo retargets webcam + MediaPipe onto
-                        <code style="color:#4ecdc4; background:rgba(78,205,196,0.08); padding:1px 6px; border-radius:3px;">X Bot.fbx</code>,
-                        which Mixamo licenses for direct download by end users and is intentionally not
-                        redistributed here. The ADR-097 helpers scene is still rendering behind this card.
+                        本实时姿态演示把摄像头 + MediaPipe 的结果重定向到
+                        <code style="color:#4ecdc4; background:rgba(78,205,196,0.08); padding:1px 6px; border-radius:3px;">X Bot.fbx</code>。
+                        该资源由 Mixamo 授权终端用户自行下载，故不随本部署重新分发。
+                        ADR-097 辅助场景仍在卡片后方渲染。
                     </div>
                     <div style="color:#8890a8; font-size:13px; margin-bottom:14px;">
-                        To run locally: clone the repo, get
-                        <code style="color:#4ecdc4;">X Bot.fbx</code> (FBX Binary · T-Pose · Without Skin)
-                        from <a href="https://mixamo.com" target="_blank" rel="noopener" style="color:#4ecdc4;">mixamo.com</a>,
-                        drop it in <code style="color:#4ecdc4;">examples/three.js/assets/</code>, then
-                        <code style="color:#4ecdc4;">python examples/three.js/server/serve-demo.py</code>.
+                        本地运行步骤：克隆仓库，从
+                        <a href="https://mixamo.com" target="_blank" rel="noopener" style="color:#4ecdc4;">mixamo.com</a>
+                        获取 <code style="color:#4ecdc4;">X Bot.fbx</code>（FBX Binary · T-Pose · Without Skin），
+                        放入 <code style="color:#4ecdc4;">examples/three.js/assets/</code>，然后执行
+                        <code style="color:#4ecdc4;">python examples/three.js/server/serve-demo.py</code>。
                     </div>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <a href="https://github.com/ruvnet/RuView/tree/main/examples/three.js" target="_blank" rel="noopener"

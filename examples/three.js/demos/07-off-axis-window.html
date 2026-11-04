@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RuView · ADR-324 · off-axis window (ruview-offaxis WASM)</title>
+    <title>RuView · ADR-324 · 离轴窗口（ruview-offaxis WASM）</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='7' y='9' width='18' height='14' rx='2' fill='none' stroke='%23e8a634' stroke-width='2'/><circle cx='16' cy='16' r='3' fill='%23e8a634'/></svg>">
     <style>
         :root {
@@ -117,41 +117,41 @@
 </head>
 <body>
     <div id="info">
-        <h1>OFF-AXIS WINDOW</h1>
-        <div class="sub">ADR-324 · clean-room Kooima projection · ruview-offaxis (Rust→WASM)</div>
-        <div class="row"><span class="k">engine</span><span class="v" id="hud-engine">loading…</span></div>
-        <div class="row"><span class="k">input</span><span class="v" id="hud-input">mouse (SYNTHETIC)</span></div>
-        <div class="row"><span class="k">eye x/y/z (m)</span><span class="v" id="hud-eye">—</span></div>
-        <div class="row"><span class="k">render fps</span><span class="v live" id="hud-fps">—</span></div>
-        <div class="row"><span class="k">rf socket</span><span class="v" id="hud-ws">not connected</span></div>
-        <div class="row"><span class="k">rf peak</span><span class="v" id="hud-peak">—</span></div>
+        <h1>离轴窗口</h1>
+        <div class="sub">ADR-324 · 净室 Kooima 投影 · ruview-offaxis（Rust→WASM）</div>
+        <div class="row"><span class="k">引擎</span><span class="v" id="hud-engine">加载中…</span></div>
+        <div class="row"><span class="k">输入</span><span class="v" id="hud-input">鼠标（合成）</span></div>
+        <div class="row"><span class="k">视点 x/y/z（m）</span><span class="v" id="hud-eye">—</span></div>
+        <div class="row"><span class="k">渲染帧率</span><span class="v live" id="hud-fps">—</span></div>
+        <div class="row"><span class="k">射频套接字</span><span class="v" id="hud-ws">未连接</span></div>
+        <div class="row"><span class="k">射频峰值</span><span class="v" id="hud-peak">—</span></div>
         <div class="row" style="margin-top:8px"><span class="k" style="font-size:10px">
-            keys: <b>M</b> mouse · <b>R</b> RF Tier B · wheel = distance</span></div>
+            keys: <b>M</b>鼠标 ·<b>R</b>射频 B 级 · 滚轮控制距离</span></div>
     </div>
 
-    <div id="mode-label">MOUSE SIM — SYNTHETIC INPUT</div>
+    <div id="mode-label">鼠标模拟 — 合成输入</div>
 
     <div id="controls">
-        <h2>PHYSICAL CALIBRATION (stored locally)</h2>
-        <label>screen width (cm) <input id="cal-w" type="number" step="0.5" value="60"></label>
-        <label>screen height (cm) <input id="cal-h" type="number" step="0.5" value="34"></label>
-        <label>viewing distance (cm) <input id="cal-d" type="number" step="1" value="65"></label>
-        <h2 style="margin-top:10px">RF SOURCE (Tier B)</h2>
-        <label>ws url <input id="ws-url" type="text" value="ws://127.0.0.1:8080/ws/sensing"></label>
-        <button id="apply">apply calibration</button>
+        <h2>物理校准（存储于本地）</h2>
+        <label>屏幕宽度（cm）<input id="cal-w" type="number" step="0.5" value="60"></label>
+        <label>屏幕高度（cm）<input id="cal-h" type="number" step="0.5" value="34"></label>
+        <label>观看距离（cm）<input id="cal-d" type="number" step="1" value="65"></label>
+        <h2 style="margin-top:10px">射频源（B 级）</h2>
+        <label>WS 地址<input id="ws-url" type="text" value="ws://127.0.0.1:8080/ws/sensing"></label>
+        <button id="apply">应用校准</button>
     </div>
 
     <div id="wasm-missing">
         <div class="box">
-            <b>ruview-offaxis WASM module not found.</b><br><br>
-            This demo loads the crate's wasm-bindgen output from
-            <code>v2/crates/ruview-offaxis/pkg/</code>. Generated artifacts are not
-            committed (repo rule); build them once:
+            <b>未找到 ruview-offaxis WASM 模块。</b><br><br>
+            本演示加载该 crate 的 wasm-bindgen 输出，位于
+            <code>v2/crates/ruview-offaxis/pkg/</code>。按仓库规则，生成产物不入库，
+            需本地构建一次：
             <code>cd v2 && cargo build -p ruview-offaxis --target wasm32-unknown-unknown --release</code>
             <code>wasm-bindgen --target web --out-dir crates/ruview-offaxis/pkg \
   target/wasm32-unknown-unknown/release/ruview_offaxis.wasm</code>
-            (install the CLI with <code>cargo install wasm-bindgen-cli --version 0.2.114</code>)<br>
-            then reload. Full steps: <code>v2/crates/ruview-offaxis/README.md</code>.
+            （用 <code>cargo install wasm-bindgen-cli --version 0.2.114</code> 安装 CLI）<br>
+            然后重新加载页面。完整步骤见 <code>v2/crates/ruview-offaxis/README.md</code>。
         </div>
     </div>
 

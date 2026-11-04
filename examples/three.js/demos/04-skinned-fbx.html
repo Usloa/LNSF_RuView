@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RuView · Skinned (FBX) · Mixamo X Bot in the ADR-097 helpers scene</title>
+    <title>RuView · 蒙皮网格（FBX） · ADR-097 辅助场景中的 Mixamo X Bot</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='10' fill='%23e8a634'/></svg>">
     <style>
         :root {
@@ -145,41 +145,41 @@
     <div id="loading"><div class="text">▸ Loading skinned subject · X Bot.fbx</div></div>
 
     <div class="panel" id="info">
-        <h1>RuView · Skinned (FBX)</h1>
-        <div class="sub">ADR-097 · Mixamo X Bot · loaded via FBXLoader</div>
-        <div class="row"><span class="k">Subject</span><span class="v amber">● Tracked</span></div>
-        <div class="row"><span class="k">Source</span><span class="v" id="src-name">X Bot.fbx</span></div>
-        <div class="row"><span class="k">Format</span><span class="v">FBX 7700 · 1.75 MB</span></div>
-        <div class="row"><span class="k">Bones</span><span class="v" id="bone-count">—</span></div>
-        <div class="row"><span class="k">Animation</span><span class="v amber" id="anim-name">—</span></div>
-        <div class="row"><span class="k">Mesh nodes</span><span class="v cyan">4 · multistatic</span></div>
-        <div class="row"><span class="k">Coherence</span><span class="v" id="coh-val">— %</span></div>
-        <div class="row"><span class="k">Heart rate</span><span class="v amber" id="hr-val">— bpm</span></div>
-        <div class="row"><span class="k">Bbox vol</span><span class="v" id="bbox-vol">— m³</span></div>
-        <div class="row"><span class="k">Render</span><span class="v" id="fps-val">— fps</span></div>
+        <h1>RuView · 蒙皮网格（FBX）</h1>
+        <div class="sub">ADR-097 · Mixamo X Bot · 经 FBXLoader 加载</div>
+        <div class="row"><span class="k">受试者</span><span class="v amber">● Tracked</span></div>
+        <div class="row"><span class="k">来源</span><span class="v" id="src-name">X Bot.fbx</span></div>
+        <div class="row"><span class="k">格式</span><span class="v">FBX 7700 · 1.75 MB</span></div>
+        <div class="row"><span class="k">骨骼</span><span class="v" id="bone-count">—</span></div>
+        <div class="row"><span class="k">动画</span><span class="v amber" id="anim-name">—</span></div>
+        <div class="row"><span class="k">组网节点</span><span class="v cyan">4 · multistatic</span></div>
+        <div class="row"><span class="k">相干性</span><span class="v" id="coh-val">— %</span></div>
+        <div class="row"><span class="k">心率</span><span class="v amber" id="hr-val">— bpm</span></div>
+        <div class="row"><span class="k">包围盒体积</span><span class="v" id="bbox-vol">— m³</span></div>
+        <div class="row"><span class="k">渲染</span><span class="v" id="fps-val">— fps</span></div>
     </div>
 
     <div id="anim">
         <h2>AnimationMixer</h2>
         <div class="row">
-            <span class="label">clips</span>
+            <span class="label">片段数</span>
             <span id="clip-buttons"></span>
         </div>
         <div class="slider-row">
-            <span class="label">time scale</span>
+            <span class="label">时间缩放</span>
             <input type="range" id="time-scale" min="0.1" max="2" step="0.05" value="1.0">
             <span class="val" id="time-scale-val">1.00</span>
         </div>
         <div class="empty-hint" id="empty-hint" style="display:none;">
-            <strong>No animations in this FBX.</strong><br>
+            <strong>该 FBX 中不含动画。</strong><br>
             Mixamo's "T-Pose / Without Skin" export rigs the model but has no clips.
             Re-download with <em>"Original Pose"</em> + an animation selected
-            (e.g. <a href="https://www.mixamo.com/#/?page=1&query=walking&type=Motion%2CMotionPack" target="_blank" rel="noopener">Walking</a>) to get a clip, or drop another FBX with anim and reload.
+            (e.g. <a href="https://www.mixamo.com/#/?page=1&query=walking&type=Motion%2CMotionPack" target="_blank" rel="noopener">行走</a>) to get a clip, or drop another FBX with anim and reload.
         </div>
     </div>
 
     <div class="panel" id="csi">
-        <h2>Per-node CSI</h2>
+        <h2>逐节点 CSI</h2>
         <div class="bar-row"><span class="label">N1·BL</span><div class="bar-track"><div class="bar-fill" id="bar-0"></div></div><span class="val" id="val-0">—</span></div>
         <div class="bar-row"><span class="label">N2·BR</span><div class="bar-track"><div class="bar-fill" id="bar-1"></div></div><span class="val" id="val-1">—</span></div>
         <div class="bar-row"><span class="label">N3·FL</span><div class="bar-track"><div class="bar-fill" id="bar-2"></div></div><span class="val" id="val-2">—</span></div>
@@ -187,15 +187,15 @@
     </div>
 
     <div id="helpers">
-        <h2>ADR-097 helpers</h2>
+        <h2>ADR-097 辅助工具</h2>
         <label><input type="checkbox" id="t-grid" checked>GridHelper<span class="swatch" style="color:#666"></span></label>
         <label><input type="checkbox" id="t-polar" checked>PolarGridHelper<span class="swatch" style="color:#ffb840"></span></label>
-        <label><input type="checkbox" id="t-bbox" checked>BoxHelper on mesh<span class="swatch" style="color:#ffe09f"></span></label>
+        <label><input type="checkbox" id="t-bbox" checked>网格上的 BoxHelper<span class="swatch" style="color:#ffe09f"></span></label>
         <label><input type="checkbox" id="t-skel">SkeletonHelper<span class="swatch" style="color:#4cf"></span></label>
-        <label><input type="checkbox" id="t-nodebox" checked>Per-node BoxHelpers<span class="swatch" style="color:#4cf"></span></label>
-        <label><input type="checkbox" id="t-pings" checked>Sonar pings<span class="swatch" style="color:#4cf"></span></label>
-        <label><input type="checkbox" id="t-tomo" checked>Tomography sweep<span class="swatch" style="color:#ff4cc8"></span></label>
-        <label><input type="checkbox" id="t-rays" checked>RF illumination cones<span class="swatch" style="color:#ffb840"></span></label>
+        <label><input type="checkbox" id="t-nodebox" checked>逐节点 BoxHelper<span class="swatch" style="color:#4cf"></span></label>
+        <label><input type="checkbox" id="t-pings" checked>声呐脉冲<span class="swatch" style="color:#4cf"></span></label>
+        <label><input type="checkbox" id="t-tomo" checked>层析扫描<span class="swatch" style="color:#ff4cc8"></span></label>
+        <label><input type="checkbox" id="t-rays" checked>射频照射锥<span class="swatch" style="color:#ffb840"></span></label>
     </div>
 
     <div id="titlecard">
@@ -592,20 +592,20 @@
                         box-shadow: 0 6px 24px rgba(0,0,0,0.5);
                     ">
                         <div style="font-size:16px; color:#4ecdc4; font-weight:600; margin-bottom:6px;">
-                            🦴 Mixamo asset not bundled in this deployment
+                            🦴 本部署未附带 Mixamo 资源
                         </div>
                         <div style="color:#c8cee0; margin-bottom:12px;">
-                            This demo loads <code style="color:#4ecdc4; background:rgba(78,205,196,0.08); padding:1px 6px; border-radius:3px;">X Bot.fbx</code>
-                            from Mixamo, which is intentionally not redistributed here (license boundary).
-                            The ADR-097 helpers scene (grid / axes / per-node CSI boxes) is rendering behind this card —
-                            click outside to interact with it.
+                            本演示从 Mixamo 加载 <code style="color:#4ecdc4; background:rgba(78,205,196,0.08); padding:1px 6px; border-radius:3px;">X Bot.fbx</code>，
+                            因授权边界该资源不随本部署重新分发。
+                            ADR-097 辅助场景（网格 / 坐标轴 / 逐节点 CSI 立方体）仍在卡片后方渲染——
+                            点击卡片外侧即可与之交互。
                         </div>
                         <div style="color:#8890a8; font-size:13px; margin-bottom:14px;">
-                            To run this demo with the character, clone the repo, download
-                            <code style="color:#4ecdc4;">X Bot.fbx</code> (FBX Binary · T-Pose · Without Skin)
-                            from <a href="https://mixamo.com" target="_blank" rel="noopener" style="color:#4ecdc4;">mixamo.com</a>
-                            into <code style="color:#4ecdc4;">examples/three.js/assets/</code>, then run
-                            <code style="color:#4ecdc4;">python examples/three.js/server/serve-demo.py</code>.
+                            要在本地带角色运行本演示，请克隆仓库，从
+                            <a href="https://mixamo.com" target="_blank" rel="noopener" style="color:#4ecdc4;">mixamo.com</a>
+                            下载 <code style="color:#4ecdc4;">X Bot.fbx</code>（FBX Binary · T-Pose · Without Skin）
+                            放入 <code style="color:#4ecdc4;">examples/three.js/assets/</code>，然后执行
+                            <code style="color:#4ecdc4;">python examples/three.js/server/serve-demo.py</code>。
                         </div>
                         <div style="display:flex; gap:10px; flex-wrap:wrap;">
                             <a href="https://github.com/ruvnet/RuView/tree/main/examples/three.js" target="_blank" rel="noopener"
