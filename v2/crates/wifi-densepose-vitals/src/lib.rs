@@ -1,35 +1,29 @@
-//! ESP32 CSI-grade vital sign extraction (ADR-021).
+//! ESP32 CSI 级生命体征提取（ADR-021）。
 //!
-//! Extracts heart rate and respiratory rate from WiFi Channel
-//! State Information using multi-subcarrier amplitude and phase
-//! analysis.
+//! 从 WiFi 信道状态信息中，通过多子载波幅度与相位分析，
+//! 提取心率与呼吸频率。
 //!
-//! # Architecture
+//! # 架构
 //!
-//! The pipeline processes CSI frames through four stages:
+//! 流水线分四个阶段处理 CSI 帧：
 //!
-//! 1. **Preprocessing** ([`CsiVitalPreprocessor`]): EMA-based static
-//!    component suppression, producing per-subcarrier residuals.
-//! 2. **Breathing extraction** ([`BreathingExtractor`]): Bandpass
-//!    filtering (0.1-0.5 Hz) with zero-crossing analysis for
-//!    respiratory rate.
-//! 3. **Heart rate extraction** ([`HeartRateExtractor`]): Bandpass
-//!    filtering (0.8-2.0 Hz) with autocorrelation peak detection
-//!    and inter-subcarrier phase coherence weighting.
-//! 4. **Anomaly detection** ([`VitalAnomalyDetector`]): Z-score
-//!    analysis with Welford running statistics for clinical alerts
-//!    (apnea, tachycardia, bradycardia).
+//! 1. **预处理**（[`CsiVitalPreprocessor`]）：基于 EMA 的静态分量抑制，
+//!    产出逐子载波残差。
+//! 2. **呼吸提取**（[`BreathingExtractor`]）：0.1–0.5 Hz 带通滤波，
+//!    通过过零分析得到呼吸频率。
+//! 3. **心率提取**（[`HeartRateExtractor`]）：0.8–2.0 Hz 带通滤波，
+//!    采用自相关峰值检测，并按子载波间相位一致性加权。
+//! 4. **异常检测**（[`VitalAnomalyDetector`]）：Z 分数分析，
+//!    结合 Welford 滑动统计产生临床告警（呼吸暂停、心动过速、心动过缓）。
 //!
-//! Results are stored in a [`VitalSignStore`] with configurable
-//! retention for historical analysis.
+//! 结果存入 [`VitalSignStore`]，保留时长可配置，供历史分析使用。
 //!
-//! Ground-truth evaluation ([`groundtruth`], ADR-293) ingests a
-//! reference-device series (CSV export), time-aligns it against a store
-//! session, and produces evidence-graded agreement statistics
-//! (MAE/RMSE/bias, Bland-Altman limits, percent-within-tolerance) with a
-//! mandatory session scope.
+//! 真值评估（[`groundtruth`]，ADR-293）读取参考设备序列（CSV 导出），
+//! 与 store 中的会话做时间对齐，并产出带证据等级的一致性统计
+//! （MAE/RMSE/偏差、Bland-Altman 界限、容差内百分比），
+//! 且必须指定会话范围。
 //!
-//! # Example
+//! # 示例
 //!
 //! ```
 //! use wifi_densepose_vitals::{
@@ -44,7 +38,7 @@
 //! let mut anomaly = VitalAnomalyDetector::default_config();
 //! let mut store = VitalSignStore::new(3600);
 //!
-//! // Process a CSI frame
+//! // 处理一帧 CSI
 //! let frame = CsiFrame {
 //!     amplitudes: vec![1.0; 56],
 //!     phases: vec![0.0; 56],

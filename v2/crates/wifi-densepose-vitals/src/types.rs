@@ -1,70 +1,69 @@
-//! Vital sign domain types (ADR-021).
+//! 生命体征领域类型（ADR-021）。
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-/// Status of a vital sign measurement.
+/// 生命体征测量的状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum VitalStatus {
-    /// Valid measurement with clinical-grade confidence.
+    /// 有效测量，具备临床级置信度。
     Valid,
-    /// Measurement present but with reduced confidence.
+    /// 有测量结果，但置信度下降。
     Degraded,
-    /// Measurement unreliable (e.g., single RSSI source).
+    /// 测量不可靠（例如仅来自单一 RSSI 源）。
     Unreliable,
-    /// No measurement possible.
+    /// 无法进行测量。
     Unavailable,
 }
 
-/// A single vital sign estimate.
+/// 单个生命体征估计值。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct VitalEstimate {
-    /// Estimated value in BPM (beats/breaths per minute).
+    /// 估计值，单位为 BPM（每分钟心跳/呼吸次数）。
     pub value_bpm: f64,
-    /// Confidence in the estimate [0.0, 1.0].
+    /// 该估计的置信度，取值 [0.0, 1.0]。
     pub confidence: f64,
-    /// Measurement status.
+    /// 测量状态。
     pub status: VitalStatus,
 }
 
-/// Combined vital sign reading.
+/// 合并后的生命体征读数。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct VitalReading {
-    /// Respiratory rate estimate.
+    /// 呼吸频率估计值。
     pub respiratory_rate: VitalEstimate,
-    /// Heart rate estimate.
+    /// 心率估计值。
     pub heart_rate: VitalEstimate,
-    /// Number of subcarriers used.
+    /// 使用的子载波数量。
     pub subcarrier_count: usize,
-    /// Signal quality score [0.0, 1.0].
+    /// 信号质量评分，取值 [0.0, 1.0]。
     pub signal_quality: f64,
-    /// Timestamp (seconds since epoch).
+    /// 时间戳（自 Unix 纪元起的秒数）。
     pub timestamp_secs: f64,
 }
 
-/// Input frame for the vital sign pipeline.
+/// 生命体征流水线的输入帧。
 #[derive(Debug, Clone)]
 pub struct CsiFrame {
-    /// Per-subcarrier amplitudes.
+    /// 逐子载波幅度。
     pub amplitudes: Vec<f64>,
-    /// Per-subcarrier phases (radians).
+    /// 逐子载波相位（弧度）。
     pub phases: Vec<f64>,
-    /// Number of subcarriers.
+    /// 子载波数量。
     pub n_subcarriers: usize,
-    /// Sample index (monotonically increasing).
+    /// 采样序号（单调递增）。
     pub sample_index: u64,
-    /// Sample rate in Hz.
+    /// 采样率，单位 Hz。
     pub sample_rate_hz: f64,
 }
 
 impl CsiFrame {
-    /// Create a new CSI frame, validating that amplitude and phase
-    /// vectors match the declared subcarrier count.
+    /// 创建一帧 CSI，并校验幅度与相位向量长度与声明的子载波数一致。
     ///
-    /// Returns `None` if the lengths are inconsistent.
+    /// 若长度不一致则返回 `None`。
     pub fn new(
         amplitudes: Vec<f64>,
         phases: Vec<f64>,
@@ -86,7 +85,7 @@ impl CsiFrame {
 }
 
 impl VitalEstimate {
-    /// Create an unavailable estimate (no measurement possible).
+    /// 创建一个不可用估计（无法测量）。
     pub fn unavailable() -> Self {
         Self {
             value_bpm: 0.0,
