@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RuView — Dual-Modal Pose Estimation</title>
+  <title>RuView — 双模态姿态估计</title>
   <link rel="stylesheet" href="pose-fusion/css/style.css?v=13">
 </head>
 <body>
@@ -16,17 +16,17 @@
     </div>
     <div class="header-right">
       <select id="mode-select" class="mode-select">
-        <option value="dual">Dual Mode (Video + CSI)</option>
-        <option value="video">Video Only</option>
-        <option value="csi">CSI Only (WiFi)</option>
+        <option value="dual">双模态（视频 + CSI）</option>
+        <option value="video">仅视频</option>
+        <option value="csi">仅 CSI（WiFi）</option>
       </select>
       <div class="status-badge">
         <span id="status-dot" class="status-dot offline"></span>
-        <span id="status-label">READY</span>
+        <span id="status-label">就绪</span>
       </div>
       <span id="fps-display" class="fps-badge">-- FPS</span>
       <a href="index.html" class="back-link">&larr; Dashboard</a>
-      <a href="observatory.html" class="back-link">Observatory &rarr;</a>
+      <a href="observatory.html" class="back-link">观测站 &rarr;</a>
     </div>
   </header>
 
@@ -37,13 +37,13 @@
     <div class="video-panel">
       <video id="webcam" autoplay playsinline muted></video>
       <canvas id="skeleton-canvas"></canvas>
-      <div class="video-overlay-label" id="mode-label">DUAL FUSION</div>
+      <div class="video-overlay-label" id="mode-label">双模态融合</div>
 
       <div id="camera-prompt" class="camera-prompt">
-        <div class="camera-prompt-label" id="prompt-mode-label">DUAL FUSION</div>
-        <p>Enable your webcam for live video pose estimation.<br>
-           Or switch to <strong>CSI Only</strong> mode for WiFi-based sensing.</p>
-        <button id="start-camera-btn">Enable Camera</button>
+        <div class="camera-prompt-label" id="prompt-mode-label">双模态融合</div>
+        <p>启用摄像头以进行实时视频姿态估计。<br>
+           Or switch to <strong>仅 CSI</strong> mode for WiFi-based sensing.</p>
+        <button id="start-camera-btn">启用摄像头</button>
       </div>
     </div>
 
@@ -55,7 +55,7 @@
         <div class="panel-title">&#9670; Fusion Confidence</div>
         <div class="fusion-bars">
           <div class="bar-row">
-            <span class="bar-label">Video</span>
+            <span class="bar-label">视频</span>
             <div class="bar-track"><div class="bar-fill video" id="video-bar" style="width:0%"></div></div>
             <span class="bar-value" id="video-bar-val">0%</span>
           </div>
@@ -65,7 +65,7 @@
             <span class="bar-value" id="csi-bar-val">0%</span>
           </div>
           <div class="bar-row">
-            <span class="bar-label">Fused</span>
+            <span class="bar-label">融合</span>
             <div class="bar-track"><div class="bar-fill fused" id="fused-bar" style="width:0%"></div></div>
             <span class="bar-value" id="fused-bar-val">0%</span>
           </div>
@@ -125,9 +125,9 @@
           <div class="rv-stage" id="rv-lg">L+G</div>
         </div>
         <div class="rv-stats">
-          <span>Energy: <span id="rv-energy" style="color:var(--green-glow)">--</span></span>
-          <span>Refinement: <span id="rv-refine" style="color:var(--cyan)">--</span></span>
-          <span>Pose Impact: <span id="rv-impact" style="color:var(--amber)">--</span></span>
+          <span>能量：<span id="rv-energy" style="color:var(--green-glow)">--</span></span>
+          <span>精化：<span id="rv-refine" style="color:var(--cyan)">--</span></span>
+          <span>姿态影响：<span id="rv-impact" style="color:var(--amber)">--</span></span>
         </div>
       </div>
 
@@ -137,7 +137,7 @@
         <div class="latency-grid">
           <div class="latency-item">
             <div class="latency-value" id="lat-video">--</div>
-            <div class="latency-label">Video CNN</div>
+            <div class="latency-label">视频 CNN</div>
           </div>
           <div class="latency-item">
             <div class="latency-value" id="lat-csi">--</div>
@@ -145,11 +145,11 @@
           </div>
           <div class="latency-item">
             <div class="latency-value" id="lat-fusion">--</div>
-            <div class="latency-label">Fusion</div>
+            <div class="latency-label">融合</div>
           </div>
           <div class="latency-item">
             <div class="latency-value" id="lat-total">--</div>
-            <div class="latency-label">Total</div>
+            <div class="latency-label">合计</div>
           </div>
         </div>
       </div>
@@ -162,7 +162,7 @@
         </div>
 
         <div class="slider-row">
-          <label>Confidence</label>
+          <label>置信度</label>
           <input type="range" id="confidence-slider" min="0" max="1" step="0.05" value="0.3">
           <span class="slider-val" id="confidence-value">0.30</span>
         </div>
@@ -174,7 +174,7 @@
               style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--bg-panel-border);
                      color:var(--text-primary);padding:5px 8px;border-radius:4px;font-size:11px;
                      font-family:'JetBrains Mono',monospace">
-            <button class="btn" id="connect-ws-btn">Connect</button>
+            <button class="btn" id="connect-ws-btn">连接</button>
           </div>
         </div>
       </div>
@@ -189,8 +189,8 @@
       </div>
       <div>
         <a href="https://github.com/ruvnet/RuView">GitHub</a> &middot;
-        CNN: <span id="cnn-backend">ruvector-cnn (loading…)</span> &middot;
-        <a href="observatory.html">Observatory</a>
+        CNN: <span id="cnn-backend">ruvector-cnn（加载中…）</span> &middot;
+        <a href="observatory.html">观测站</a>
       </div>
     </div>
 
