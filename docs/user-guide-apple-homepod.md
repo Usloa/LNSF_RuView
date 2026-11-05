@@ -1,67 +1,67 @@
-# RuView ↔ HomePod Integration Guide
+# RuView ↔ HomePod 接入指南
 
-**Ambient intelligence for Apple Home.** Run RuView as a native HomeKit accessory so your HomePod discovers it, Siri understands it, and Apple Home automations govern it — no Home Assistant required.
-
----
-
-## Architecture Overview
-
-RuView turns WiFi radio reflections into spatial intelligence (presence, breathing, fall risk, activity patterns). When paired with a HomePod or Apple TV acting as your Home Hub, RuView becomes an invisible sensor that feeds Siri, automations, and scenes:
-
-```
-ESP32-C6 CSI node (living room)
-  ↓ (UDP feature stream)
-RuView Sensing Server (announces presence, vital signs, BFLD events)
-  ↓ (HTTP polling)
-HAP Bridge (advertises HomeKit accessory on mDNS)
-  ↓ (Bonjour discovery)
-HomePod or Apple TV (Home Hub)
-  ↓ (forwards to Home app + Siri)
-iPhone, iPad, Mac, Watch, Apple Home automations
-```
-
-The integration leverages HomeKit Accessory Protocol (HAP-1.1) — the same standard that Philips Hue, Eve, and Nanoleaf use. Your HomePod discovers the bridge within seconds of launch, pairing is one-tap from the Home app, and Siri queries work immediately: *"Hey Siri, is anyone in the living room?"*
-
-For design rationale and privacy safeguards, see [ADR-125 — RuView ↔ Apple Home native HAP bridge](docs/adr/ADR-125-ruview-apple-home-native-hap-bridge.md).
+**面向 Apple 家庭 App 的环境感知。** 把 RuView 作为原生 HomeKit 配件运行，HomePod 就能发现它、Siri 能听懂它、Apple 家庭自动化能调用它 —— 不需要 Home Assistant。
 
 ---
 
-## What's Shipped Today (Tier 1 + Tier 2)
+## 架构总览
 
-Eight incremental iterations landed in PR #797 on the `feat/adr-125-apple-fabric` branch:
+RuView 把 WiFi 无线电反射转换成空间信息（在场、呼吸、跌倒风险、活动规律）。配上一台作为家庭中枢的 HomePod 或 Apple TV，RuView 就成了一个隐形传感器，为 Siri、自动化和场景提供数据：
 
-| Iteration | Capability | Commit | Status |
+```
+ESP32-C6 CSI 节点（客厅）
+  ↓（UDP 特征流）
+RuView 感知服务器（上报在场、生命体征、BFLD 事件）
+  ↓（HTTP 轮询）
+HAP 桥接（通过 mDNS 广播 HomeKit 配件）
+  ↓（Bonjour 发现）
+HomePod 或 Apple TV（家庭中枢）
+  ↓（转发到家庭 App + Siri）
+iPhone、iPad、Mac、Watch、Apple 家庭自动化
+```
+
+这套接入基于 HomeKit Accessory Protocol（HAP-1.1）—— 与 Philips Hue、Eve、Nanoleaf 用的是同一个标准。桥接启动后几秒内 HomePod 就能发现它，在家庭 App 里点一下即可配对，Siri 查询立刻可用：*"嘿 Siri，客厅有人吗？"*
+
+设计理由与隐私保护见 [ADR-125 — RuView ↔ Apple Home 原生 HAP 桥接](docs/adr/ADR-125-ruview-apple-home-native-hap-bridge.md)。
+
+---
+
+## 目前已交付的功能（第 1 层 + 第 2 层）
+
+PR #797 在 `feat/adr-125-apple-fabric` 分支上分八次迭代落地：
+
+| 迭代 | 能力 | 提交 | 状态 |
 |-----------|-----------|--------|--------|
-| 1 | Multi-characteristic HomeKit accessory (Motion + Occupancy + StatelessProgrammableSwitch) | `48db60a65` | Runtime-live |
-| 2 | Sensing-server HTTP endpoints for bridge polling (`/api/v1/vitals`, `/api/v1/bfld`, `/api/v1/semantic-events`) | `194a2e163` | Runtime-live, curl-validated |
-| 3 | HAP bridge with N child accessories; Siri-by-room (name each room, Siri voices it) | `63b77f760` | Runtime-live, two bridges advertising |
-| 4 | Semantic-events endpoint per §2.1.d (`Unknown Presence`, `Unexpected Occupancy`, `Unrecognized Activity Pattern`) | `3d30261e7` | Runtime-live, privacy invariant I1 enforced |
-| 5 | rvagent MCP consumer (agentic chain); 12 MCP tools for Claude Code integration | `c19742d71` | Runtime-validated on real C6 |
-| 6 | PyO3 BFLD PrivacyClass binding (SOTA rust crate exposed to Python) | `de0712d43` | Source-built (`cargo check` green) |
-| 7 | Shortcuts-as-glue (launchd job + Speak Text on HomePod via iCloud Home graph, bypasses Bonjour blocker) | `d0525359d` | Runtime-validated, osascript trigger green |
-| 8 | Custom characteristic UUID scaffold for Eve.app rendering (design complete; runtime HAP-python JSON-loader follow-up) | `3bb8c1621` | Design scaffolded |
+| 1 | 多特征 HomeKit 配件（Motion + Occupancy + StatelessProgrammableSwitch） | `48db60a65` | 运行时已跑通 |
+| 2 | 供桥接轮询的感知服务器 HTTP 接口（`/api/v1/vitals`、`/api/v1/bfld`、`/api/v1/semantic-events`） | `194a2e163` | 运行时已跑通，curl 验证过 |
+| 3 | 支持 N 个子配件的 HAP 桥接；按房间应答 Siri（给每个房间命名，Siri 会念出来） | `63b77f760` | 运行时已跑通，两个桥接同时广播 |
+| 4 | 按 §2.1.d 实现的语义事件接口（`Unknown Presence`、`Unexpected Occupancy`、`Unrecognized Activity Pattern`） | `3d30261e7` | 运行时已跑通，隐私约束 I1 生效 |
+| 5 | rvagent MCP 消费端（智能体链路）；面向 Claude Code 的 12 个 MCP 工具 | `c19742d71` | 在真实 C6 上验证过 |
+| 6 | PyO3 BFLD PrivacyClass 绑定（把 Rust crate 暴露给 Python） | `de0712d43` | 源码构建通过（`cargo check` 通过） |
+| 7 | 用「快捷指令」做粘合（launchd 任务 + 经 iCloud 家庭图谱在 HomePod 上朗读文本，绕开 Bonjour 障碍） | `d0525359d` | 运行时验证过，osascript 触发正常 |
+| 8 | 供 Eve.app 展示的自定义特征 UUID 骨架（设计完成；HAP-python JSON 加载器的运行时支持待补） | `3bb8c1621` | 仅完成设计骨架 |
 
-**What you can do today:**
+**现在就能做的事：**
 
-- Pair a RuView bridge into your Home app on iPhone, iPad, or Mac.
-- Ask Siri room-specific presence questions ("is anyone home", "is the office occupied", "did someone fall").
-- Trigger automations on presence detection, breathing presence, fall risk, or activity pattern anomalies.
-- Stream RuView events to HomePod announcements via the Shortcuts-as-glue path (Tier 2).
-- Query RuView data programmatically through the agentic MCP interface (Claude Code integration).
+- 在 iPhone、iPad 或 Mac 的家庭 App 里配对一个 RuView 桥接。
+- 向 Siri 询问具体房间的在场情况（「家里有人吗」「办公室有人吗」「有人摔倒了吗」）。
+- 用「检测到在场」「检测到呼吸」「跌倒风险」「活动规律异常」来触发自动化。
+- 通过「快捷指令粘合」通路（第 2 层）把 RuView 事件推送到 HomePod 播报。
+- 通过智能体 MCP 接口以编程方式查询 RuView 数据（Claude Code 接入）。
 
 ---
 
-## Quickstart (5 minutes)
+## 快速上手（5 分钟）
 
-### Prerequisites
+### 前置条件
 
-- **Hardware**: ESP32-C6 running CSI firmware (rev v0.7.0+) on the same WiFi network as your Mac and HomePod.
-- **Software**: Python 3.8+ on a Mac that's already paired into your Home app (iCloud account).
-- **Network**: Mac, HomePod, and ESP32-C6 must all be on the same LAN subnet (e.g., `192.168.1.0/24`).
+- **硬件**：运行 CSI 固件（v0.7.0 及以上）的 ESP32-C6，与 Mac、HomePod 在同一 WiFi 网络。
+- **软件**：Mac 上装 Python 3.8+，且该 Mac 已登录 iCloud 并加入家庭 App。
+- **网络**：Mac、HomePod、ESP32-C6 必须在同一个局域网网段（例如 `192.168.1.0/24`）。
 
-### Step 1: Provision the ESP32-C6
+### 第 1 步：配置 ESP32-C6
 
-Connect the C6 via USB and run the provisioning script:
+用 USB 接上 C6，运行配置脚本：
 
 ```bash
 python firmware/esp32-csi-node/provision.py \
@@ -71,13 +71,13 @@ python firmware/esp32-csi-node/provision.py \
   --target-ip 192.168.1.20
 ```
 
-Verify the C6 boots on the network:
+确认 C6 已联网启动：
 
 ```bash
 ping 192.168.1.20
 ```
 
-### Step 2: Create a Python venv on the Mac and install HAP-python
+### 第 2 步：在 Mac 上建 Python 虚拟环境并安装 HAP-python
 
 ```bash
 mkdir -p ~/ruview-hap
@@ -87,9 +87,9 @@ source venv/bin/activate
 pip install HAP-python
 ```
 
-### Step 3: Copy the RuView bridge scripts to the Mac
+### 第 3 步：把 RuView 桥接脚本拷到 Mac
 
-From the repository (e.g., cloned on your Mac), copy these files:
+从仓库（例如已克隆到 Mac 上）拷贝这些文件：
 
 ```bash
 cp scripts/c6-presence-watcher.py ~/ruview-hap/
@@ -97,9 +97,9 @@ cp scripts/ruview-sensing-server.py ~/ruview-hap/
 cp scripts/ruview-hap-bridge.py ~/ruview-hap/
 ```
 
-### Step 4: Start the three daemons in order
+### 第 4 步：按顺序启动三个后台进程
 
-**Terminal 1: Start the C6 presence watcher** (reads UDP packets from the C6, applies BFLD privacy gate)
+**终端 1：启动 C6 在场监视器**（读取 C6 的 UDP 包，执行 BFLD 隐私门槛）
 
 ```bash
 cd ~/ruview-hap
@@ -107,9 +107,9 @@ source venv/bin/activate
 python c6-presence-watcher.py --node-id 1 --esp32-ip 192.168.1.20 --privacy-class 2
 ```
 
-Output: Writes presence events to `/tmp/ruview-state.json`.
+输出：把在场事件写到 `/tmp/ruview-state.json`。
 
-**Terminal 2: Start the sensing server** (HTTP polling interface for the HAP bridge)
+**终端 2：启动感知服务器**（供 HAP 桥接轮询的 HTTP 接口）
 
 ```bash
 cd ~/ruview-hap
@@ -117,9 +117,9 @@ source venv/bin/activate
 python ruview-sensing-server.py --port 3000
 ```
 
-Output: Listening on `http://127.0.0.1:3000/api/v1/...`.
+输出：监听 `http://127.0.0.1:3000/api/v1/...`。
 
-**Terminal 3: Start the HAP bridge** (advertises HomeKit accessory on mDNS)
+**终端 3：启动 HAP 桥接**（通过 mDNS 广播 HomeKit 配件）
 
 ```bash
 cd ~/ruview-hap
@@ -127,135 +127,135 @@ source venv/bin/activate
 python ruview-hap-bridge.py --port 51826 --pin 200-70-910
 ```
 
-Output: Look for setup code in the terminal output, e.g., `Setup code: 200-70-910`.
+输出：在终端里找配对码，例如 `Setup code: 200-70-910`。
 
-### Step 5: Pair the bridge from your iPhone
+### 第 5 步：用 iPhone 配对桥接
 
-1. Open the **Home** app on your iPhone.
-2. Tap the **+** icon (top right) → **Add Accessory**.
-3. Scan the setup code (or tap **Don't Have a Code or Can't Scan?** → **More Options**).
-4. Select the **RuView Sense** bridge from the list (should appear within 10 seconds).
-5. Assign to a room (e.g., "Living Room").
-6. Tap **Done**.
+1. 打开 iPhone 上的**家庭** App。
+2. 点右上角 **+** → **添加配件**。
+3. 扫描配对码（或点**没有配对码或无法扫描？** → **更多选项**）。
+4. 从列表里选中 **RuView Sense** 桥接（一般 10 秒内出现）。
+5. 分配到某个房间（例如「客厅」）。
+6. 点**完成**。
 
-### Step 6: Test with Siri
+### 第 6 步：用 Siri 测试
 
-Once paired, ask Siri:
+配对后，问 Siri：
 
 ```
-"Hey Siri, is anyone in the living room?"
+"嘿 Siri，客厅有人吗？"
 ```
 
-Siri will respond with the current occupancy state. Walk past the C6 and ask again — the presence value should update within 1–2 seconds.
+Siri 会回答当前的占用状态。从 C6 前走过再问一次，在场数值应在 1～2 秒内更新。
 
 ---
 
-## Per-Room Expansion
+## 扩展到多个房间
 
-To monitor multiple rooms, run multiple C6 nodes, each with its own `c6-presence-watcher.py` instance:
+要监测多个房间，就运行多个 C6 节点，每个节点配一个独立的 `c6-presence-watcher.py` 实例：
 
 ```bash
-# Terminal: Room 1 (Living Room, node_id=1)
+# 终端：房间 1（客厅，node_id=1）
 python c6-presence-watcher.py --node-id 1 --esp32-ip 192.168.1.20 \
   --output /tmp/ruview-state.living-room.json
 
-# Terminal: Room 2 (Bedroom, node_id=2)
+# 终端：房间 2（卧室，node_id=2）
 python c6-presence-watcher.py --node-id 2 --esp32-ip 192.168.1.21 \
   --output /tmp/ruview-state.bedroom.json
 
-# Terminal: HAP bridge (auto-discovers both state files)
+# 终端：HAP 桥接（自动发现两个状态文件）
 python ruview-hap-bridge.py --port 51826 --rooms "Living Room,Bedroom"
 ```
 
-The HAP bridge auto-discovers `*.json` files in `/tmp/ruview-state*` and creates a child HomeKit accessory per room. Each room appears separately in the Home app and can be assigned to its physical location.
+HAP 桥接会自动发现 `/tmp/ruview-state*` 下的 `*.json` 文件，并为每个房间创建一个子 HomeKit 配件。每个房间在家庭 App 里单独出现，可分别分配到对应的物理位置。
 
 ---
 
-## Privacy Semantics
+## 隐私语义
 
-RuView's BFLD (Beamforming Feedback Layer for Detection) uses a **privacy class** gate that enforces what data can cross the HomeKit boundary. Only Classes 2 and 3 (Anonymous and Restricted) are eligible; Class 0/1 (Raw identity information) is never exposed.
+RuView 的 BFLD（用于检测的波束成形反馈层）用**隐私等级**门槛来限定哪些数据可以越过 HomeKit 边界。只有 2 级和 3 级（匿名、受限）符合条件；0/1 级（原始身份信息）永不外泄。
 
-### The Three Semantic Events
+### 三种语义事件
 
-HomeKit exposes **thresholded events**, not raw probabilities:
+HomeKit 暴露的是**经过阈值判断的事件**，不是原始概率：
 
-| Event | HomeKit Characteristic | Meaning | Example Automation |
+| 事件 | HomeKit 特征 | 含义 | 自动化示例 |
 |-------|----------------------|---------|-------------------|
-| **Unknown Presence** | MotionSensor (stateful) | Person detected + no matching identity record for >30s | "Turn on porch light when Unknown Presence detected after 9pm" |
-| **Unexpected Occupancy** | OccupancySensor | Occupancy outside the operator's defined schedule | "Send notification if office is occupied on weekends" |
-| **Unrecognized Activity Pattern** | ProgrammableSwitch (momentary) | Activity drift or recalibration gate fires | "Run a re-learning sequence when activity changes" |
+| **Unknown Presence**（未知在场） | MotionSensor（有状态） | 检测到人，且超过 30 秒没有匹配的身份记录 | 「晚上 9 点后出现未知在场时打开门廊灯」 |
+| **Unexpected Occupancy**（意外占用） | OccupancySensor | 占用发生在操作者设定的时段之外 | 「周末办公室有人时发通知」 |
+| **Unrecognized Activity Pattern**（未识别的活动规律） | ProgrammableSwitch（瞬时） | 活动发生漂移，或触发重新校准门槛 | 「活动规律变化时重新跑一遍学习流程」 |
 
-### What's Deliberately Hidden
+### 刻意不外露的内容
 
-The following are **never** exposed to HomeKit:
+以下信息**绝不**暴露给 HomeKit：
 
-- `identity_risk_score` (numeric 0–1 confidence) — only thresholded semantic events cross the boundary
-- Soul-Signature match probability — internal to BFLD
-- `rf_signature_hash` — cryptographic internal state
+- `identity_risk_score`（0～1 的数值置信度）—— 越过边界的只有经过阈值判断的语义事件
+- Soul-Signature 匹配概率 —— 属于 BFLD 内部状态
+- `rf_signature_hash` —— 加密内部状态
 
-This enforces **ADR-125 §2.1.d invariant I1**: raw identity information never exits the node. The semantic framing is intentional — "Unknown Presence" reads as *who's-here-and-it's-fine-but-worth-noting*, not as an accusation.
+这落实了 **ADR-125 §2.1.d 的约束 I1**：原始身份信息绝不离开节点。采用语义化表述是刻意设计的 —— 「未知在场」读起来是*这里有人、没什么问题、但值得留意*，而不是一种指认。
 
-For the technical definition, see [ADR-118 — Beamforming Feedback Layer for Detection](docs/adr/ADR-118-bfld-beamforming-feedback-layer-for-detection.md).
+技术定义见 [ADR-118 — 用于检测的波束成形反馈层](docs/adr/ADR-118-bfld-beamforming-feedback-layer-for-detection.md)。
 
 ---
 
-## Siri-by-Room
+## 按房间应答 Siri
 
-Name each HomeKit accessory after its room. The HAP bridge pulls room names from the state file prefixes:
+给每个 HomeKit 配件取房间的名字。HAP 桥接从状态文件的前缀里读取房间名：
 
 ```bash
 python c6-presence-watcher.py --node-id 1 \
   --output /tmp/ruview-state.LIVING_ROOM.json
 
-# HAP bridge sees this and names the accessory "Living Room"
+# HAP 桥接读到后，把配件命名为「客厅」
 ```
 
-When paired in the Home app, Siri knows the room:
+在家庭 App 里配对后，Siri 就知道房间了：
 
-| Query | Result |
+| 问法 | 结果 |
 |-------|--------|
-| "Is anyone in the living room?" | Queries the Living Room accessory's motion sensor |
-| "Is anyone home?" | Queries all room accessories; returns true if any motion is detected |
-| "Turn on the bedroom lights when occupancy is detected" | Automation triggers on the Bedroom accessory only |
+| 「客厅有人吗？」 | 查询客厅配件的运动传感器 |
+| 「家里有人吗？」 | 查询所有房间配件；任一检测到运动就返回真 |
+| 「检测到有人时打开卧室灯」 | 只在卧室配件上触发自动化 |
 
-### StatelessProgrammableSwitch for Automations
+### 用 StatelessProgrammableSwitch 做自动化
 
-Each room also exposes a **StatelessProgrammableSwitch** that fires on semantic-event boundaries (Unrecognized Activity Pattern, Recalibration, etc.). This is the HomeKit primitive for momentary triggers:
+每个房间还会暴露一个 **StatelessProgrammableSwitch**，在语义事件边界（未识别的活动规律、重新校准等）触发。这是 HomeKit 里用于瞬时触发的基础组件：
 
-1. In the Home app, go to **Automation** → **Create New Automation** → **When an Accessory is Controlled**.
-2. Select **Living Room** → **Programmable Switch** → **Single Press**.
-3. Add an action: *Turn on scene*, *Send notification*, *Set HomeKit Secure Video recording*, etc.
+1. 在家庭 App 里进入**自动化** → **创建自动化** → **当配件被控制时**。
+2. 选择**客厅** → **可编程开关** → **单次按下**。
+3. 添加动作：*开启场景*、*发送通知*、*设置 HomeKit 安全视频录制*等。
 
 ---
 
-## HomePod Announcements via Shortcuts (Tier 2 Path)
+## 通过「快捷指令」在 HomePod 上播报（第 2 层通路）
 
-The easiest way to announce RuView events on a HomePod is through **Shortcuts-as-glue** — a native macOS launchd job that watches RuView's semantic events and triggers a Shortcut you define.
+让 HomePod 播报 RuView 事件，最简单的办法是**用快捷指令做粘合** —— 一个 macOS 原生的 launchd 任务监视 RuView 的语义事件，并触发你定义的快捷指令。
 
-This path **bypasses the Bonjour reflector blocker** that can prevent HomePod discovery in some mesh networks. Instead of direct mDNS, the Mac uses the Home graph (iCloud-paired) to reach the HomePod.
+这条路径**绕开了 Bonjour 反射障碍**：在某些 Mesh 网络里，该问题会导致 HomePod 无法被发现。它不直接走 mDNS，而是由 Mac 借助家庭图谱（已与 iCloud 配对）联系 HomePod。
 
-### One-Time Setup
+### 一次性配置
 
-#### 1. Create the Shortcut in Shortcuts.app
+#### 1. 在「快捷指令」App 里创建快捷指令
 
-1. Open **Shortcuts.app** on your Mac.
-2. Click **+** (top left) → **Create Shortcut**.
-3. Click **Add Action** → search for **"Speak Text"** → add it.
-4. In the **"Speak Text"** action, click the **speaker icon** → select your **HomePod** (or HomePod mini).
-5. Name the Shortcut **`RuView Announce`** (exact name).
-6. **Save** (top right).
+1. 在 Mac 上打开**快捷指令** App。
+2. 点左上角 **+** → **创建快捷指令**。
+3. 点**添加操作** → 搜索 **「朗读文本」** → 添加。
+4. 在**「朗读文本」**操作里点**扬声器图标** → 选中你的 **HomePod**（或 HomePod mini）。
+5. 把快捷指令命名为 **`RuView Announce`**（名称要完全一致）。
+6. 点右上角**存储**。
 
-#### 2. Test the Shortcut from the terminal
+#### 2. 从终端测试快捷指令
 
 ```bash
 osascript -e 'tell application "Shortcuts Events" to run shortcut "RuView Announce" with input "Test from RuView"'
 ```
 
-Your HomePod should speak "Test from RuView" in your chosen voice.
+HomePod 应该用你选的声音念出「Test from RuView」。
 
-#### 3. Install the launchd job
+#### 3. 安装 launchd 任务
 
-Copy the launchd plist from the repository:
+从仓库拷出 launchd plist：
 
 ```bash
 cp scripts/macos-shortcuts/ruview-watcher.plist \
@@ -263,212 +263,212 @@ cp scripts/macos-shortcuts/ruview-watcher.plist \
 
 launchctl load ~/Library/LaunchAgents/com.ruvnet.ruview.watcher.plist
 
-launchctl list | grep ruvnet  # Confirm it's loaded
+launchctl list | grep ruvnet  # 确认已加载
 ```
 
-#### 4. Verify it works
+#### 4. 验证生效
 
-Tail the log in one terminal:
+在一个终端里跟踪日志：
 
 ```bash
 tail -f /tmp/ruview-watcher.log
 ```
 
-In another terminal, walk past the C6 and trigger a presence detection. The log should show:
+在另一个终端从 C6 前走过，触发一次在场检测。日志里应出现：
 
 ```
-[17:10:12] unknown_presence rising-edge → running 'RuView Announce'
+[17:10:12] unknown_presence 上升沿 → 运行 'RuView Announce'
 ```
 
-And your HomePod should announce the event in its configured voice.
+随后 HomePod 会用配置好的声音播报该事件。
 
-### Extending to Multiple Rooms
+### 扩展到多个房间
 
-To announce different events in different rooms, create multiple Shortcuts in Shortcuts.app:
+想让不同房间播报不同事件，就在「快捷指令」App 里创建多个快捷指令：
 
 - `RuView Announce Kitchen`
 - `RuView Announce Bedroom`
 
-Then run multiple watcher jobs with different `--shortcut-name` flags:
+再用不同的 `--shortcut-name` 参数跑多个监视任务：
 
 ```bash
-# Kitchen events on HomePod mini in kitchen
+# 厨房事件，由厨房的 HomePod mini 播报
 scripts/macos-shortcuts/announce-via-homepod.sh \
   --node-id 1 --event unknown_presence \
   --shortcut-name "RuView Announce Kitchen" \
   --poll-interval 2 &
 
-# Bedroom events on HomePod in bedroom
+# 卧室事件，由卧室的 HomePod 播报
 scripts/macos-shortcuts/announce-via-homepod.sh \
   --node-id 2 --event unknown_presence \
   --shortcut-name "RuView Announce Bedroom" \
   --poll-interval 2 &
 ```
 
-### Going Further
+### 再往前走一步
 
-Because the Shortcut is operator-editable in Shortcuts.app, you can extend it to do anything:
+快捷指令可以在「快捷指令」App 里由操作者自行修改，因此你可以随意扩展：
 
-- **Activate a scene** ("turn on bedtime scene when fall risk detected")
-- **Send a notification** to your Apple Watch
-- **Call a Webhook** to integrate with other systems
-- **Send a message** to another person's iPhone
-- **Trigger a HomeKit secure camera recording**
+- **激活场景**（「检测到跌倒风险时开启睡前场景」）
+- 向 Apple Watch **发送通知**
+- **调用 Webhook** 对接其他系统
+- 给别人 iPhone **发消息**
+- **触发 HomeKit 安全摄像头录制**
 
-This is the flexibility of the Shortcuts-as-glue approach — no code change needed in RuView, all customization in the operator's own Shortcuts library.
+这正是「快捷指令粘合」的灵活性 —— RuView 不用改一行代码，所有定制都留在操作者自己的快捷指令库里。
 
-For complete setup details and troubleshooting, see [`scripts/macos-shortcuts/README.md`](scripts/macos-shortcuts/README.md).
+完整配置与排障见 [`scripts/macos-shortcuts/README.md`](scripts/macos-shortcuts/README.md)。
 
 ---
 
-## Agentic Consumption via MCP
+## 通过 MCP 供智能体调用
 
-RuView's sensing stream is also available through Model Context Protocol (MCP) — the standard interface for Claude Code and other AI agents to query RuView data.
+RuView 的感知数据流也可以通过 Model Context Protocol（MCP）获取 —— 这是 Claude Code 等 AI 智能体查询 RuView 数据的标准接口。
 
-### The `@ruvnet/rvagent` npm package (v0.1.0)
+### `@ruvnet/rvagent` npm 包（v0.1.0）
 
-The package exposes **12 MCP tools** that let Claude Code agents:
+这个包暴露 **12 个 MCP 工具**，让 Claude Code 智能体可以：
 
-- Query presence and occupancy per room
-- Read breathing rate and heart rate telemetry
-- Monitor BFLD semantic events
-- Inspect the app registry (edge modules)
-- Kickstart background training jobs
+- 查询各房间的在场与占用情况
+- 读取呼吸率与心率数据
+- 监视 BFLD 语义事件
+- 查看应用注册表（边缘模块）
+- 启动后台训练任务
 
-### Installation
+### 安装
 
-In your Claude Code project:
+在你的 Claude Code 项目里：
 
 ```bash
 npm install -D @ruvnet/rvagent@0.1.0
 
-# Or, add via MCP:
+# 或者通过 MCP 添加：
 claude mcp add rvagent -- npx -y @ruvnet/rvagent@0.1.0
 ```
 
-Then in your Claude Code chat:
+然后在 Claude Code 对话里：
 
 ```
-/claude-flow-help  # Lists all available MCP tools
+/claude-flow-help  # 列出所有可用的 MCP 工具
 ```
 
-### Tool Reference
+### 工具说明
 
-| Tool | Input | Output |
+| 工具 | 输入 | 输出 |
 |------|-------|--------|
-| `ruview_csi_latest` | node_id | Latest CSI window (1024 subcarriers, 30 OFDM symbols) |
-| `ruview_pose_infer` | CSI window | 17-keypoint skeleton (x, y, confidence per joint) |
-| `ruview_count_infer` | CSI window | Person count + 95% CI |
-| `ruview_registry_list` | query (optional) | List of 105+ available edge modules |
-| `ruview_train_count` | epochs, learning_rate | Kickoff training job ID |
-| `ruview_job_status` | job_id | Progress, ETA, current loss |
-| `ruview.bfld.last_scan` | node_id | Latest BFLD scan: privacy_class, person_count (identity_risk_score=null per I1 invariant) |
-| `ruview.bfld.subscribe` | node_id, event_filter | Stream BFLD windows until you close the stream |
-| `ruview.presence.now` | room (optional) | Current occupancy per room |
-| `ruview.vitals.get_breathing` | node_id | Breathing rate (BPM) + confidence |
-| `ruview.vitals.get_heart_rate` | node_id | Heart rate (BPM) + confidence |
-| `ruview.vitals.get_all` | node_id | Breathing + heart rate + metadata |
+| `ruview_csi_latest` | node_id | 最新 CSI 窗口（1024 子载波，30 个 OFDM 符号） |
+| `ruview_pose_infer` | CSI 窗口 | 17 关键点骨架（每个关节的 x、y、置信度） |
+| `ruview_count_infer` | CSI 窗口 | 人数 + 95% 置信区间 |
+| `ruview_registry_list` | query（可选） | 可用的 105+ 个边缘模块列表 |
+| `ruview_train_count` | epochs、learning_rate | 启动训练任务，返回任务 ID |
+| `ruview_job_status` | job_id | 进度、预计剩余时间、当前损失 |
+| `ruview.bfld.last_scan` | node_id | 最新 BFLD 扫描：privacy_class、person_count（按约束 I1，identity_risk_score=null） |
+| `ruview.bfld.subscribe` | node_id、event_filter | 持续推送 BFLD 窗口，直到关闭流 |
+| `ruview.presence.now` | room（可选） | 各房间当前占用情况 |
+| `ruview.vitals.get_breathing` | node_id | 呼吸率（BPM）+ 置信度 |
+| `ruview.vitals.get_heart_rate` | node_id | 心率（BPM）+ 置信度 |
+| `ruview.vitals.get_all` | node_id | 呼吸 + 心率 + 元数据 |
 
-### Example: Claude Code Agent Workflow
+### 示例：Claude Code 智能体流程
 
 ```python
-# Claude-flow agent pseudocode
+# Claude-flow 智能体伪代码
 import claude_code
 
 tools = claude_code.mcp_tools("rvagent")
 
-# Query latest presence
+# 查询最新在场状态
 presence = tools["ruview.presence.now"](room="living room")
 print(f"Living room occupancy: {presence.occupancy}")  # True/False
 
-# Check vitals
+# 查看生命体征
 vitals = tools["ruview.vitals.get_all"](node_id=1)
 print(f"Breathing: {vitals.breathing_bpm} BPM")
 
-# Stream BFLD events in real-time
+# 实时接收 BFLD 事件
 for event in tools["ruview.bfld.subscribe"](node_id=1, event_filter="unknown_presence"):
     print(f"Unknown presence detected: privacy_class={event.privacy_class}")
 ```
 
-For the full MCP specification, see [ADR-124 — rvagent MCP / RuVector npm integration](docs/adr/ADR-124-rvagent-mcp-ruvector-npm-integration.md).
+完整 MCP 规格见 [ADR-124 — rvagent MCP / RuVector npm 集成](docs/adr/ADR-124-rvagent-mcp-ruvector-npm-integration.md)。
 
 ---
 
-## Troubleshooting
+## 排障
 
-### HomePod Not Visible on `dns-sd -B _airplay._tcp local.` from the Mac
+### 在 Mac 上执行 `dns-sd -B _airplay._tcp local.` 看不到 HomePod
 
-**Likely cause**: HomePod and Mac are on different subnets despite being on the same SSID. Some mesh networks segment 2.4 GHz and 5 GHz bands onto different `/24` subnets, or place guest devices on a separate VLAN.
+**可能原因**：HomePod 与 Mac 虽然连着同一个 SSID，却处在不同网段。部分 Mesh 网络会把 2.4 GHz 与 5 GHz 分到不同的 `/24` 网段，或把访客设备放进单独的 VLAN。
 
-**Check**:
+**排查**：
 
-1. Open your router admin page and confirm both the HomePod and Mac are in the same subnet range (e.g., both `192.168.1.x`).
-2. If they're on different subnets (e.g., `192.168.1.x` vs `192.168.100.x`), enable **IGMP Proxying** in your router settings (common on Netgear Nighthawk). If available, enable **Bonjour Repeater** or **mDNS Reflector** instead.
-3. Restart the HomePod and Mac.
+1. 打开路由器管理页，确认 HomePod 和 Mac 在同一网段内（例如都是 `192.168.1.x`）。
+2. 如果确实不同网段（如 `192.168.1.x` 与 `192.168.100.x`），在路由器设置里开启 **IGMP Proxying**（Netgear Nighthawk 上常见）。若有 **Bonjour Repeater** 或 **mDNS Reflector**，优先开这两个。
+3. 重启 HomePod 和 Mac。
 
-**Note**: The **Shortcuts-as-glue path (Tier 2)** doesn't need this fix — it routes announcements through the iCloud Home graph, not mDNS.
+**注意**：**「快捷指令粘合」通路（第 2 层）不需要这项修复** —— 它经 iCloud 家庭图谱转发播报，不走 mDNS。
 
-### iPhone Pairing Fails with "Couldn't Add Accessory"
+### iPhone 配对时报「无法添加配件」
 
-**Likely cause**: The HAP bridge's pairing state is corrupt or out of sync with mDNS.
+**可能原因**：HAP 桥接的配对状态损坏，或与 mDNS 不同步。
 
-**Fix**:
+**处理**：
 
-1. Stop the HAP bridge daemon.
-2. Delete the pairing state file:
+1. 停掉 HAP 桥接进程。
+2. 删除配对状态文件：
    ```bash
    rm -rf ~/.ruview-hap-prod/accessory.state
    ```
-3. Restart the HAP bridge — it regenerates a new setup code.
-4. From the Home app, retry **Add Accessory** → **More Options** with the new setup code.
+3. 重启 HAP 桥接 —— 它会生成新的配对码。
+4. 在家庭 App 里用新配对码重试**添加配件** → **更多选项**。
 
-### The Setup Code Regenerates on Restart
+### 每次重启配对码都会变
 
-**Expected behavior.** HAP-python regenerates the setup code if the pairing persist file is missing or corrupt. Once you've paired successfully, the pairing key is stored separately in `~/.ruview-hap-prod/` and survives restarts — the setup code itself is transient and only matters during initial pairing.
+**属于正常现象。** 如果配对持久化文件缺失或损坏，HAP-python 会重新生成配对码。配对成功后，配对密钥单独存放在 `~/.ruview-hap-prod/`，重启不会丢失 —— 配对码本身是临时的，只在首次配对时有用。
 
-If you lose the setup code before pairing, simply delete the state and restart to get a new one.
+如果配对前把配对码弄丢了，删掉状态文件重启即可获得新的。
 
-### Presence Updates Are Slow or Stuck
+### 在场状态更新变慢或卡住
 
-**Likely cause**: The HTTP polling loop in `ruview-sensing-server.py` is blocked, or the C6 is not sending UDP packets.
+**可能原因**：`ruview-sensing-server.py` 的 HTTP 轮询循环被阻塞，或 C6 没有发送 UDP 包。
 
-**Check**:
+**排查**：
 
-1. Verify the C6 is booting: `ping 192.168.1.20`.
-2. Verify packets are reaching the sensing server:
+1. 确认 C6 已启动：`ping 192.168.1.20`。
+2. 确认感知服务器收到了包：
    ```bash
-   nc -u -l 5005 &  # Listen on UDP 5005
-   # You should see occasional packets from the C6
+   nc -u -l 5005 &  # 监听 UDP 5005
+   # 应能偶尔看到来自 C6 的数据包
    ```
-3. Manually query the sensing server:
+3. 手动查询感知服务器：
    ```bash
    curl http://127.0.0.1:3000/api/v1/vitals/latest
    ```
-   Should return JSON with breathing and heart rate fields.
-4. If the HAP bridge doesn't reflect the changes after polling, restart it.
+   应返回含呼吸与心率字段的 JSON。
+4. 如果轮询后 HAP 桥接仍没反映变化，重启桥接。
 
 ---
 
-## What's NOT in Scope
+## 不在本次范围内
 
-These items are intentionally deferred or beyond the current release:
+以下条目是刻意延后或超出当前版本的：
 
-| Item | Status | Timeline |
+| 条目 | 状态 | 时间安排 |
 |------|--------|----------|
-| **Matter Protocol (P3)** | Deferred | Waiting for `matter-rs` SDK stabilization; HAP-1.1 covers 95% of the UX today |
-| **Rust-native HAP (P2)** | Planned | Replaces Python `HAP-python` sidecar; expected after operator feedback from 5+ real pairings |
-| **PyO3 BFLD wheel deployment (ADR-117 P5)** | Pending | Runtime import flip so Python scripts use the Rust BFLD crate; source-built (✅ `cargo check` green) but wheel not yet published |
-| **Custom characteristic UUIDs for Eve.app (Iter 8 runtime)** | Scaffolded | Design complete; awaiting HAP-python JSON-loader implementation (small follow-up PR) |
-| **AirPlay 2 voice synthesis (pyatv)** | Network-pending | Requires HomePod visible on Bonjour from the Mac; Shortcuts-as-glue (Tier 2) is the working alternative |
+| **Matter 协议（P3）** | 已延后 | 等 `matter-rs` SDK 稳定；HAP-1.1 目前已覆盖 95% 的使用体验 |
+| **Rust 原生 HAP（P2）** | 计划中 | 替代 Python 的 `HAP-python` 附属进程；预计在收集 5 次以上真实配对的反馈后推进 |
+| **PyO3 BFLD wheel 发布（ADR-117 P5）** | 待办 | 切换运行时导入，让 Python 脚本改用 Rust BFLD crate；源码构建已通过（✅ `cargo check` 通过），wheel 尚未发布 |
+| **供 Eve.app 使用的自定义特征 UUID（迭代 8 的运行时部分）** | 已有骨架 | 设计完成，等待 HAP-python 的 JSON 加载器实现（一个小型后续 PR） |
+| **AirPlay 2 语音合成（pyatv）** | 受网络条件限制 | 要求 Mac 能通过 Bonjour 看到 HomePod；可用「快捷指令粘合」（第 2 层）作为现成替代 |
 
 ---
 
-## References
+## 参考资料
 
-- [ADR-125 — RuView ↔ Apple Home native HAP bridge](docs/adr/ADR-125-ruview-apple-home-native-hap-bridge.md) — Design spec, privacy rationale, sequencing
-- [ADR-118 — Beamforming Feedback Layer for Detection](docs/adr/ADR-118-bfld-beamforming-feedback-layer-for-detection.md) — BFLD privacy gate and identity-risk semantics
-- [ADR-124 — rvagent MCP / RuVector npm integration](docs/adr/ADR-124-rvagent-mcp-ruvector-npm-integration.md) — MCP tool specification
-- [Issue #796](https://github.com/ruvnet/RuView/issues/796) — Tier 1+2 sprint tracking (close-out comments have per-iter empirical data)
-- [scripts/macos-shortcuts/README.md](scripts/macos-shortcuts/README.md) — Shortcuts-as-glue setup and troubleshooting
-- [HomeKit Accessory Protocol (Non-Commercial Version)](https://developer.apple.com/apple-home/) — HAP-1.1 spec
-- [HAP-python on GitHub](https://github.com/ikalchev/HAP-python) — Implementation library
+- [ADR-125 — RuView ↔ Apple Home 原生 HAP 桥接](docs/adr/ADR-125-ruview-apple-home-native-hap-bridge.md) —— 设计规格、隐私理由、实施顺序
+- [ADR-118 — 用于检测的波束成形反馈层](docs/adr/ADR-118-bfld-beamforming-feedback-layer-for-detection.md) —— BFLD 隐私门槛与身份风险语义
+- [ADR-124 — rvagent MCP / RuVector npm 集成](docs/adr/ADR-124-rvagent-mcp-ruvector-npm-integration.md) —— MCP 工具规格
+- [Issue #796](https://github.com/ruvnet/RuView/issues/796) —— 第 1+2 层冲刺跟踪（结项评论里有各轮实测数据）
+- [scripts/macos-shortcuts/README.md](scripts/macos-shortcuts/README.md) —— 「快捷指令粘合」的配置与排障
+- [HomeKit Accessory Protocol（非商业版）](https://developer.apple.com/apple-home/) —— HAP-1.1 规格
+- [HAP-python on GitHub](https://github.com/ikalchev/HAP-python) —— 实现库
