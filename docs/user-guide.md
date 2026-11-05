@@ -1971,63 +1971,63 @@ let decision = authorize_from_certificate(
 ---
 
 <a id="hardware-setup"></a>
-## Hardware Setup
+## 硬件搭建
 
-### Supported targets
+### 支持的目标
 
-| Target | Use case | Source target flag | Notes |
+| 目标 | 用途 | 源目标标志 | 备注 |
 |---|---|---|---|
-| **ESP32-S3** (default) | Production CSI capture mesh; presence/motion/vital heuristics | `idf.py set-target esp32s3` | Dual-core 240 MHz, PSRAM, native USB-OTG, DVP camera path; live 17-keypoint pose is not validated |
-| **ESP32-C6** ([ADR-110](adr/ADR-110-esp32-c6-firmware-extension.md)) | Wi-Fi 6 / 802.15.4 research, battery seed nodes | `idf.py set-target esp32c6` | Single-core 160 MHz, no PSRAM, 802.11ax HE PHY, 802.15.4 (Thread/Zigbee), LP-core hibernation ~5 µA |
+| **ESP32-S3**（默认） | 生产级 CSI 采集网格；存在/运动/生命体征启发式 | `idf.py set-target esp32s3` | 双核 240 MHz、PSRAM、原生 USB-OTG、DVP 摄像头通道；实时 17 关键点姿态未经验证 |
+| **ESP32-C6**（[ADR-110](adr/ADR-110-esp32-c6-firmware-extension.md)） | Wi-Fi 6 / 802.15.4 研究、电池供电 Seed 节点 | `idf.py set-target esp32c6` | 单核 160 MHz、无 PSRAM、802.11ax HE PHY、802.15.4（Thread/Zigbee）、LP 核休眠约 5 µA |
 
-The same `firmware/esp32-csi-node` source tree builds for both. ESP-IDF picks up `sdkconfig.defaults.esp32c6` automatically when the target is set to `esp32c6`; otherwise it uses `sdkconfig.defaults` (S3). All C6-only modules are `#ifdef`-gated, so the S3 build is byte-identical to today.
+同一个 `firmware/esp32-csi-node` 源码树可同时构建两者。当目标设为 `esp32c6` 时，ESP-IDF 会自动选用 `sdkconfig.defaults.esp32c6`；否则使用 `sdkconfig.defaults`（S3）。所有 C6 专属模块都由 `#ifdef` 门控，因此 S3 构建与当前字节级一致。
 
 <a id="esp32-s3-mesh"></a>
-### ESP32-S3 Mesh
+### ESP32-S3 网格
 
-A 3-6 node ESP32-S3 mesh provides full CSI at 20 Hz. Total cost: ~$54 for a 3-node setup.
+3-6 个节点的 ESP32-S3 网格可在 20 Hz 下提供完整 CSI。总成本：3 节点方案约 $54。
 
-**What you need:**
-- 3-6x ESP32-S3 development boards (~$8 each)
-- A WiFi router (the CSI source)
-- A computer running the sensing server (aggregator)
+**你需要：**
+- 3-6 块 ESP32-S3 开发板（每块约 $8）
+- 一台 WiFi 路由器（CSI 来源）
+- 一台运行感知服务（聚合器）的计算机
 
-**Flashing firmware:**
+**烧录固件：**
 
-Use versioned bundles from [Releases](https://github.com/ruvnet/RuView/releases),
-not the historical binaries in `firmware/esp32-csi-node/release_bins/`.
-The 0.8.16 prerelease adds conservative MR60BHA2 identification to the prior
-USB identity, OTA provisioning, and CSI reliability fixes.
-It has CI build/host-test coverage; new physical-board qualification remains
-pending. The previous stable firmware is 0.8.8.
+请使用 [Releases](https://github.com/ruvnet/RuView/releases) 中带版本的固件包，
+而非 `firmware/esp32-csi-node/release_bins/` 中的历史二进制。
+0.8.16 预发布版在前一版的 USB 身份识别基础上，新增了保守的 MR60BHA2 识别，
+以及 OTA 配网与 CSI 可靠性修复。
+它具备 CI 构建/主机测试覆盖；但新的物理板卡资质认证
+尚待完成。上一稳定固件为 0.8.8。
 
-| Release | What It Includes | Tag |
+| 版本 | 包含内容 | 标签 |
 |---------|-----------------|-----|
-| [v0.8.16](https://github.com/ruvnet/RuView/releases/tag/v0.8.16-esp32) | **Prerelease:** conservative MR60BHA2 identification; CI/host-test coverage, without new physical firmware qualification | `v0.8.16-esp32` |
-| [v0.8.14](https://github.com/ruvnet/RuView/releases/tag/v0.8.14-esp32) | **Prerelease:** corrected C6 base-MAC identity, OTA key provisioning without a host key cache; physical qualification pending | `v0.8.14-esp32` |
-| [v0.8.8](https://github.com/ruvnet/RuView/releases/tag/v0.8.8-esp32) | Previous stable firmware: consistent occupancy and rate-aware C6 processing; see [release evidence](releases/v0.8.8-esp32.md) | `v0.8.8-esp32` |
-| [v0.7.0](https://github.com/ruvnet/RuView/releases/tag/v0.7.0-esp32) | Historical ADR-110 firmware-side substrate: ESP-NOW synchronization and sync-packet UDP emission ([WITNESS-LOG-110 §A0.7-§A0.13](WITNESS-LOG-110.md)) | `v0.7.0-esp32` |
-| [v0.6.9](https://github.com/ruvnet/RuView/releases/tag/v0.6.9-esp32) | Sync-packet UDP emission, `CONFIG_C6_SYNC_EVERY_N_FRAMES` tunable cadence | `v0.6.9-esp32` |
-| [v0.6.8](https://github.com/ruvnet/RuView/releases/tag/v0.6.8-esp32) | ESP-NOW EMA-smoothed cross-board offset (3.95× suppression, 104 µs stdev) | `v0.6.8-esp32` |
-| [v0.6.7](https://github.com/ruvnet/RuView/releases/tag/v0.6.7-esp32) | Real LP-core motion-gate RISC-V program (B4 code path complete) + Wi-Fi 6 soft-AP with TWT Responder for two-board iTWT benches (B1/B2 unblock) | `v0.6.7-esp32` |
-| [v0.5.0](https://github.com/ruvnet/RuView/releases/tag/v0.5.0-esp32) | Historical S3 mesh release — mmWave sensor fusion (MR60BHA2/LD2410 auto-detect), 48-byte fused vitals, all v0.4.3.1 fixes | `v0.5.0-esp32` |
-| [v0.4.3.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.3.1-esp32) | Fall detection fix ([#263](https://github.com/ruvnet/RuView/issues/263)), 4MB flash ([#265](https://github.com/ruvnet/RuView/issues/265)), watchdog fix ([#266](https://github.com/ruvnet/RuView/issues/266)) | `v0.4.3.1-esp32` |
-| [v0.4.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.1-esp32) | CSI build fix, compile guard, AMOLED display, edge intelligence ([ADR-057](../docs/adr/ADR-057-firmware-csi-build-guard.md)) | `v0.4.1-esp32` |
-| [v0.3.0-alpha](https://github.com/ruvnet/RuView/releases/tag/v0.3.0-alpha-esp32) | Alpha — adds on-device edge intelligence (ADR-039) | `v0.3.0-alpha-esp32` |
-| [v0.2.0](https://github.com/ruvnet/RuView/releases/tag/v0.2.0-esp32) | Raw CSI streaming, TDM, channel hopping, QUIC mesh | `v0.2.0-esp32` |
+| [v0.8.16](https://github.com/ruvnet/RuView/releases/tag/v0.8.16-esp32) | **预发布：** 保守的 MR60BHA2 识别；具备 CI/主机测试覆盖，但无新的物理固件资质认证 | `v0.8.16-esp32` |
+| [v0.8.14](https://github.com/ruvnet/RuView/releases/tag/v0.8.14-esp32) | **预发布：** 修正 C6 基础 MAC 身份、无需主机密钥缓存的 OTA 密钥配网；物理资质认证待完成 | `v0.8.14-esp32` |
+| [v0.8.8](https://github.com/ruvnet/RuView/releases/tag/v0.8.8-esp32) | 上一稳定固件：一致的占用检测与速率感知的 C6 处理；见 [发布证据](releases/v0.8.8-esp32.md) | `v0.8.8-esp32` |
+| [v0.7.0](https://github.com/ruvnet/RuView/releases/tag/v0.7.0-esp32) | 历史 ADR-110 固件侧基础：ESP-NOW 同步与同步包 UDP 发射（[WITNESS-LOG-110 §A0.7-§A0.13](WITNESS-LOG-110.md)） | `v0.7.0-esp32` |
+| [v0.6.9](https://github.com/ruvnet/RuView/releases/tag/v0.6.9-esp32) | 同步包 UDP 发射，可调节奏的 `CONFIG_C6_SYNC_EVERY_N_FRAMES` | `v0.6.9-esp32` |
+| [v0.6.8](https://github.com/ruvnet/RuView/releases/tag/v0.6.8-esp32) | ESP-NOW 经 EMA 平滑的跨板偏移（3.95× 抑制、104 µs 标准差） | `v0.6.8-esp32` |
+| [v0.6.7](https://github.com/ruvnet/RuView/releases/tag/v0.6.7-esp32) | 真实 LP 核运动门控 RISC-V 程序（B4 代码路径完整）+ 带 TWT Responder 的 Wi-Fi 6 软 AP，用于双板 iTWT 基准（解锁 B1/B2） | `v0.6.7-esp32` |
+| [v0.5.0](https://github.com/ruvnet/RuView/releases/tag/v0.5.0-esp32) | 历史 S3 网格发布 —— 毫米波传感器融合（MR60BHA2/LD2410 自动检测）、48 字节融合生命体征、所有 v0.4.3.1 修复 | `v0.5.0-esp32` |
+| [v0.4.3.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.3.1-esp32) | 跌倒检测修复（[#263](https://github.com/ruvnet/RuView/issues/263)）、4MB flash（[#265](https://github.com/ruvnet/RuView/issues/265)）、看门狗修复（[#266](https://github.com/ruvnet/RuView/issues/266)） | `v0.4.3.1-esp32` |
+| [v0.4.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.1-esp32) | CSI 构建修复、编译守卫、AMOLED 显示屏、边缘智能（[ADR-057](../docs/adr/ADR-057-firmware-csi-build-guard.md)） | `v0.4.1-esp32` |
+| [v0.3.0-alpha](https://github.com/ruvnet/RuView/releases/tag/v0.3.0-alpha-esp32) | Alpha —— 新增设备端边缘智能（ADR-039） | `v0.3.0-alpha-esp32` |
+| [v0.2.0](https://github.com/ruvnet/RuView/releases/tag/v0.2.0-esp32) | 原始 CSI 流式传输、TDM、信道跳变、QUIC 网格 | `v0.2.0-esp32` |
 
-For 0.8.14, select the correct archive, verify its release `SHA256SUMS.txt`,
-extract into a separate directory, then verify the enclosed checksums:
+对于 0.8.14，请选择正确的归档，校验其发布文件 `SHA256SUMS.txt`，
+解压到独立目录，再校验内含的校验和：
 
-| Archive | Board configuration |
+| 归档 | 板型配置 |
 |---------|---------------------|
-| `esp32-csi-node-firmware-8mb.tar.gz` | ESP32-S3 display build, 8 MB flash |
-| `esp32-csi-node-firmware-4mb.tar.gz` | ESP32-S3 headless build, 4 MB layout |
-| `esp32-csi-node-firmware-c6-4mb.tar.gz` | ESP32-C6 research target, 4 MB layout |
+| `esp32-csi-node-firmware-8mb.tar.gz` | ESP32-S3 带屏构建，8 MB flash |
+| `esp32-csi-node-firmware-4mb.tar.gz` | ESP32-S3 无屏构建，4 MB 布局 |
+| `esp32-csi-node-firmware-c6-4mb.tar.gz` | ESP32-C6 研究目标，4 MB 布局 |
 
-Bare 8 MB DevKitC boards need the source `sdkconfig.defaults.devkitc` overlay;
-do not use the display build. See the [firmware guide](../firmware/esp32-csi-node/README.md#0-download-a-versioned-firmware-bundle)
-for board selection, C6 filenames, backup and OTA guidance.
+裸 8 MB DevKitC 板需要源码中的 `sdkconfig.defaults.devkitc` 覆盖层；
+不要使用带屏构建。参见 [固件指南](../firmware/esp32-csi-node/README.md#0-download-a-versioned-firmware-bundle)
+了解板型选择、C6 文件名、备份与 OTA 指引。
 
 ```bash
 # From the extracted ESP32-S3 display / 8 MB bundle:
@@ -2037,10 +2037,10 @@ python -m esptool --chip esp32s3 --port COM7 --baud 460800 \
   0xf000 ota_data_initial.bin 0x20000 esp32-csi-node.bin
 ```
 
-**4 MB headless S3 boards:** use the matching application and partition table
-from `esp32-csi-node-firmware-4mb.tar.gz` on the
-[0.8.16 prerelease](https://github.com/ruvnet/RuView/releases/tag/v0.8.16-esp32)
-and select `--flash-size 4MB`:
+**4 MB 无屏 S3 开发板：** 使用对应的应用程序和分区表，
+取自 [0.8.16 预发布版](https://github.com/ruvnet/RuView/releases/tag/v0.8.16-esp32)
+中的 `esp32-csi-node-firmware-4mb.tar.gz`，
+并选择 `--flash-size 4MB`：
 
 ```bash
 python -m esptool --chip esp32s3 --port COM7 --baud 460800 \
@@ -2049,43 +2049,43 @@ python -m esptool --chip esp32s3 --port COM7 --baud 460800 \
   0xF000 ota_data_initial.bin 0x20000 esp32-csi-node-4mb.bin
 ```
 
-**Provisioning:**
+**配网：**
 
 ```bash
 python firmware/esp32-csi-node/provision.py --port COM7 \
   --ssid "YourWiFi" --password "YourPassword" --target-ip 192.168.1.20
 ```
 
-Replace `192.168.1.20` with the IP of the machine running the sensing server.
-To enable authenticated OTA updates, add `--ota-psk-file` with a private
-64-hex key file. The key must be resupplied on later NVS writes; it is never
-cached in host state. See [OTA key provisioning](../firmware/esp32-csi-node/README.md#ota-key-provisioning).
+将 `192.168.1.20` 替换为运行感知服务的机器 IP。
+要启用带认证的 OTA 更新，请加上 `--ota-psk-file` 并提供一个私有
+64 位十六进制密钥文件。后续 NVS 写入时必须重新提供该密钥；它绝不会
+被缓存进主机状态。参见 [OTA 密钥配网](../firmware/esp32-csi-node/README.md#ota-key-provisioning)。
 
-**Mesh key provisioning:** ADR-032 describes giving every node in a multistatic mesh a shared mesh key, but that isn't wired up yet. `provision.py` has no `--mesh-key` option and the firmware doesn't read a mesh key from NVS, so there's nothing to provision for now.
+**网格密钥配网：** ADR-032 描述了给多静态网格中每个节点分配共享网格密钥，但该能力尚未接通。`provision.py` 没有 `--mesh-key` 选项，固件也不会从 NVS 读取网格密钥，因此目前无可配置项。
 
-### ESP32-C6 (Wi-Fi 6 + 802.15.4 research target — ADR-110)
+### ESP32-C6（Wi-Fi 6 + 802.15.4 研究目标 — ADR-110）
 
-The C6 build adds four capabilities to the existing csi-node firmware, all opt-in via `idf.py menuconfig → ESP32-C6 capabilities (ADR-110)`:
+C6 构建为现有 csi-node 固件新增四项能力，均可通过 `idf.py menuconfig → ESP32-C6 capabilities (ADR-110)` 选择性开启：
 
-| Capability | Kconfig | What it does |
+| 能力 | Kconfig | 作用 |
 |---|---|---|
-| **Wi-Fi 6 HE-LTF tagging** | `CSI_FRAME_HE_TAGGING` (default on) | Each ADR-018 frame's previously-reserved bytes 18-19 now carry PPDU type (HT / HE-SU / HE-MU / HE-TB) + bandwidth flags. Magic stays `0xC5110001` — old aggregators see zeros and ignore. |
-| **802.15.4 mesh time-sync** | `C6_TIMESYNC_ENABLE` (default on, channel 15) | Beacon-based cross-node clock alignment over the 802.15.4 radio. Frees the WiFi channel from coordination traffic — solves the ADR-029/030 multistatic clock-sync problem. |
-| **TWT (Target Wake Time)** | `C6_TWT_ENABLE` (default on, 10 ms wake interval) | After WiFi connect, negotiates an individual TWT agreement with the AP for deterministic CSI cadence. Graceful NACK fallback if the AP doesn't support 11ax TWT. |
-| **LP-core wake-on-motion hibernation** | `C6_LP_CORE_ENABLE` (default off) | Always-on motion gate on the LP RISC-V core; HP core stays in deep sleep until the configured GPIO wakes it. Targets ~5 µA for battery-powered Cognitum Seed nodes. |
+| **Wi-Fi 6 HE-LTF 标记** | `CSI_FRAME_HE_TAGGING`（默认开启） | 每个 ADR-018 帧原先保留的字节 18-19 现在携带 PPDU 类型（HT / HE-SU / HE-MU / HE-TB）+ 带宽标志。魔数保持 `0xC5110001` —— 旧聚合器读到的是 0 因而忽略。 |
+| **802.15.4 网格时间同步** | `C6_TIMESYNC_ENABLE`（默认开启，信道 15） | 基于信标在 802.15.4 射频上做跨节点时钟对齐。让 WiFi 信道摆脱协调流量 —— 解决了 ADR-029/030 多静态时钟同步问题。 |
+| **TWT（目标唤醒时间）** | `C6_TWT_ENABLE`（默认开启，唤醒间隔 10 ms） | WiFi 连接后，与 AP 协商独立的 TWT 协议以获得确定性的 CSI 节奏。若 AP 不支持 11ax TWT，则优雅降级为 NACK。 |
+| **LP 核运动唤醒休眠** | `C6_LP_CORE_ENABLE`（默认关闭） | LP RISC-V 核上常驻的运动门控；HP 核保持深度睡眠，直到配置的 GPIO 将其唤醒。面向电池供电的 Cognitum Seed 节点，目标约 5 µA。 |
 
-**Build + flash:**
+**构建 + 烧录：**
 
 ```bash
 cd firmware/esp32-csi-node
 idf.py set-target esp32c6
 idf.py build                    # ~1.0 MB binary, 46% partition slack on 4 MB flash
 idf.py -p COM6 flash
-# Then provision the same way as S3 (provision.py works for both targets):
+# 之后以与 S3 相同的方式配网（provision.py 对两类目标都适用）：
 python provision.py --port COM6 --ssid "YourWiFi" --password "secret" --target-ip 192.168.1.20
 ```
 
-**Verifying the C6 modules came up** — `idf.py -p COM6 monitor` should show:
+**验证 C6 模块已启动** —— `idf.py -p COM6 monitor` 应显示：
 
 ```
 I (353) main: ESP32-C6 CSI Node (ADR-018 / ADR-110) — v0.6.7 — Node ID: 1
@@ -2093,39 +2093,39 @@ I (413) c6_ts: init done: channel=15 EUI=<your-EUI64> leader=yes(candidate)
 I (463) wifi: mac_version:HAL_MAC_ESP32AX_761      ← 802.11ax MAC firmware loaded
 ```
 
-The `c6_ts: init done` line confirms the 802.15.4 stack is up; if TWT succeeds you'll also see an `iTWT setup event received from AP` line after the WiFi connect completes.
+出现 `c6_ts: init done` 这一行说明 802.15.4 协议栈已启动；若 TWT 协商成功，WiFi 连接完成后你还会看到 `iTWT setup event received from AP` 这一行。
 
-**Multi-room time-aligned multistatic capture (preview):**
+**多房间时间对齐的多静态采集（预览）：**
 
-Flash two or more C6 boards, leave them on the same 802.15.4 channel (default 15). One will elect itself leader (lowest EUI-64) and broadcast `TS_BEACON` frames every 100 ms; the others compute and apply offsets. Each CSI frame from a follower carries a `c6_timesync_get_epoch_us()` wall-clock estimate aligned to within ±100 µs of the leader's monotonic time. Target use case: ADR-029/030 multistatic fusion without burning WiFi airtime on coordination.
+烧录两块或更多 C6 开发板，让它们保持在同一 802.15.4 信道（默认 15）。其中一块会自举为 leader（EUI-64 最小者），每 100 ms 广播 `TS_BEACON` 帧；其余节点计算并应用偏移。跟随者发出的每个 CSI 帧都带有 `c6_timesync_get_epoch_us()` 的墙上时钟估计，与 leader 的单调时间对齐在 ±100 µs 以内。目标用例：ADR-029/030 多静态融合，且不在协调上消耗 WiFi 空口时间。
 
-**Battery seed-node mode (v0.6.7 — real LP-core program):**
+**电池 Seed 节点模式（v0.6.7 —— 真实的 LP 核程序）：**
 
 ```bash
-# Enable LP-core hibernation in menuconfig:
-#   ESP32-C6 capabilities (ADR-110) → Enable LP-core wake-on-motion hibernation
-#   → LP-core wake GPIO (default 4 — connect a PIR or accelerometer INT line here)
-#   → LP-core poll period (default 10 ms)
-#   → LP-core debounce sample count (default 3 consecutive matches)
+# 在 menuconfig 中启用 LP 核休眠：
+#   ESP32-C6 capabilities (ADR-110) → 启用 LP 核运动唤醒休眠
+#   → LP 核唤醒 GPIO（默认 4 —— 在此连接 PIR 或加速度计 INT 引脚）
+#   → LP 核轮询周期（默认 10 ms）
+#   → LP 核去抖采样次数（默认连续匹配 3 次）
 idf.py menuconfig
 idf.py build flash
 ```
 
-When enabled, the C6 LP RISC-V coprocessor runs a real polling program
-(`firmware/esp32-csi-node/main/lp_core/main.c`) that polls the wake GPIO at
-the configured cadence, debounces N consecutive matching reads, and wakes the
-HP core via `ulp_lp_core_wakeup_main_processor()`. `esp_sleep_get_wakeup_cause()`
-returns `ESP_SLEEP_WAKEUP_ULP`, and `c6_lp_core_motion_count()` /
-`c6_lp_core_poll_count()` expose the LP-side counters for the witness harness.
-Target standby current ~5 µA (datasheet; pending INA measurement).
+启用后，C6 的 LP RISC-V 协处理器会运行一个真实的轮询程序
+（`firmware/esp32-csi-node/main/lp_core/main.c`）以设定的节奏轮询唤醒 GPIO，
+按设定的节奏去抖 N 次连续匹配，并唤醒
+HP 核（`ulp_lp_core_wakeup_main_processor()`）。`esp_sleep_get_wakeup_cause()`
+返回 `ESP_SLEEP_WAKEUP_ULP`，而 `c6_lp_core_motion_count()` /
+`c6_lp_core_poll_count()` 会暴露 LP 侧的计数器供见证测试工具使用。
+目标待机电流约 5 µA（数据手册值；INA 实测待进行）。
 
-**Two-board iTWT bench (v0.6.7 — soft-AP HE/TWT, no router required):**
+**双板 iTWT 基准（v0.6.7 —— 软 AP HE/TWT，无需路由器）：**
 
-Pair two C6 boards — one acts as the iTWT-capable AP, the other as the STA
-that negotiates and benchmarks the TWT agreement.
+将两块 C6 开发板配对 —— 一块充当支持 iTWT 的 AP，另一块作为 STA
+负责协商并对 TWT 协议进行基准测试。
 
 ```bash
-# Board #1 (AP role): append to sdkconfig.defaults.esp32c6:
+# 开发板 #1（AP 角色）：追加到 sdkconfig.defaults.esp32c6：
 CONFIG_C6_SOFTAP_HE_ENABLE=y
 CONFIG_C6_SOFTAP_HE_SSID="ruview-c6-twt"
 CONFIG_C6_SOFTAP_HE_PSK="ruviewtwt"
@@ -2134,174 +2134,174 @@ CONFIG_C6_SOFTAP_HE_CHANNEL=6
 idf.py set-target esp32c6 && idf.py build && idf.py -p COM6 flash
 ```
 
-Board #1 boots in `WIFI_MODE_APSTA`, advertising HE capabilities and TWT
-Responder=1 on channel 6. Board #2 provisions to associate with that SSID:
+开发板 #1 以 `WIFI_MODE_APSTA` 模式启动，广播 HE 能力与 TWT
+Responder=1（信道 6）。开发板 #2 配网以关联到该 SSID：
 
 ```bash
 python firmware/esp32-csi-node/provision.py --port COM9 \
   --ssid "ruview-c6-twt" --password "ruviewtwt" --target-ip 192.168.1.20
 ```
 
-Board #2 runs the existing `c6_twt_setup_default()` on connect and now
-negotiates a real iTWT agreement against the cooperative AP — the
-`iTWT setup queued: wake_interval=10000 µs` log line should be followed by an
-`iTWT setup event received from AP` instead of the `INVALID_ARG` graceful
-fallback that fired against the bench's 11n-only `ruv.net` AP.
+开发板 #2 在连接时运行已有的 `c6_twt_setup_default()`，现在
+会与协作的 AP 协商真正的 iTWT 协议 ——
+`iTWT setup queued: wake_interval=10000 µs` 日志行之后应当出现
+`iTWT setup event received from AP`，而不是 `INVALID_ARG` 那种优雅
+降级 —— 后者是针对本基准中仅支持 11n 的 `ruv.net` AP 时触发的。
 
-NVS overrides for AP role (namespace `ruview`): `softap_ssid`, `softap_psk`,
-`softap_chan` — provision once and the values survive firmware updates.
+AP 角色的 NVS 覆盖项（命名空间 `ruview`）：`softap_ssid`、`softap_psk`、
+`softap_chan` —— 只需配网一次，这些值在固件更新后依然保留。
 
-**What's NOT on the C6 build** (vs S3 production): no AMOLED display (ADR-045 needs 8 MB + LCD touch driver), no WASM3 (ADR-040 needs PSRAM), no Seeed mmWave fusion (separate board). The C6 is a research/seed target, not a drop-in replacement for the S3 production node.
+**C6 构建中不包含的内容**（对比 S3 生产版）：无 AMOLED 显示屏（ADR-045 需要 8 MB + LCD 触摸驱动），无 WASM3（ADR-040 需要 PSRAM），无 Seeed 毫米波融合（独立板卡）。C6 是研究与 Seed 目标，并非 S3 生产节点的直接替代。
 
-**TDM slot assignment:**
+**TDM 时隙分配：**
 
-Each node in a multistatic mesh needs a unique TDM slot ID (0-based):
+多静态网格中的每个节点都需要一个唯一的 TDM 时隙 ID（从 0 开始）：
 
 ```bash
-# Node 0 (slot 0) — first transmitter
+# 节点 0（时隙 0）—— 第一台发射器
 python firmware/esp32-csi-node/provision.py --port COM7 --tdm-slot 0 --tdm-total 3
 
-# Node 1 (slot 1)
+# 节点 1（时隙 1）
 python firmware/esp32-csi-node/provision.py --port COM8 --tdm-slot 1 --tdm-total 3
 
-# Node 2 (slot 2)
+# 节点 2（时隙 2）
 python firmware/esp32-csi-node/provision.py --port COM9 --tdm-slot 2 --tdm-total 3
 ```
 
-**Edge Intelligence (v0.3.0-alpha, [ADR-039](../docs/adr/ADR-039-esp32-edge-intelligence.md)):**
+**边缘智能（v0.3.0-alpha，[ADR-039](../docs/adr/ADR-039-esp32-edge-intelligence.md)）：**
 
-The v0.3.0-alpha firmware adds on-device signal processing that runs directly on the ESP32-S3 — no host PC needed for basic presence and vital signs. Edge processing is disabled by default for full backward compatibility.
+v0.3.0-alpha 固件新增了设备端信号处理，直接在 ESP32-S3 上运行 —— 基础的存在感与生命体征检测无需主机 PC。为保持完全向后兼容，边缘处理默认关闭。
 
-| Tier | What It Does | Extra RAM |
+| 层级 | 作用 | 额外内存 |
 |------|-------------|-----------|
-| **0** | Disabled (default) — streams raw CSI to the aggregator | 0 KB |
-| **1** | Phase unwrapping, running statistics, top-K subcarrier selection, delta compression | ~30 KB |
-| **2** | Everything in Tier 1, plus presence detection, breathing/heart rate, motion scoring, fall detection | ~33 KB |
+| **0** | 禁用（默认）—— 向聚合器流式传输原始 CSI | 0 KB |
+| **1** | 相位解缠、滚动统计、Top-K 子载波选择、增量压缩 | ~30 KB |
+| **2** | 包含层级 1 的全部功能，外加存在检测、呼吸/心率、运动评分、跌倒检测 | ~33 KB |
 
-Enable via NVS (no reflash needed):
+通过 NVS 启用（无需重新烧录）：
 
 ```bash
-# Enable Tier 2 (full vitals) on an already-flashed node
+# 在已烧录的节点上启用层级 2（完整生命体征）
 python firmware/esp32-csi-node/provision.py --port COM7 \
   --ssid "YourWiFi" --password "YourPassword" --target-ip 192.168.1.20 \
   --edge-tier 2
 ```
 
-Key NVS settings for edge processing:
+边缘处理的关键 NVS 设置：
 
-| NVS Key | Default | What It Controls |
+| NVS 键 | 默认值 | 控制内容 |
 |---------|---------|-----------------|
-| `edge_tier` | 0 | Processing tier (0=off, 1=stats, 2=vitals) |
-| `pres_thresh` | 50 | Sensitivity for presence detection (lower = more sensitive) |
-| `fall_thresh` | 15000 | Fall detection threshold in milli-units (15000 = 15.0 rad/s²). Normal walking is 2-5, real falls are 20+. Raise to reduce false positives. |
-| `vital_win` | 300 | How many frames of phase history to keep for breathing/HR extraction |
-| `vital_int` | 1000 | How often to send a vitals packet, in milliseconds |
-| `subk_count` | 32 | Number of best subcarriers to keep (out of 56) |
+| `edge_tier` | 0 | 处理层级（0=关闭，1=统计，2=生命体征） |
+| `pres_thresh` | 50 | 存在检测的灵敏度（数值越低越灵敏） |
+| `fall_thresh` | 15000 | 跌倒检测阈值，单位毫（15000 = 15.0 rad/s²）。正常行走为 2-5，真实跌倒为 20 以上。调高可减少误报。 |
+| `vital_win` | 300 | 为呼吸/心率提取保留多少帧相位历史 |
+| `vital_int` | 1000 | 发送生命体征数据包的频率，单位毫秒 |
+| `subk_count` | 32 | 保留的最优子载波数量（共 56 个） |
 
-When Tier 2 is active, the node sends a 32-byte vitals packet at 1 Hz (configurable) containing presence state, motion score, breathing BPM, heart rate BPM, confidence values, fall flag, and occupancy estimate. The packet uses magic `0xC5110002` and is sent to the same aggregator IP and port as raw CSI frames.
+层级 2 激活时，节点以 1 Hz（可配置）发送一个 32 字节的生命体征数据包，内含存在状态、运动评分、呼吸 BPM、心率 BPM、置信度、跌倒标志与占用估计。该包使用魔数 `0xC5110002`，并发送到与原始 CSI 帧相同的聚合器 IP 与端口。
 
-Binary size: 990 KB (8MB flash, 52% free) or 773 KB (4MB flash). v0.5.0 adds mmWave sensor fusion (~12 KB larger).
+二进制大小：990 KB（8MB flash，52% 空闲）或 773 KB（4MB flash）。v0.5.0 新增毫米波传感器融合（约大 12 KB）。
 
-> **Alpha notice**: Vital sign estimation uses heuristic BPM extraction. Accuracy is best with stationary subjects in controlled environments. Not for medical use.
+> **Alpha 提示**：生命体征估计采用启发式 BPM 提取。在受控环境中、被测对象静止时精度最佳。不可用于医疗。
 
-**Start the aggregator:**
+**启动聚合器：**
 
 ```bash
-# From source (--udp-bind/--udp-allow let it hear nodes on your network)
+# 从源码运行（--udp-bind/--udp-allow 让它能接收你网络中的节点）
 ./target/release/sensing-server --source esp32 --udp-port 5005 --http-port 3000 --ws-port 3001 \
   --udp-bind 0.0.0.0 --udp-allow <node-ip-or-cidr>
 
-# Docker (see "Receiving ESP32 frames in Docker" for the UDP source guard)
+# Docker（关于 UDP 源防护，参见“在 Docker 中接收 ESP32 帧”）
 docker run -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 -p 5005:5005/udp \
   -e RUVIEW_API_TOKEN -e CSI_SOURCE=esp32 -e RUVIEW_UDP_ALLOW=<node-ip-or-cidr> \
   ruvnet/wifi-densepose:latest
 ```
 
-See [ADR-018](../docs/adr/ADR-018-esp32-dev-implementation.md), [ADR-029](../docs/adr/ADR-029-ruvsense-multistatic-sensing-mode.md), and [Tutorial #34](https://github.com/ruvnet/RuView/issues/34).
+参见 [ADR-018](../docs/adr/ADR-018-esp32-dev-implementation.md)、[ADR-029](../docs/adr/ADR-029-ruvsense-multistatic-sensing-mode.md) 以及 [教程 #34](https://github.com/ruvnet/RuView/issues/34)。
 
 <a id="intel-5300--atheros-nic"></a>
-### Intel 5300 / Atheros NIC
+### Intel 5300 / Atheros 网卡
 
-These research NICs provide full CSI on Linux with firmware/driver modifications.
+这些研究用网卡在 Linux 上借助固件/驱动修改可提供完整 CSI。
 
-| NIC | Driver | Platform | Setup |
+| 网卡 | 驱动 | 平台 | 配置 |
 |-----|--------|----------|-------|
-| Intel 5300 | `iwl-csi` | Linux | Custom firmware, ~$15 used |
-| Atheros AR9580 | `ath9k` patch | Linux | Kernel patch, ~$20 used |
+| Intel 5300 | `iwl-csi` | Linux | 自定义固件，二手约 $15 |
+| Atheros AR9580 | `ath9k` 补丁 | Linux | 内核补丁，二手约 $20 |
 
-These are advanced setups. See the respective driver documentation for installation.
+这些都是进阶配置。安装方法请参阅各自的驱动文档。
 
 ---
 
 <a id="camera-free-pose-training"></a>
-## Camera-Free Pose Training
+## 无摄像头姿态训练
 
-RuView can train a 17-keypoint COCO pose model **without any camera** by fusing 10 sensor signals from the ESP32 nodes and Cognitum Seed:
+RuView 可在**完全不使用摄像头**的情况下训练 17 关键点 COCO 姿态模型，方法是融合来自 ESP32 节点与 Cognitum Seed 的 10 路传感器信号：
 
-| Signal | Source | What it provides |
+| 信号 | 来源 | 提供内容 |
 |--------|--------|-----------------|
-| PIR sensor | Seed GPIO 6 | Binary presence ground truth |
-| BME280 temperature | Seed I2C | Occupancy proxy (temp rises with people) |
-| BME280 humidity | Seed I2C | Breathing confirmation |
-| Cross-node RSSI | 2x ESP32 | Rough XY position (triangulation) |
-| Vitals stability | ESP32 DSP | Activity level (stable HR = stationary) |
-| Temporal CSI patterns | ESP32 DSP | Walk (periodic), sit (stable), empty (flat) |
-| kNN clusters | Seed vector store | Natural state groupings |
-| Boundary fragility | Seed graph analysis | Regime changes (enter/exit) |
-| Reed switch | Seed GPIO 5 | Door open/close events |
-| Vibration sensor | Seed GPIO 13 | Footstep detection |
+| PIR 传感器 | Seed GPIO 6 | 二值存在真值 |
+| BME280 温度 | Seed I2C | 占用代理（有人时温度上升） |
+| BME280 湿度 | Seed I2C | 呼吸确认 |
+| 跨节点 RSSI | 2x ESP32 | 粗略 XY 位置（三角定位） |
+| 生命体征稳定性 | ESP32 DSP | 活动强度（心率稳定 = 静止） |
+| 时序 CSI 模式 | ESP32 DSP | 行走（周期性）、坐（稳定）、空（平稳） |
+| kNN 聚类 | Seed 向量库 | 自然状态分组 |
+| 边界脆弱性 | Seed 图分析 | 状态切换（进入/离开） |
+| 干簧管开关 | Seed GPIO 5 | 门开/关事件 |
+| 振动传感器 | Seed GPIO 13 | 脚步检测 |
 
-### How It Works
+### 工作原理
 
-The pipeline generates weak labels from sensor fusion, then trains in 5 phases:
+该流水线先从传感器融合生成弱标签，再分 5 个阶段训练：
 
-1. **Multi-modal collection** — Syncs CSI frames with Seed sensor events
-2. **Weak label generation** — RSSI triangulation for head position, subcarrier asymmetry for hands, vibration for feet
-3. **5-keypoint pose proxy** — Trains head/hands/feet positions from fused signals
-4. **17-keypoint interpolation** — Derives full COCO skeleton using bone length constraints
-5. **Self-refinement** — Bootstraps from confident predictions (3 rounds)
+1. **多模态采集** —— 将 CSI 帧与 Seed 传感器事件同步
+2. **弱标签生成** —— 用 RSSI 三角定位确定头部位置，子载波不对称性确定手部，振动确定脚部
+3. **5 关键点姿态代理** —— 从融合信号训练头部/手部/脚部位置
+4. **17 关键点插值** —— 利用骨骼长度约束推导完整的 COCO 骨架
+5. **自精炼** —— 从高置信度预测自举（3 轮）
 
 ```bash
-# With Cognitum Seed connected (all 10 signals):
+# 已连接 Cognitum Seed 时（全部 10 路信号）：
 node scripts/train-camera-free.js \
   --data data/recordings/pretrain-*.csi.jsonl \
   --seed-url https://169.254.42.1:8443 \
   --seed-token "$SEED_TOKEN"
 
-# Without Seed (CSI-only, 3 signals — still works):
+# 无 Seed 时（仅 CSI，3 路信号 —— 仍可用）：
 node scripts/train-camera-free.js \
   --data data/recordings/pretrain-*.csi.jsonl --no-seed
 ```
 
-**Output:** 82.8 KB model (8 KB at 4-bit) with 17-keypoint predictions, 0 skeleton violations, LoRA per-node adapters, and EWC protection against forgetting.
+**输出：** 82.8 KB 模型（4-bit 下 8 KB），含 17 关键点预测、0 处骨架违规、每节点 LoRA 适配器，以及防止遗忘的 EWC 保护。
 
-See [ADR-071](adr/ADR-071-ruvllm-training-pipeline.md) and the [pretraining tutorial](tutorials/cognitum-seed-pretraining.md) for the full walkthrough.
+完整流程请参阅 [ADR-071](adr/ADR-071-ruvllm-training-pipeline.md) 与 [预训练教程](tutorials/cognitum-seed-pretraining.md)。
 
 ---
 
-## Camera-Supervised Pose Training (v0.7.0)
+## 摄像头监督的姿态训练（v0.7.0）
 
-For significantly higher accuracy, use a webcam as a **temporary teacher** during training. The camera captures real 17-keypoint poses via MediaPipe, paired with simultaneous ESP32 CSI data. After training, the camera is no longer needed — the model runs on CSI only.
+为获得明显更高的精度，可在训练期间将网络摄像头用作**临时教师**。摄像头通过 MediaPipe 捕捉真实的 17 关键点姿态，与同步采集的 ESP32 CSI 数据配对。训练结束后不再需要摄像头 —— 模型仅依赖 CSI 运行。
 
-> **Accuracy note (2026-06-10):** the previously cited "92.9% PCK@20" figure is
-> retracted — a forensic recheck of the surviving eval holdout showed it came
-> from a constant-output model scored with an absolute (non-torso-normalized)
-> threshold on 69 nearly-static frames, a protocol under which a trivial
-> mean-pose predictor scores 100%. No measured camera-supervised PCK@20 is
-> currently published (see CHANGELOG, PR #535). Treat this workflow as a data
-> collection mechanism; accuracy claims will follow a ≥35-minute multi-pose
-> collection session evaluated with torso-normalized PCK.
+> **精度说明（2026-06-10）：** 此前引用的“92.9% PCK@20”数据
+> 已被撤回 —— 对留存评估留出集的法证复核显示，它来自
+> 一个恒定输出模型，并以绝对（非躯干归一化）
+> 阈值在 69 帧近乎静止的画面下打分，而在该协议下，
+> 一个普通的平均姿态预测器就能得 100%。目前尚无实测的摄像头监督 PCK@20
+> 公开发布（参见 CHANGELOG、PR #535）。请将此工作流视为数据
+> 采集机制；精度声明将基于一次 ≥35 分钟、多姿态的
+> 采集会话，并以躯干归一化 PCK 评估后给出。
 
-### Requirements
+### 环境要求
 
-- Python 3.9+ with `mediapipe` and `opencv-python` (`pip install mediapipe opencv-python`)
-- ESP32-S3 node streaming CSI over UDP (port 5005)
-- A webcam (laptop, USB, or Mac camera via Tailscale)
+- Python 3.9+，并安装 `mediapipe` 与 `opencv-python`（`pip install mediapipe opencv-python`）
+- ESP32-S3 节点通过 UDP 流式传输 CSI（端口 5005）
+- 一个网络摄像头（笔记本、USB，或通过 Tailscale 连接的 Mac 摄像头）
 
-### Step 0: Check your CSI rate and plan the session length
+### 步骤 0：检查 CSI 速率并规划采集时长
 
-Window yield is `csi_frames / 20` — **your CSI packet rate sets how long you
-must record.** Check it first (10-second probe):
+窗口产量为 `csi_frames / 20` —— **CSI 数据包速率决定了你必须
+记录多久。** 先检查（10 秒探测）：
 
 ```bash
 python - <<'EOF'
@@ -2315,76 +2315,76 @@ print(f"{n/10:.1f} Hz -> {n/10*60/20:.0f} windows/min")
 EOF
 ```
 
-| CSI rate | Windows/min | Minutes for 2,000 windows (minimum trainable) |
+| CSI 速率 | 窗口/分钟 | 达到 2,000 窗口（最少可训练量）所需分钟数 |
 |---|---|---|
-| ~13 Hz (idle network) | ~39 | ~52 min |
-| ~53 Hz (active self-ping, #985 firmware) | ~160 | ~13 min — record 35–40 min anyway for pose variety |
+| ~13 Hz（空闲网络） | ~39 | ~52 分钟 |
+| ~53 Hz（主动自 ping，#985 固件） | ~160 | ~13 分钟 —— 为丰富姿态仍建议录制 35–40 分钟 |
 
-A 5-minute session is **not enough to train on** — it produces a few hundred
-windows of one pose context, and models trained on it memorize rather than
-generalize (this is what invalidated the earlier accuracy figure).
+5 分钟的采集**不足以用于训练** —— 它只能产生几百个
+同一姿态上下文的窗口，以此训练的模型只会死记而不是
+泛化（这也正是此前精度数据失效的原因）。
 
-### Step 1: (Recommended) calibrate camera ↔ room
+### 步骤 1：（推荐）校准摄像头 ↔ 房间
 
-The two-checkerboard calibration (ADR-152 §2.1.3) puts labels in a shared 3D
-room frame instead of raw camera coordinates, which is the published defense
-against layout-brittle "coordinate overfitting" (PerceptAlign, MobiCom'26):
+双棋盘格校准（ADR-152 §2.1.3）将标签置于共享的 3D
+房间坐标系，而非原始摄像头坐标，这正是已发表的针对
+“坐标过拟合”（布局脆弱）的防御手段（PerceptAlign，MobiCom'26）：
 
 ```bash
 python scripts/calibrate-camera-room.py   # < 5 min, two checkerboards + a few photos
 ```
 
-Without it, collection still works but labels are camera-frame only and the
-trained model will not survive camera/node relocation.
+没有它，采集依然可行，但标签仅为摄像头坐标系，
+所训练的模型在摄像头/节点移位后无法保持有效。
 
-### Step 2: Capture Camera + CSI Simultaneously
+### 步骤 2：同时采集摄像头 + CSI
 
-Run both scripts at the same time (in separate terminals):
+同时运行两个脚本（在各自独立的终端中）：
 
 ```bash
-# Terminal 1: Record ESP32 CSI (2400 s = 40 min)
+# 终端 1：录制 ESP32 CSI（2400 s = 40 分钟）
 python scripts/record-csi-udp.py --duration 2400
 
-# Terminal 2: Capture camera keypoints
+# 终端 2：捕捉摄像头关键点
 python scripts/collect-ground-truth.py --duration 2400 --preview \
-  --calibration data/calibration/camera-room.json   # omit if you skipped Step 1
+  --calibration data/calibration/camera-room.json   # 若跳过步骤 1 则省略
 ```
 
-During capture: keep your **full body in frame** with good lighting (MediaPipe
-confidence must stay above 0.5 — low-confidence frames are dropped at
-alignment), and **change activity every 1–2 minutes**: walk, raise hands,
-squat, hands up, kick, wave, turn, jump, sit, stand still. Pose variety is
-what the model learns from; 40 minutes of sitting produces a constant-pose
-predictor.
+采集期间：让**全身入镜**并保持良好的光照（MediaPipe
+置信度必须保持在 0.5 以上 —— 低置信度帧会在
+对齐时被丢弃），并**每 1–2 分钟变换一次活动**：走、举手、
+蹲、举双手、踢、挥手、转身、跳、坐、站立不动。姿态的多样性
+正是模型学习的内容；连续 40 分钟只坐着会产生一个恒定姿态
+预测器。
 
-### Step 3: Align and Train
+### 步骤 3：对齐与训练
 
 ```bash
-# Align camera keypoints with CSI windows (prints kept/dropped window counts —
-# expect roughly csi_frames/20 kept; investigate if far below)
+# 将摄像头关键点与 CSI 窗口对齐（打印保留/丢弃的窗口数 ——
+# 预期约保留 csi_frames/20 个；若远低于此请排查）
 node scripts/align-ground-truth.js \
   --gt data/ground-truth/*.jsonl \
   --csi data/recordings/csi-*.csi.jsonl
 
-# Train (pick the preset matching your window count)
+# 训练（选择与实际窗口数匹配的预设）
 node scripts/train-wiflow-supervised.js \
   --data data/paired/*.jsonl \
   --scale small \
   --epochs 50
 
-# Evaluate — torso-normalized PCK on a TEMPORAL split
+# 评估 —— 在时序切分上用躯干归一化 PCK
 node scripts/eval-wiflow.js \
   --model models/wiflow-supervised/wiflow-v1.json \
   --data data/paired/*.jsonl
 ```
 
-> **Model format boundary:** `train-wiflow-supervised.js` produces the
-> JavaScript WiFlow model `wiflow-v1.json`. There is currently no supported
-> command that converts that JSON model into the sensing server's binary RVF
-> container, and renaming the file to `.rvf` does not convert it. Use the JSON
-> model with the JavaScript evaluation/inference tools. To train a model that
-> the Rust sensing server can load, use its native training path, which writes
-> RVF directly:
+> **模型格式边界：** `train-wiflow-supervised.js` 生成的是
+> JavaScript WiFlow 模型 `wiflow-v1.json`。目前没有任何受支持
+> 的命令能将该 JSON 模型转换为感知服务器的二进制 RVF
+> 容器，且将文件重命名为 `.rvf` 并不会转换它。请使用 JSON
+> 模型配合 JavaScript 评估/推理工具。若要训练一个 Rust 感知
+> 服务器可加载的模型，请使用其原生训练路径，它会直接写出
+> RVF：
 >
 > ```bash
 > cargo run -p wifi-densepose-sensing-server --release -- \
@@ -2392,158 +2392,158 @@ node scripts/eval-wiflow.js \
 >   --epochs 100 --save-rvf models/room-model.rvf
 > ```
 >
-> The camera+CSI paired JSONL workflow and the native RVF trainer are separate
-> pipelines today. A JSON-to-RVF exporter is future work.
+> 摄像头 + CSI 配对的 JSONL 工作流与原生 RVF 训练器目前
+> 是相互独立的两条流水线。JSON 到 RVF 的导出器为未来工作。
 
-**Evaluation protocol matters.** Use `eval-wiflow.js` (torso-normalized
-PCK@20, the metric comparable to published WiFi-pose results) on a temporal
-hold-out, and sanity-check that predictions actually vary across frames
-(`pred std > 0`) — a constant-pose model can score deceptively well on
-near-static data under weaker protocols. See
-`benchmarks/wiflow-std/RESULTS.md` for the forensic case study.
+**评估协议很重要。** 请使用 `eval-wiflow.js`（躯干归一化
+PCK@20，即可与已发表的 WiFi 姿态结果对比的指标）在时序
+留出集上评估，并抽查预测是否真的在帧间变化
+（`pred std > 0`）—— 恒定姿态模型在
+较弱协议下的近乎静止数据上可能得到虚高的分数。参见
+`benchmarks/wiflow-std/RESULTS.md` 了解这一法证案例研究。
 
-### Scale Presets
+### 规模预设
 
-| Preset | Params | Training Time | Best For |
+| 预设 | 参数量 | 训练时间 | 适用场景 |
 |--------|--------|---------------|----------|
-| `--scale lite` | 189K | ~19 min | sanity runs only (< 2K windows trains poorly) |
-| `--scale small` | 474K | ~1 hr | 2K-10K windows (one 40-min session) |
-| `--scale medium` | 800K | ~2 hrs | 10K-50K windows (multiple sessions/rooms) |
-| `--scale full` | 7.7M | ~8 hrs | 50K+ windows (GPU recommended) |
+| `--scale lite` | 189K | ~19 分钟 | 仅用于冒烟测试（< 2K 窗口训练效果差） |
+| `--scale small` | 474K | ~1 小时 | 2K-10K 窗口（一次 40 分钟采集） |
+| `--scale medium` | 800K | ~2 小时 | 10K-50K 窗口（多次采集/多个房间） |
+| `--scale full` | 7.7M | ~8 小时 | 50K+ 窗口（建议使用 GPU） |
 
-See [ADR-079](adr/ADR-079-camera-ground-truth-training.md) for the full design and optimization details, and ADR-152 §2.2 for the external WiFlow-STD benchmark these numbers should be read against.
+完整设计与优化细节请参阅 [ADR-079](adr/ADR-079-camera-ground-truth-training.md)，ADR-152 §2.2 则给出了这些数字应参照的外部 WiFlow-STD 基准。
 
 ---
 
-## Pre-Trained Models (No Training Required)
+## 预训练模型（无需训练）
 
-Pre-trained models are available on HuggingFace:
-- **CSI encoder + presence head** — https://huggingface.co/ruvnet/wifi-densepose-pretrained
-- **SOTA MM-Fi pose model** (82.69% torso-PCK@20) — https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose
-- **AetherArena leaderboard Space** — https://huggingface.co/spaces/ruvnet/aether-arena
+预训练模型可在 HuggingFace 上获取：
+- **CSI 编码器 + 存在头** —— https://huggingface.co/ruvnet/wifi-densepose-pretrained
+- **SOTA MM-Fi 姿态模型**（82.69% torso-PCK@20）—— https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose
+- **AetherArena 排行榜 Space** —— https://huggingface.co/spaces/ruvnet/aether-arena
 
-The encoder artifact can be downloaded for its documented inference path without retraining. The
-MM-Fi pose checkpoint is benchmark evidence, not a drop-in live ESP32 model; it requires its exact
-input contract and runtime described in [Model and capture compatibility](#model-and-capture-compatibility).
-The deterministic signal-pipeline proof is reproducible via `python archive/v1/data/proof/verify.py`
-(see [ADR-168](adr/ADR-168-benchmark-proof.md)), but that proof does not validate pose accuracy.
+编码器产物可按其文档化推理路径下载使用，无需重新训练。
+MM-Fi 姿态检查点是基准证据，并非可直接使用的实时 ESP32 模型；它需要
+严格符合 [模型与采集兼容性](#model-and-capture-compatibility) 中描述的输入契约与运行环境。
+该确定性的信号处理流水线证明可通过 `python archive/v1/data/proof/verify.py` 复现
+（参见 [ADR-168](adr/ADR-168-benchmark-proof.md)），但该证明并不验证姿态精度。
 
-### Quick Start with Pre-Trained Models
+### 预训练模型快速上手
 
 ```bash
-# Install huggingface CLI
+# 安装 huggingface CLI
 pip install huggingface_hub
 
-# Download all models
+# 下载全部模型
 huggingface-cli download ruvnet/wifi-densepose-pretrained --local-dir models/pretrained
 
-# The models include:
-#   model.safetensors    — 48 KB contrastive encoder
-#   model-q4.bin         — 8 KB quantized (recommended)
-#   model-q2.bin         — 4 KB ultra-compact (ESP32 edge)
-#   presence-head.json   — presence detection head (v2 encoder: 82.3% held-out triplet acc)
-#   node-1.json          — LoRA adapter for room 1
-#   node-2.json          — LoRA adapter for room 2
+# 模型包含：
+#   model.safetensors    —— 48 KB 对比编码器
+#   model-q4.bin         —— 8 KB 量化版（推荐）
+#   model-q2.bin         —— 4 KB 超紧凑版（ESP32 边缘）
+#   presence-head.json   —— 存在检测头（v2 编码器：留出集三元组准确率 82.3%）
+#   node-1.json          —— 房间 1 的 LoRA 适配器
+#   node-2.json          —— 房间 2 的 LoRA 适配器
 ```
 
-### What the Models Do
+### 模型的作用
 
-The pre-trained encoder converts 8-dim CSI feature vectors into 128-dim embeddings. These embeddings power all 17 sensing applications:
+预训练编码器将 8 维 CSI 特征向量转换为 128 维嵌入。这些嵌入驱动全部 17 项感知应用：
 
-- **Presence detection** — v2 encoder: 82.3% held-out temporal-triplet accuracy (v1's "100%" was a single-class recording — retracted, [#882](https://github.com/ruvnet/RuView/issues/882))
-- **Environment fingerprinting** — kNN search finds "states like this one"
-- **Anomaly detection** — embeddings that don't match known clusters = anomaly
-- **Activity classification** — different activities cluster in embedding space
-- **Room adaptation** — swap LoRA adapters for different rooms without retraining
+- **存在检测** —— v2 编码器：留出集时序三元组准确率 82.3%（v1 的“100%”是单类录制 —— 已撤回，[#882](https://github.com/ruvnet/RuView/issues/882)）
+- **环境指纹** —— kNN 检索可找到“与此相似的状态”
+- **异常检测** —— 与已知簇不匹配的嵌入即异常
+- **活动分类** —— 不同活动在嵌入空间中聚成不同簇
+- **房间自适应** —— 无需重新训练即可为不同房间切换 LoRA 适配器
 
-### Retraining on Your Own Data
+### 用自己的数据重新训练
 
-If you want to improve accuracy for your specific environment:
+若想针对你的特定环境提升精度：
 
 ```bash
-# Collect 2+ minutes of CSI from your ESP32
+# 从你的 ESP32 采集 2 分钟以上的 CSI
 python scripts/collect-training-data.py --port 5006 --duration 120
 
-# Retrain (uses ruvllm, no PyTorch needed)
+# 重新训练（使用 ruvllm，无需 PyTorch）
 node scripts/train-ruvllm.js --data data/recordings/*.csi.jsonl
 
-# Benchmark your retrained model
+# 对你的重新训练模型做基准测试
 node scripts/benchmark-ruvllm.js --model models/csi-ruvllm
 ```
 
 ---
 
-## Health & Wellness Applications
+## 健康与养生应用
 
-WiFi sensing can monitor health metrics without any wearable or camera:
+WiFi 感知可在无需任何可穿戴设备或摄像头的情况下监测健康指标：
 
 ```bash
-# Sleep quality monitoring (run overnight)
+# 睡眠质量监测（通宵运行）
 node scripts/sleep-monitor.js --port 5006
 
-# Breathing disorder pre-screening
+# 呼吸障碍初筛
 node scripts/apnea-detector.js --port 5006
 
-# Stress detection via heart rate variability
+# 通过心率变异性检测压力
 node scripts/stress-monitor.js --port 5006
 
-# Walking analysis + tremor detection
+# 行走分析 + 震颤检测
 node scripts/gait-analyzer.js --port 5006
 
-# Replay one recording (no live hardware needed)
+# 回放一段录制（无需实时硬件）
 node scripts/sleep-monitor.js --replay data/recordings/<recording>.csi.jsonl
 ```
 
-> **Note:** These are pre-screening tools, not medical devices. Consult a healthcare professional for diagnosis.
+> **注意：** 这些只是初筛工具，并非医疗器械。诊断请咨询专业医疗人员。
 
 ---
 
 <a id="ruvllm-training-pipeline"></a>
-## ruvllm Training Pipeline
+## ruvllm 训练流水线
 
-All training uses **ruvllm** — a Rust-native ML runtime. No Python, no PyTorch, no GPU drivers required. Runs on any machine with Node.js.
+全部训练都使用 **ruvllm** —— 一个原生 Rust 的 ML 运行时。无需 Python、PyTorch 或 GPU 驱动，可在任何装有 Node.js 的机器上运行。
 
-### 5-Phase Training
+### 5 阶段训练
 
-| Phase | What | Duration (M4 Pro) |
+| 阶段 | 内容 | 耗时（M4 Pro） |
 |-------|------|--------------------|
-| Contrastive pretraining | Triplet + InfoNCE loss on CSI embeddings | ~5s |
-| Task head training | Presence, activity, vitals classifiers | ~10s |
-| LoRA refinement | Per-node room adaptation (rank-4) | ~4s |
-| TurboQuant quantization | 2/4/8-bit with <0.5% quality loss | <1s |
-| EWC consolidation | Prevent catastrophic forgetting | <1s |
+| 对比预训练 | 对 CSI 嵌入使用 Triplet + InfoNCE 损失 | ~5s |
+| 任务头训练 | 存在、活动、生命体征分类器 | ~10s |
+| LoRA 精调 | 每节点房间自适应（rank-4） | ~4s |
+| TurboQuant 量化 | 2/4/8-bit，质量损失 <0.5% | <1s |
+| EWC 整合 | 防止灾难性遗忘 | <1s |
 
 ```bash
-# Basic training
+# 基础训练
 node scripts/train-ruvllm.js --data data/recordings/pretrain-*.csi.jsonl
 
-# Benchmark
+# 基准测试
 node scripts/benchmark-ruvllm.js --model models/csi-ruvllm
 ```
 
-### Quantization Options
+### 量化选项
 
-| Bits | Size | Compression | Quality Loss | Use Case |
+| 位数 | 大小 | 压缩比 | 质量损失 | 适用场景 |
 |------|------|-------------|-------------|----------|
-| fp32 | 48 KB | 1x | 0% | Development |
-| 8-bit | 16 KB | 4x | <0.01% | Cognitum Seed inference |
-| 4-bit | 8 KB | 8x | <0.1% | Recommended for deployment |
-| 2-bit | 4 KB | 16x | <1% | ESP32-S3 SRAM (edge inference) |
+| fp32 | 48 KB | 1x | 0% | 开发 |
+| 8-bit | 16 KB | 4x | <0.01% | Cognitum Seed 推理 |
+| 4-bit | 8 KB | 8x | <0.1% | 推荐用于部署 |
+| 2-bit | 4 KB | 16x | <1% | ESP32-S3 SRAM（边缘推理） |
 
-### Key Features
+### 主要特性
 
-- **SONA adaptation** — Adapts to new rooms in <1ms without retraining
-- **LoRA adapters** — 2,048 parameters per room, hot-swappable
-- **EWC protection** — Learns new rooms without forgetting previous ones
-- **Deterministic** — Same seed always produces same model (reproducible)
-- **10x data augmentation** — Temporal interpolation, noise injection, cross-node blending
+- **SONA 自适应** —— 无需重新训练即可在 <1ms 内适配新房间
+- **LoRA 适配器** —— 每房间 2,048 个参数，可热插拔
+- **EWC 保护** —— 学习新房间而不会遗忘之前的内容
+- **确定性** —— 相同种子总是产生相同模型（可复现）
+- **10 倍数据增强** —— 时序插值、噪声注入、跨节点混合
 
 ---
 
 <a id="docker-compose-multi-service"></a>
-## Docker Compose (Multi-Service)
+## Docker Compose（多服务）
 
-For production deployments with both Rust and Python services:
+适用于同时包含 Rust 与 Python 服务的生产部署：
 
 ```bash
 cd docker
@@ -2552,123 +2552,123 @@ export RUVIEW_UDP_ALLOW=<node-ip-or-cidr>   # macOS Docker: <gateway>/32
 docker compose up
 ```
 
-This starts:
-- Rust sensing server on ports 3000 (HTTP), 3001 (WS), 5005 (UDP)
-- Python legacy server on ports 8080 (HTTP), 8765 (WS)
+这会启动：
+- Rust 感知服务器，端口 3000（HTTP）、3001（WS）、5005（UDP）
+- Python 旧版服务器，端口 8080（HTTP）、8765（WS）
 
-The sensing server exits with code 64 when `RUVIEW_API_TOKEN` is unset. Without `RUVIEW_UDP_ALLOW` or `RUVIEW_UDP_INSECURE_LAN=true` it starts but receives no ESP32 frames. `docker/docker-compose.yml` passes these variables through from your shell, along with `RUVIEW_UDP_BIND` and `SENSING_ALLOWED_HOSTS`. See [Receiving ESP32 frames in Docker](#receiving-esp32-frames-in-docker).
+当 `RUVIEW_API_TOKEN` 未设置时，感知服务器会以退出码 64 退出。若没有 `RUVIEW_UDP_ALLOW` 或 `RUVIEW_UDP_INSECURE_LAN=true`，它会启动但收不到任何 ESP32 帧。`docker/docker-compose.yml` 会将这些变量连同 `RUVIEW_UDP_BIND` 与 `SENSING_ALLOWED_HOSTS` 一起从你的 shell 透传。参见 [在 Docker 中接收 ESP32 帧](#receiving-esp32-frames-in-docker)。
 
 ---
 
 <a id="testing-firmware-without-hardware-qemu"></a>
-## Testing Firmware Without Hardware (QEMU)
+## 无需硬件测试固件（QEMU）
 
-You can test the ESP32-S3 firmware on your computer without any physical hardware. The project uses **QEMU** — an emulator that pretends to be an ESP32-S3 chip, running the real firmware code inside a virtual machine on your PC.
+你可以在自己的电脑上测试 ESP32-S3 固件，而无需任何实体硬件。本项目使用 **QEMU** —— 一个模拟 ESP32-S3 芯片的模拟器，可在你的 PC 上的虚拟机中运行真正的固件代码。
 
-This is useful when:
-- You don't have an ESP32-S3 board yet
-- You want to test firmware changes before flashing to real hardware
-- You're running automated tests in CI/CD
-- You want to simulate multiple ESP32 nodes talking to each other
+以下场景很有用：
+- 你还没有 ESP32-S3 开发板
+- 你想在烧录到真实硬件前先测试固件改动
+- 你在 CI/CD 中运行自动化测试
+- 你想模拟多个 ESP32 节点互相通信
 
 <a id="what-you-need"></a>
-### What You Need
+### 你需要准备
 
-**Required:**
-- Python 3.8+ (you probably already have this)
-- QEMU with ESP32-S3 support (Espressif's fork)
+**必需：**
+- Python 3.8+（你很可能已经装了）
+- 支持 ESP32-S3 的 QEMU（Espressif 的分支）
 
-**Install QEMU (one-time setup):**
+**安装 QEMU（一次性配置）：**
 
 ```bash
-# Easiest: use the automated installer (installs QEMU + Python tools)
+# 最简单：使用自动安装脚本（安装 QEMU + Python 工具）
 bash scripts/install-qemu.sh
 
-# Or check what's already installed:
+# 或检查已安装的内容：
 bash scripts/install-qemu.sh --check
 ```
 
-The installer detects your OS (Ubuntu, Fedora, macOS, etc.), installs build dependencies, clones Espressif's QEMU fork, builds it, and adds it to your PATH. It also installs the Python tools (`esptool`, `pyyaml`, `esp-idf-nvs-partition-gen`).
+安装脚本会检测你的操作系统（Ubuntu、Fedora、macOS 等），安装构建依赖，克隆 Espressif 的 QEMU 分支，编译它并加入你的 PATH。它还会安装 Python 工具（`esptool`、`pyyaml`、`esp-idf-nvs-partition-gen`）。
 
 <details>
-<summary>Manual installation (if you prefer)</summary>
+<summary>手动安装（如果你愿意）</summary>
 
 ```bash
-# Build from source
+# 从源码构建
 git clone https://github.com/espressif/qemu.git
 cd qemu
 ./configure --target-list=xtensa-softmmu --enable-slirp
 make -j$(nproc)
 export QEMU_PATH=$(pwd)/build/qemu-system-xtensa
 
-# Install Python tools
+# 安装 Python 工具
 pip install esptool pyyaml esp-idf-nvs-partition-gen
 ```
 
 </details>
 
-**For multi-node testing (optional):**
+**用于多节点测试（可选）：**
 
 ```bash
 # Linux only — needed for virtual network bridges
 sudo apt install socat bridge-utils iproute2
 ```
 
-### The `qemu-cli.sh` Command
+### `qemu-cli.sh` 命令
 
-All QEMU testing is available through a single command:
+所有 QEMU 测试都可通过一条命令完成：
 
 ```bash
 bash scripts/qemu-cli.sh <command>
 ```
 
-| Command | What it does |
+| 命令 | 作用 |
 |---------|-------------|
-| `install` | Install QEMU (runs the installer above) |
-| `test` | Run single-node firmware test |
-| `swarm --preset smoke` | Quick 2-node swarm test |
-| `swarm --preset standard` | Standard 3-node test |
-| `mesh 3` | Multi-node mesh test |
-| `chaos` | Fault injection resilience test |
-| `fuzz --duration 60` | Run fuzz testing |
-| `status` | Show what's installed and ready |
-| `help` | Show all commands |
+| `install` | 安装 QEMU（运行上面的安装脚本） |
+| `test` | 运行单节点固件测试 |
+| `swarm --preset smoke` | 快速 2 节点集群测试 |
+| `swarm --preset standard` | 标准 3 节点测试 |
+| `mesh 3` | 多节点网格测试 |
+| `chaos` | 故障注入韧性测试 |
+| `fuzz --duration 60` | 运行模糊测试 |
+| `status` | 显示已安装且就绪的内容 |
+| `help` | 显示所有命令 |
 
 <a id="your-first-test-run"></a>
-### Your First Test Run
+### 你的第一次测试运行
 
-The simplest way to test the firmware:
+测试固件最简单的方式：
 
 ```bash
-# Using the CLI:
+# 使用 CLI：
 bash scripts/qemu-cli.sh test
 
-# Or directly:
+# 或直接：
 bash scripts/qemu-esp32s3-test.sh
 ```
 
-**What happens behind the scenes:**
-1. The firmware is compiled with a "mock CSI" mode — instead of reading real WiFi signals, it generates synthetic test data that mimics real people walking, falling, or breathing
-2. The compiled firmware is loaded into QEMU, which boots it like a real ESP32-S3
-3. The emulator's serial output (what you'd see on a USB cable) is captured
-4. A validation script checks the output for expected behavior and errors
+**背后发生了什么：**
+1. 固件以“mock CSI”模式编译 —— 不再读取真实 WiFi 信号，而是生成模拟真人行走、跌倒或呼吸的合成测试数据
+2. 编译后的固件被加载进 QEMU，后者像启动真实 ESP32-S3 那样启动它
+3. 模拟器的串口输出（也就是你在 USB 线上会看到的内容）被捕获
+4. 校验脚本检查输出中是否存在预期行为与错误
 
-If you already built the firmware and want to skip rebuilding:
+如果你已经构建过固件并想跳过重新构建：
 
 ```bash
 SKIP_BUILD=1 bash scripts/qemu-esp32s3-test.sh
 ```
 
-To give it more time (useful on slower machines):
+若想给它更多时间（在较慢机器上很有用）：
 
 ```bash
 QEMU_TIMEOUT=120 bash scripts/qemu-esp32s3-test.sh
 ```
 
 <a id="understanding-the-test-output"></a>
-### Understanding the Test Output
+### 理解测试输出
 
-The test runs 16 checks on the firmware's output. Here's what a successful run looks like:
+该测试对固件输出运行 16 项检查。一次成功运行的结果如下：
 
 ```
 === QEMU ESP32-S3 Firmware Test (ADR-061) ===
@@ -2685,230 +2685,230 @@ The test runs 16 checks on the firmware's output. Here's what a successful run l
 === Test Complete (exit code: 0) ===
 ```
 
-**Exit codes explained:**
+**退出码说明：**
 
-| Code | Meaning | What to do |
+| 代码 | 含义 | 处理方式 |
 |------|---------|-----------|
-| 0 | **PASS** — everything works | Nothing, you're good! |
-| 1 | **WARN** — minor issues | Review the output; usually safe to continue |
-| 2 | **FAIL** — something broke | Check the `[FAIL]` lines for what went wrong |
-| 3 | **FATAL** — can't even start | Usually a missing tool or build failure; check error messages |
+| 0 | **PASS** —— 一切正常 | 无需处理，一切就绪！ |
+| 1 | **WARN** —— 轻微问题 | 查看输出；通常可继续 |
+| 2 | **FAIL** —— 出现损坏 | 查看 `[FAIL]` 行了解出错位置 |
+| 3 | **FATAL** —— 甚至无法启动 | 通常是缺少工具或构建失败；请查看错误信息 |
 
 <a id="testing-multiple-nodes-at-once-swarm"></a>
-### Testing Multiple Nodes at Once (Swarm)
+### 一次测试多个节点（集群）
 
-Real deployments use 3-8 ESP32 nodes. The **swarm configurator** lets you simulate multiple nodes on your computer, each with a different role:
+真实部署使用 3-8 个 ESP32 节点。**swarm 配置器**可让你在电脑上模拟多个节点，每个节点扮演不同角色：
 
-- **Sensor nodes** — generate WiFi signal data (like ESP32s placed around a room)
-- **Coordinator node** — collects data from all sensors and runs analysis
-- **Gateway node** — bridges data to your computer
+- **传感器节点** —— 生成 WiFi 信号数据（类似环绕房间布置的 ESP32）
+- **协调器节点** —— 从所有传感器收集数据并运行分析
+- **网关节点** —— 将数据桥接到你的电脑
 
 ```bash
-# Quick 2-node smoke test (15 seconds)
+# 快速 2 节点冒烟测试（15 秒）
 python3 scripts/qemu_swarm.py --preset smoke
 
-# Standard 3-node test: 2 sensors + 1 coordinator (60 seconds)
+# 标准 3 节点测试：2 传感器 + 1 协调器（60 秒）
 python3 scripts/qemu_swarm.py --preset standard
 
-# See what's available
+# 查看可用项
 python3 scripts/qemu_swarm.py --list-presets
 
-# Preview what would run (without actually running)
+# 预览将运行的内容（不实际运行）
 python3 scripts/qemu_swarm.py --preset standard --dry-run
 ```
 
-**Note:** Multi-node testing with virtual bridges requires Linux and `sudo`. On other systems, nodes use a simpler networking mode where each node can reach the coordinator but not each other.
+**注意：** 使用虚拟网桥的多节点测试需要 Linux 与 `sudo`。在其他系统上，节点使用更简单的网络模式：每个节点都能连到协调器，但彼此之间不能通信。
 
 <a id="swarm-presets"></a>
-### Swarm Presets
+### 集群预设
 
-| Preset | Nodes | Duration | Best for |
+| 预设 | 节点数 | 时长 | 适用场景 |
 |--------|-------|----------|----------|
-| `smoke` | 2 | 15s | Quick check that things work |
-| `standard` | 3 | 60s | Normal development testing |
-| `ci_matrix` | 3 | 30s | CI/CD pipelines |
-| `large_mesh` | 6 | 90s | Testing at scale |
-| `line_relay` | 4 | 60s | Multi-hop relay testing |
-| `ring_fault` | 4 | 75s | Fault tolerance testing |
-| `heterogeneous` | 5 | 90s | Mixed scenario testing |
+| `smoke` | 2 | 15s | 快速验证是否可用 |
+| `standard` | 3 | 60s | 常规开发测试 |
+| `ci_matrix` | 3 | 30s | CI/CD 流水线 |
+| `large_mesh` | 6 | 90s | 大规模测试 |
+| `line_relay` | 4 | 60s | 多跳中继测试 |
+| `ring_fault` | 4 | 75s | 容错测试 |
+| `heterogeneous` | 5 | 90s | 混合场景测试 |
 
 <a id="writing-your-own-swarm-config"></a>
-### Writing Your Own Swarm Config
+### 编写你自己的集群配置
 
-Create a YAML file describing your test scenario:
+创建一个描述测试场景的 YAML 文件：
 
 ```yaml
-# my_test.yaml
+# my_test.yaml（我的测试配置）
 swarm:
   name: my-custom-test
   duration_s: 45
-  topology: star       # star, mesh, line, or ring
+  topology: star       # star、mesh、line 或 ring
   aggregator_port: 5005
 
 nodes:
   - role: coordinator
     node_id: 0
-    scenario: 0        # 0=empty room (baseline)
+    scenario: 0        # 0=空房间（基线）
     channel: 6
     edge_tier: 2
 
   - role: sensor
     node_id: 1
-    scenario: 2        # 2=walking person
+    scenario: 2        # 2=行走的人
     channel: 6
     tdm_slot: 1
 
   - role: sensor
     node_id: 2
-    scenario: 3        # 3=fall event
+    scenario: 3        # 3=跌倒事件
     channel: 6
     tdm_slot: 2
 
 assertions:
-  - all_nodes_boot           # Did every node start up?
-  - no_crashes               # Any error/panic?
-  - all_nodes_produce_frames # Is each sensor generating data?
-  - fall_detected_by_node_2  # Did node 2 detect the fall?
+  - all_nodes_boot           # 每个节点都启动了吗？
+  - no_crashes               # 有无错误/崩溃？
+  - all_nodes_produce_frames # 每个传感器都在生成数据吗？
+  - fall_detected_by_node_2  # 节点 2 检测到跌倒了吗？
 ```
 
-**Available scenarios** (what kind of fake WiFi data to generate):
+**可用场景**（生成何种伪造 WiFi 数据）：
 
-| # | Scenario | Description |
+| # | 场景 | 描述 |
 |---|----------|-------------|
-| 0 | Empty room | Baseline with just noise |
-| 1 | Static person | Someone standing still |
-| 2 | Walking | Someone walking across the room |
-| 3 | Fall | Someone falling down |
-| 4 | Multiple people | Two people in the room |
-| 5 | Channel sweep | Cycling through WiFi channels |
-| 6 | MAC filter | Testing device filtering |
-| 7 | Ring overflow | Stress test with burst of data |
-| 8 | RSSI sweep | Signal strength from weak to strong |
-| 9 | Zero-length | Edge case: empty data packet |
+| 0 | 空房间 | 仅含噪声的基线 |
+| 1 | 静止的人 | 某人站立不动 |
+| 2 | 行走 | 某人在房间中走动 |
+| 3 | 跌倒 | 某人摔倒 |
+| 4 | 多人 | 房间中有两人 |
+| 5 | 信道扫描 | 循环遍历 WiFi 信道 |
+| 6 | MAC 过滤 | 测试设备过滤 |
+| 7 | 环形溢出 | 突发数据压力测试 |
+| 8 | RSSI 扫描 | 信号强度从弱到强 |
+| 9 | 零长度 | 边界情况：空数据包 |
 
-**Topology options:**
+**拓扑选项：**
 
-| Topology | Shape | When to use |
+| 拓扑 | 形状 | 使用时机 |
 |----------|-------|-------------|
-| `star` | All sensors connect to one coordinator | Most common setup |
-| `mesh` | Every node can talk to every other | Testing fully connected networks |
-| `line` | Nodes in a chain (A → B → C → D) | Testing relay/forwarding |
-| `ring` | Chain with ends connected | Testing circular routing |
+| `star` | 所有传感器连到一个协调器 | 最常见的配置 |
+| `mesh` | 每个节点都能与其他节点通信 | 测试全连接网络 |
+| `line` | 节点排成链状（A → B → C → D） | 测试中继/转发 |
+| `ring` | 首尾相连的链 | 测试环形路由 |
 
-Run your custom config:
+运行你的自定义配置：
 
 ```bash
 python3 scripts/qemu_swarm.py --config my_test.yaml
 ```
 
 <a id="debugging-firmware-in-qemu"></a>
-### Debugging Firmware in QEMU
+### 在 QEMU 中调试固件
 
-If something goes wrong, you can attach a debugger to the emulated ESP32:
+如果出了问题，你可以把调试器挂到模拟出来的 ESP32 上：
 
 ```bash
-# Terminal 1: Start QEMU with debug support (paused at boot)
+# 终端 1：以调试支持启动 QEMU（启动时暂停）
 qemu-system-xtensa -machine esp32s3 -nographic \
   -drive file=firmware/esp32-csi-node/build/qemu_flash.bin,if=mtd,format=raw \
   -s -S
 
-# Terminal 2: Connect the debugger
+# 终端 2：连接调试器
 xtensa-esp-elf-gdb firmware/esp32-csi-node/build/esp32-csi-node.elf \
   -ex "target remote :1234" \
   -ex "break app_main" \
   -ex "continue"
 ```
 
-Or use VS Code: open the project, press **F5**, and select **"QEMU ESP32-S3 Debug"**.
+或使用 VS Code：打开项目，按 **F5**，并选择 **“QEMU ESP32-S3 Debug”**。
 
 <a id="running-the-full-test-suite"></a>
-### Running the Full Test Suite
+### 运行完整测试套件
 
-For thorough validation before submitting a pull request:
+在提交 pull request 之前进行全面验证：
 
 ```bash
-# 1. Single-node test (2 minutes)
+# 1. 单节点测试（2 分钟）
 bash scripts/qemu-esp32s3-test.sh
 
-# 2. Multi-node swarm test (1 minute)
+# 2. 多节点集群测试（1 分钟）
 python3 scripts/qemu_swarm.py --preset standard
 
-# 3. Fuzz testing — finds edge-case crashes (1-5 minutes)
+# 3. 模糊测试 —— 发现边界情况崩溃（1-5 分钟）
 cd firmware/esp32-csi-node/test
 make all CC=clang
 make run_serialize FUZZ_DURATION=60
 make run_edge FUZZ_DURATION=60
 make run_nvs FUZZ_DURATION=60
 
-# 4. NVS configuration matrix — tests 14 config combinations
+# 4. NVS 配置矩阵 —— 测试 14 种配置组合
 python3 scripts/generate_nvs_matrix.py --output-dir build/nvs_matrix
 
-# 5. Chaos testing — injects faults to test resilience (2 minutes)
+# 5. 混沌测试 —— 注入故障以测试韧性（2 分钟）
 bash scripts/qemu-chaos-test.sh
 ```
 
-All of these also run automatically in CI when you push changes to `firmware/`.
+当你向 `firmware/` 推送改动时，以上所有内容也会在 CI 中自动运行。
 
 ---
 
 <a id="troubleshooting"></a>
-## Troubleshooting
+## 故障排查
 
-### Docker: "no matching manifest for linux/arm64" on macOS
+### Docker：macOS 上出现 "no matching manifest for linux/arm64"
 
-The `latest` tag supports both amd64 and arm64. Pull the latest image:
+`latest` 标签同时支持 amd64 与 arm64。请拉取最新镜像：
 
 ```bash
 docker pull ruvnet/wifi-densepose:latest
 ```
 
-If you still see this error, your local Docker may have a stale cached manifest. Try:
+如果仍看到该错误，你的本地 Docker 可能缓存了过期的 manifest。可尝试：
 
 ```bash
 docker pull --platform linux/arm64 ruvnet/wifi-densepose:latest
 ```
 
-### Docker: "Connection refused" on localhost:3000
+### Docker：localhost:3000 上出现 "Connection refused"
 
-Make sure you're mapping the ports correctly:
-
-```bash
-docker run -p 3000:3000 -p 3001:3001 ruvnet/wifi-densepose:latest
-```
-
-The `-p 3000:3000` maps host port 3000 to container port 3000.
-
-### Docker: No WebSocket data in UI
-
-Add the WebSocket port mapping:
+请确保端口映射正确：
 
 ```bash
 docker run -p 3000:3000 -p 3001:3001 ruvnet/wifi-densepose:latest
 ```
 
-### ESP32: "CSI not enabled in menuconfig"
+`-p 3000:3000` 将主机端口 3000 映射到容器端口 3000。
 
-Firmware versions prior to v0.4.1 had `CONFIG_ESP_WIFI_CSI_ENABLED` disabled in the build config. Upgrade to [v0.4.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.1-esp32) or later. If building from source, ensure `sdkconfig.defaults` exists (not just `sdkconfig.defaults.template`). See [ADR-057](../docs/adr/ADR-057-firmware-csi-build-guard.md).
+### Docker：UI 中没有 WebSocket 数据
 
-### ESP32: No data arriving
+请添加 WebSocket 端口映射：
 
-1. Verify firmware is v0.4.1+ (older versions had CSI disabled — see above)
-2. Verify the ESP32 is connected to the same WiFi network
-3. Check the target IP matches the sensing server machine: `python firmware/esp32-csi-node/provision.py --port COM7 --target-ip <YOUR_IP>`
-4. Verify UDP port 5005 is not blocked by firewall
-5. Test with: `nc -lu 5005` (Linux) or similar UDP listener
+```bash
+docker run -p 3000:3000 -p 3001:3001 ruvnet/wifi-densepose:latest
+```
 
-### Build: Rust compilation errors
+### ESP32："CSI not enabled in menuconfig"
 
-Ensure Rust 1.75+ is installed (1.85+ recommended):
+v0.4.1 之前的固件版本在构建配置中禁用了 `CONFIG_ESP_WIFI_CSI_ENABLED`。请升级到 [v0.4.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.1-esp32) 或更高版本。若从源码构建，请确保存在 `sdkconfig.defaults`（而不仅仅是 `sdkconfig.defaults.template`）。参见 [ADR-057](../docs/adr/ADR-057-firmware-csi-build-guard.md)。
+
+### ESP32：没有数据到达
+
+1. 确认固件为 v0.4.1+（旧版本禁用了 CSI —— 见上）
+2. 确认 ESP32 连接到同一个 WiFi 网络
+3. 检查目标 IP 是否与感知服务器所在机器一致：`python firmware/esp32-csi-node/provision.py --port COM7 --target-ip <YOUR_IP>`
+4. 确认 UDP 端口 5005 未被防火墙拦截
+5. 测试方式：`nc -lu 5005`（Linux）或类似的 UDP 监听器
+
+### 构建：Rust 编译错误
+
+请确保已安装 Rust 1.75+（推荐 1.85+）：
 ```bash
 rustup update stable
 rustc --version
 ```
 
-### Build: Linux native desktop prerequisites
+### 构建：Linux 原生桌面前置依赖
 
-If you are compiling the Rust workspace on a Debian/Ubuntu-based Linux system, install the native desktop development packages first:
+如果你在基于 Debian/Ubuntu 的 Linux 系统上编译 Rust 工作区，请先安装原生桌面开发包：
 
 ```bash
 sudo apt update
@@ -2920,45 +2920,45 @@ sudo apt install -y \
   libwebkit2gtk-4.1-dev
 ```
 
-Then rerun:
+然后重新运行：
 
 ```bash
 cargo build --release
 ```
 
-This is the same Linux pre-step referenced in the Rust source build section and covers the common GTK/WebKit `pkg-config` requirements used by the desktop build.
+这与 Rust 源码构建章节提到的 Linux 前置步骤相同，涵盖了桌面构建所需的常见 GTK/WebKit `pkg-config` 依赖。
 
-### Windows: RSSI mode shows no data
+### Windows：RSSI 模式没有数据显示
 
-Run the terminal as Administrator (required for `netsh wlan` access). Verified working on Windows 10 and 11 with Intel AX201 and Intel BE201 adapters.
+请以管理员身份运行终端（访问 `netsh wlan` 所需）。已在 Windows 10 与 11 上，配合 Intel AX201 与 Intel BE201 适配器验证可用。
 
-### Vital signs show 0 BPM
+### 生命体征显示 0 BPM
 
-- Vital sign detection requires CSI-capable hardware (ESP32 or research NIC)
-- RSSI-only mode (Windows WiFi) does not have sufficient resolution for vital signs
-- In simulated mode, synthetic vital signs are generated after a few seconds of warm-up
-- With real ESP32 data, vital signs take ~5 seconds to stabilize (smoothing pipeline warm-up)
+- 生命体征检测需要支持 CSI 的硬件（ESP32 或研究网卡）
+- 仅 RSSI 模式（Windows WiFi）分辨率不足以支持生命体征
+- 在模拟模式下，合成生命体征会在数秒预热后生成
+- 使用真实 ESP32 数据时，生命体征约需 5 秒稳定（平滑流水线预热）
 
-### Vital signs jumping around
+### 生命体征跳动不稳
 
-The server applies a 3-stage smoothing pipeline (ADR-048). If readings are still unstable:
-- Ensure the subject is relatively still (large movements mask vital sign oscillations)
-- Train the adaptive classifier for your specific environment: `curl -X POST http://localhost:3000/api/v1/adaptive/train`
-- Check signal quality: `curl http://localhost:3000/api/v1/sensing/latest` — look for `signal_quality > 0.4`
+服务器采用了 3 段式平滑流水线（ADR-048）。若读数仍然不稳：
+- 确保被测对象相对静止（大幅动作会掩盖生命体征的振荡）
+- 为你的特定环境训练自适应分类器：`curl -X POST http://localhost:3000/api/v1/adaptive/train`
+- 检查信号质量：`curl http://localhost:3000/api/v1/sensing/latest` —— 寻找 `signal_quality > 0.4`
 
-### Observatory shows DEMO instead of LIVE
+### Observatory 显示 DEMO 而非 LIVE
 
-- Verify the sensing server is running: `curl http://localhost:3000/health`
-- Access Observatory via the server URL: `http://localhost:3000/ui/observatory.html` (not a file:// URL)
-- If a standalone `aggregator` command is already listening on UDP `:5005`, stop it and run `sensing-server --source esp32 --udp-port 5005 --udp-bind 0.0.0.0 --udp-allow <node-ip-or-cidr>` instead; the Observatory reads the server WebSocket, not the standalone aggregator output
-- On a native run, make sure the server was started with `--udp-bind 0.0.0.0` and `--udp-allow` (or `--udp-insecure-lan`). It listens on `127.0.0.1` by default, so frames from your nodes never reach it otherwise
-- Verify the ESP32 nodes are provisioned to the IP address of the machine running `sensing-server`
-- Hard refresh with Ctrl+Shift+R to clear cached settings
-- The auto-detect probes `/health` on the same origin — cross-origin won't work
+- 确认感知服务器正在运行：`curl http://localhost:3000/health`
+- 通过服务器 URL 访问 Observatory：`http://localhost:3000/ui/observatory.html`（而非 file:// URL）
+- 若独立的 `aggregator` 命令已在 UDP `:5005` 上监听，请停止它，改为运行 `sensing-server --source esp32 --udp-port 5005 --udp-bind 0.0.0.0 --udp-allow <node-ip-or-cidr>`；Observatory 读取的是服务器 WebSocket，而非独立 aggregator 的输出
+- 在原生运行时，请确保服务器以 `--udp-bind 0.0.0.0` 和 `--udp-allow`（或 `--udp-insecure-lan`）启动。它默认监听 `127.0.0.1`，否则来自你节点的帧永远无法到达
+- 确认 ESP32 节点已配网到运行 `sensing-server` 的机器 IP 地址
+- 按 Ctrl+Shift+R 强制刷新以清除缓存设置
+- 自动检测会在同源下探测 `/health` —— 跨源不会生效
 
-### QEMU: "qemu-system-xtensa: command not found"
+### QEMU："qemu-system-xtensa: command not found"
 
-QEMU for ESP32-S3 must be built from Espressif's fork — it is not in standard package managers:
+面向 ESP32-S3 的 QEMU 必须从 Espressif 的分支构建 —— 它不在标准包管理器中：
 
 ```bash
 git clone https://github.com/espressif/qemu.git
@@ -2966,83 +2966,83 @@ cd qemu && ./configure --target-list=xtensa-softmmu && make -j$(nproc)
 export QEMU_PATH=$(pwd)/build/qemu-system-xtensa
 ```
 
-Or point to an existing build: `QEMU_PATH=/path/to/qemu-system-xtensa bash scripts/qemu-esp32s3-test.sh`
+或指向已有的构建：`QEMU_PATH=/path/to/qemu-system-xtensa bash scripts/qemu-esp32s3-test.sh`
 
-### QEMU: Test times out with no output
+### QEMU：测试超时且无输出
 
-The emulator is slower than real hardware. Increase the timeout:
+模拟器比真实硬件慢。请增大超时时间：
 
 ```bash
 QEMU_TIMEOUT=120 bash scripts/qemu-esp32s3-test.sh
 ```
 
-If there's truly no output at all, the firmware build may have failed. Rebuild without `SKIP_BUILD`:
+如果确实完全没有任何输出，可能是固件构建失败。请在不带 `SKIP_BUILD` 的情况下重新构建：
 
 ```bash
 bash scripts/qemu-esp32s3-test.sh   # without SKIP_BUILD
 ```
 
-### QEMU: "esptool not found"
+### QEMU："esptool not found"
 
-Install it with pip: `pip install esptool`
+用 pip 安装：`pip install esptool`
 
-### QEMU Swarm: "Must be run as root"
+### QEMU 集群："Must be run as root"
 
-Multi-node swarm tests with virtual network bridges require root on Linux. Two options:
+使用虚拟网桥的多节点集群测试在 Linux 上需要 root 权限。有两种做法：
 
-1. Run with sudo: `sudo python3 scripts/qemu_swarm.py --preset standard`
-2. Skip bridges (nodes use simpler networking): the tool automatically falls back on non-root systems, but nodes can't communicate with each other (only with the aggregator)
+1. 用 sudo 运行：`sudo python3 scripts/qemu_swarm.py --preset standard`
+2. 跳过网桥（节点使用更简单的网络）：该工具在非 root 系统上会自动降级，但节点之间无法通信（只能与聚合器通信）
 
-### QEMU Swarm: "yaml module not found"
+### QEMU 集群："yaml module not found"
 
-Install PyYAML: `pip install pyyaml`
+安装 PyYAML：`pip install pyyaml`
 
 ---
 
 <a id="faq"></a>
-## FAQ
+## 常见问题
 
-**Q: Do I need special hardware to try this?**
-No. Run `docker run -p 3000:3000 ruvnet/wifi-densepose:latest` and open `http://localhost:3000`. Simulated mode exercises the full pipeline with synthetic data.
+**问：试用它需要特殊硬件吗？**
+不需要。运行 `docker run -p 3000:3000 ruvnet/wifi-densepose:latest` 并打开 `http://localhost:3000`。模拟模式会用合成数据跑通整套流水线。
 
-**Q: Can consumer WiFi laptops do pose estimation?**
-No. Consumer WiFi exposes only RSSI (one number per access point), not CSI (56+ complex subcarrier values per frame). RSSI supports coarse presence and motion detection. Full pose estimation requires CSI-capable hardware like an ESP32-S3 ($8) or a research NIC.
+**问：消费级 WiFi 笔记本能做姿态估计吗？**
+不能。消费级 WiFi 只暴露 RSSI（每个接入点一个数值），而非 CSI（每帧 56+ 个复子载波值）。RSSI 仅支持粗略的存在与运动检测。完整的姿态估计需要支持 CSI 的硬件，如 ESP32-S3（$8）或研究网卡。
 
-**Q: How accurate is the pose estimation?**
-The strongest published RuView result is the MM-Fi transformer benchmark (82.69% torso-PCK@20 on
-the matched `random_split` protocol), not a live ESP32 result. The committed cog model measured
-3.0% PCK@20 on its holdout, below the ≥35% target, and the viewer's live skeleton is a heuristic
-placeholder. No measured claim currently shows a 3-node ESP32 mesh reliably tracking 17 keypoints.
-ADR-027's 10-second unlabeled MERIDIAN adaptation is Proposed; the available measured calibration
-reference uses labeled, model-specific samples.
+**问：姿态估计有多准？**
+RuView 已发表最强的结果是 MM-Fi transformer 基准（在匹配的
+`random_split` 协议下，torso-PCK@20 为 82.69%），而非实时 ESP32 结果。已提交的 cog 模型在其留出集上测得
+PCK@20 为 3.0%，低于 ≥35% 的目标，且查看器的实时骨架只是启发式
+占位。目前没有任何实测结论表明 3 节点 ESP32 网格能可靠跟踪 17 个关键点。
+ADR-027 的 10 秒无标签 MERIDIAN 自适应处于 Proposed 状态；现有可用的实测校准
+参考使用的是带标签、模型特定的样本。
 
-**Q: Does it work through walls?**
-Yes. WiFi signals penetrate non-metallic materials (drywall, wood, concrete up to ~30cm). Metal walls/doors significantly attenuate the signal. With a single AP the effective through-wall range is approximately 5 meters. With a 3-6 node multistatic mesh (ADR-029), attention-weighted cross-viewpoint fusion extends the effective range to ~8 meters through standard residential walls.
+**问：它能穿透墙壁工作吗？**
+可以。WiFi 信号能穿透非金属材料（石膏板、木材、最厚约 30cm 的混凝土）。金属墙/门会显著衰减信号。使用单个 AP 时，有效穿墙距离约 5 米。使用 3-6 节点多静态网格（ADR-029），注意力加权的跨视角融合可将有效距离扩展到标准住宅墙体后的约 8 米。
 
-**Q: How many people can it track?**
-Each access point can distinguish ~3-5 people with 56 subcarriers. Multi-AP deployments multiply linearly (e.g., 4 APs cover ~15-20 people). There is no hard software limit; the practical ceiling is signal physics.
+**问：它能跟踪多少人？**
+每个接入点借助 56 个子载波可区分约 3-5 人。多 AP 部署呈线性倍增（例如 4 个 AP 可覆盖约 15-20 人）。软件上没有硬性上限；实际天花板取决于信号物理特性。
 
-**Q: Is this privacy-preserving?**
-The system uses WiFi radio signals, not cameras. No images or video are captured or stored. However, it does track human position, movement, and vital signs, which is personal data subject to applicable privacy regulations.
+**问：这保护了隐私吗？**
+该系统使用 WiFi 无线电信号，而非摄像头。不会采集或存储任何图像或视频。但它确实会跟踪人的位置、运动和生命体征，这些属于受适用隐私法规约束的个人数据。
 
-**Q: What's the Python vs Rust difference?**
-The Rust implementation (v2) is 810x faster than Python (v1) for the full CSI pipeline. The Docker image is 132 MB vs 569 MB. Rust is the primary and recommended runtime. Python v1 remains available for legacy workflows.
+**问：Python 与 Rust 有什么区别？**
+对于完整的 CSI 流水线，Rust 实现（v2）比 Python（v1）快 810 倍。Docker 镜像分别为 132 MB 与 569 MB。Rust 是主要且推荐的运行时。Python v1 仍保留用于遗留工作流。
 
-**Q: Can I use an ESP8266 instead of ESP32-S3?**
-No. The ESP8266 does not expose WiFi Channel State Information (CSI) through its SDK, has insufficient RAM (~80 KB vs 512 KB), and runs a single-core 80 MHz CPU that cannot handle the signal processing pipeline. The ESP32-S3 is the minimum supported CSI capture device. See [Issue #138](https://github.com/ruvnet/RuView/issues/138) for alternatives including using cheap Android TV boxes as aggregation hubs.
+**问：我能用 ESP8266 代替 ESP32-S3 吗？**
+不能。ESP8266 的 SDK 不暴露 WiFi 信道状态信息（CSI），RAM 不足（约 80 KB 对 512 KB），且运行单核 80 MHz CPU，无法承载信号处理流水线。ESP32-S3 是受支持的最低 CSI 采集设备。备选方案（包括用廉价 Android TV 盒子作聚合中枢）参见 [Issue #138](https://github.com/ruvnet/RuView/issues/138)。
 
-**Q: Does the Windows WiFi tutorial work on Windows 10?**
-Yes. Community-tested on Windows 10 (build 26200) with an Intel Wi-Fi 6 AX201 160MHz adapter on a 5 GHz network. All 7 tutorial steps passed with Python 3.14. See [Issue #36](https://github.com/ruvnet/RuView/issues/36) for full test results.
+**问：Windows WiFi 教程在 Windows 10 上能用吗？**
+可以。社区已在 Windows 10（build 26200）上，配合 Intel Wi-Fi 6 AX201 160MHz 适配器、5 GHz 网络验证通过。全部 7 个教程步骤在 Python 3.14 下均通过。完整测试结果参见 [Issue #36](https://github.com/ruvnet/RuView/issues/36)。
 
-**Q: Can I run the sensing server on an ARM device (Raspberry Pi, TV box)?**
-ARM64 deployment is planned ([ADR-046](adr/ADR-046-android-tv-box-armbian-deployment.md)) but not yet available as a pre-built binary. You can cross-compile from source using `cross build --release --target aarch64-unknown-linux-gnu -p wifi-densepose-sensing-server` if you have the Rust cross-compilation toolchain set up.
+**问：我能在 ARM 设备（树莓派、TV 盒子）上运行感知服务器吗？**
+ARM64 部署已在规划中（[ADR-046](adr/ADR-046-android-tv-box-armbian-deployment.md)），但尚未提供预编译二进制。如果你已配置好 Rust 交叉编译工具链，可从源码交叉编译：`cross build --release --target aarch64-unknown-linux-gnu -p wifi-densepose-sensing-server`。
 
 ---
 
-## Further Reading
+## 延伸阅读
 
-- [Architecture Decision Records](../docs/adr/) - 48 ADRs covering all design decisions
-- [WiFi-Mat Disaster Response Guide](wifi-mat-user-guide.md) - Search & rescue module
-- [Build Guide](build-guide.md) - Detailed build instructions
-- [RuVector](https://github.com/ruvnet/ruvector) - Signal intelligence crate ecosystem
-- [CMU DensePose From WiFi](https://arxiv.org/abs/2301.00250) - The foundational research paper
+- [架构决策记录](../docs/adr/) - 涵盖全部设计决策的 48 篇 ADR
+- [WiFi-Mat 灾害响应指南](wifi-mat-user-guide.md) - 搜索与救援模块
+- [构建指南](build-guide.md) - 详细构建说明
+- [RuVector](https://github.com/ruvnet/ruvector) - 信号智能 crate 生态
+- [CMU DensePose From WiFi](https://arxiv.org/abs/2301.00250) - 奠基性研究论文
