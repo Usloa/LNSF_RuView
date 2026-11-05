@@ -1,56 +1,56 @@
-# ADR-010: Witness Chains for Audit Trail Integrity
+# ADR-010：面向审计链完整性的见证链
 
-## Status
+## 状态
 Proposed
 
-## Date
+## 日期
 2026-02-28
 
-## Context
+## 背景
 
-### Life-Critical Audit Requirements
+### 生命攸关的审计要求
 
-The wifi-densepose-mat disaster detection module (ADR-001) makes triage classifications that directly affect rescue priority:
+wifi-densepose-mat 灾害检测模块（ADR-001）做出的分诊分类直接影响救援优先级：
 
-| Triage Level | Action | Consequence of Error |
+| 分诊等级 | 处置 | 出错后果 |
 |-------------|--------|---------------------|
-| P1 (Immediate/Red) | Rescue NOW | False negative → survivor dies waiting |
-| P2 (Delayed/Yellow) | Rescue within 1 hour | Misclassification → delayed rescue |
-| P3 (Minor/Green) | Rescue when resources allow | Over-triage → resource waste |
-| P4 (Deceased/Black) | No rescue attempted | False P4 → living person abandoned |
+| P1 (Immediate/Red) | 立即救援 | 漏检 → 幸存者在等待中死亡 |
+| P2 (Delayed/Yellow) | 1 小时内救援 | 误分类 → 救援延误 |
+| P3 (Minor/Green) | 资源允许时救援 | 过度分诊 → 资源浪费 |
+| P4 (Deceased/Black) | 不实施救援 | 误判为 P4 → 活人被遗弃 |
 
-Post-incident investigations, liability proceedings, and operational reviews require:
+事后调查、责任认定与行动复盘要求：
 
-1. **Non-repudiation**: Prove which device made which detection at which time
-2. **Tamper evidence**: Detect if records were altered after the fact
-3. **Completeness**: Prove no detections were deleted or hidden
-4. **Causal chain**: Reconstruct the sequence of events leading to each triage decision
-5. **Cross-device verification**: Corroborate detections across multiple APs
+1. **不可抵赖**：能证明哪台设备在何时做出了哪次检测
+2. **篡改可发现**：能发现记录事后被改动
+3. **完整性**：能证明没有检测记录被删除或隐藏
+4. **因果链**：能重建每次分诊决策之前的事件序列
+5. **跨设备核验**：多个 AP 之间能相互印证检测结果
 
-### Current State
+### 现状
 
-Detection results are logged to the database (`wifi-densepose-db`) with standard INSERT operations. Logs can be:
-- Silently modified after the fact
-- Deleted without trace
-- Backdated or reordered
-- Lost if the database is corrupted
+检测结果通过标准 INSERT 操作写入数据库（`wifi-densepose-db`）。这些日志可能：
+- 被事后悄悄修改
+- 被无痕删除
+- 被回填日期或重排顺序
+- 在数据库损坏时丢失
 
-No cryptographic integrity mechanism exists.
+目前没有任何密码学完整性机制。
 
-### RuVector Witness Chains
+### RuVector 见证链
 
-RuVector implements hash-linked audit trails inspired by blockchain but without the consensus overhead:
+RuVector 实现了受区块链启发、但没有共识开销的哈希链式审计记录：
 
-- **Hash chain**: Each entry includes the SHAKE-256 hash of the previous entry, forming a tamper-evident chain
-- **Signatures**: Chain anchors (every Nth entry) are signed with the device's key pair
-- **Cross-chain attestation**: Multiple devices can cross-reference each other's chains
-- **Compact**: Each chain entry is ~100-200 bytes (hash + metadata + signature reference)
+- **哈希链**：每条记录都包含上一条的 SHAKE-256 哈希，形成可发现篡改的链
+- **签名**：链锚点（每第 N 条）用设备密钥对签名
+- **跨链背书**：多台设备可相互引用对方的链
+- **紧凑**：每条链上记录约 100-200 字节（哈希 + 元数据 + 签名引用）
 
-## Decision
+## 决策
 
-We will implement RuVector witness chains as the primary audit mechanism for all detection events, triage decisions, and model adaptation events in the WiFi-DensePose system.
+我们将采用 RuVector 见证链，作为 WiFi-DensePose 中所有检测事件、分诊决策和模型适配事件的主要审计机制。
 
-### Witness Chain Structure
+### 见证链结构
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
@@ -79,20 +79,20 @@ We will implement RuVector witness chains as the primary audit mechanism for all
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-### Witnessed Event Types
+### 见证事件类型
 
 ```rust
-/// Events recorded in the witness chain
+/// 记入见证链的事件
 #[derive(Serialize, Deserialize, Clone)]
 pub enum WitnessedEvent {
-    /// Chain initialization (genesis)
+    /// 链初始化（创世记录）
     ChainInit {
         device_id: DeviceId,
         firmware_version: String,
         config_hash: [u8; 32],
     },
 
-    /// Human presence detected
+    /// 检测到人体存在
     HumanDetected {
         detection_id: Uuid,
         confidence: f64,
@@ -101,7 +101,7 @@ pub enum WitnessedEvent {
         model_version: String,
     },
 
-    /// Triage classification assigned or changed
+    /// 分诊分类被指定或变更
     TriageDecision {
         survivor_id: Uuid,
         previous_level: Option<TriageLevel>,
@@ -111,7 +111,7 @@ pub enum WitnessedEvent {
         confidence: f64,
     },
 
-    /// False detection corrected
+    /// 误检被更正
     DetectionCorrected {
         detection_id: Uuid,
         correction_type: CorrectionType,  // FalsePositive | FalseNegative | Reclassified
@@ -119,7 +119,7 @@ pub enum WitnessedEvent {
         corrected_by: CorrectorId,  // Device or operator
     },
 
-    /// Model adapted via SONA
+    /// 模型经 SONA 适配
     ModelAdapted {
         adaptation_id: Uuid,
         trigger: AdaptationTrigger,
@@ -128,7 +128,7 @@ pub enum WitnessedEvent {
         performance_after: f64,
     },
 
-    /// Zone scan completed
+    /// 区域扫描完成
     ZoneScanCompleted {
         zone_id: ZoneId,
         scan_duration_ms: u64,
@@ -136,14 +136,14 @@ pub enum WitnessedEvent {
         coverage_percentage: f64,
     },
 
-    /// Cross-device attestation received
+    /// 收到跨设备背书
     CrossAttestation {
         attesting_device: DeviceId,
         attested_chain_hash: [u8; 32],
         attested_entry_index: u64,
     },
 
-    /// Operator action (manual override)
+    /// 操作员动作（人工覆盖）
     OperatorAction {
         operator_id: String,
         action: OperatorActionType,
@@ -153,50 +153,50 @@ pub enum WitnessedEvent {
 }
 ```
 
-### Chain Entry Structure
+### 链上条目结构
 
 ```rust
-/// A single entry in the witness chain
+/// 见证链中的单条记录
 #[derive(Serialize, Deserialize)]
 pub struct WitnessEntry {
-    /// Sequential index in the chain
+    /// 在链中的顺序索引
     index: u64,
 
-    /// SHAKE-256 hash of the previous entry (32 bytes)
+    /// 上一条记录的 SHAKE-256 哈希（32 字节）
     previous_hash: [u8; 32],
 
-    /// The witnessed event
+    /// 被见证的事件
     event: WitnessedEvent,
 
-    /// Device that created this entry
+    /// 创建本条记录的设备
     device_id: DeviceId,
 
-    /// Monotonic timestamp (device-local, not wall clock)
+    /// 单调时间戳（设备本地，非墙上时钟）
     monotonic_timestamp: u64,
 
-    /// Wall clock timestamp (best-effort, may be inaccurate)
+    /// 墙上时钟时间戳（尽力而为，可能不准）
     wall_timestamp: DateTime<Utc>,
 
-    /// Vector clock for causal ordering (see ADR-008)
+    /// 用于因果排序的向量时钟（见 ADR-008）
     vector_clock: VectorClock,
 
-    /// This entry's hash: SHAKE-256(serialize(self without this field))
+    /// 本条记录的哈希：SHAKE-256(序列化自身，不含本字段)
     entry_hash: [u8; 32],
 
-    /// Anchor signature (present every N entries)
+    /// 锚点签名（每 N 条出现一次）
     anchor_signature: Option<HybridSignature>,
 }
 ```
 
-### Tamper Detection
+### 篡改检测
 
 ```rust
-/// Verify witness chain integrity
+/// 校验见证链完整性
 pub fn verify_chain(chain: &[WitnessEntry]) -> Result<ChainVerification, AuditError> {
     let mut verification = ChainVerification::new();
 
     for (i, entry) in chain.iter().enumerate() {
-        // 1. Verify hash chain linkage
+        // 1. 校验哈希链的前后衔接
         if i > 0 {
             let expected_prev_hash = chain[i - 1].entry_hash;
             if entry.previous_hash != expected_prev_hash {
@@ -208,7 +208,7 @@ pub fn verify_chain(chain: &[WitnessEntry]) -> Result<ChainVerification, AuditEr
             }
         }
 
-        // 2. Verify entry self-hash
+        // 2. 校验记录自身的哈希
         let computed_hash = compute_entry_hash(entry);
         if computed_hash != entry.entry_hash {
             verification.add_violation(ChainViolation::TamperedEntry {
@@ -216,7 +216,7 @@ pub fn verify_chain(chain: &[WitnessEntry]) -> Result<ChainVerification, AuditEr
             });
         }
 
-        // 3. Verify anchor signatures
+        // 3. 校验锚点签名
         if let Some(ref sig) = entry.anchor_signature {
             let device_keys = load_device_keys(&entry.device_id)?;
             if !sig.verify(&entry.entry_hash, &device_keys.ed25519, &device_keys.ml_dsa)? {
@@ -226,7 +226,7 @@ pub fn verify_chain(chain: &[WitnessEntry]) -> Result<ChainVerification, AuditEr
             }
         }
 
-        // 4. Verify monotonic timestamp ordering
+        // 4. 校验单调时间戳的顺序
         if i > 0 && entry.monotonic_timestamp <= chain[i - 1].monotonic_timestamp {
             verification.add_violation(ChainViolation::NonMonotonicTimestamp {
                 entry_index: entry.index,
@@ -240,9 +240,9 @@ pub fn verify_chain(chain: &[WitnessEntry]) -> Result<ChainVerification, AuditEr
 }
 ```
 
-### Cross-Device Attestation
+### 跨设备背书
 
-Multiple APs can cross-reference each other's chains for stronger guarantees:
+多个 AP 可以互相引用对方的链，以获得更强的保证：
 
 ```
 Device A's chain:                    Device B's chain:
@@ -260,33 +260,33 @@ After cross-attestation:
 - An investigator can verify both chains agree on the attestation point
 ```
 
-**Attestation frequency**: Every 5 minutes during connected operation, immediately on significant events (P1 triage, zone completion).
+**背书频率**：连接正常时每 5 分钟一次；遇到重大事件（P1 分诊、区域扫描完成）立即触发。
 
-### Storage and Retrieval
+### 存储与检索
 
-Witness chains are stored in the RVF container's WITNESS segment:
+见证链存放在 RVF 容器的 WITNESS 段：
 
 ```rust
-/// Witness chain storage manager
+/// 见证链存储管理器
 pub struct WitnessChainStore {
-    /// Current chain being appended to
+    /// 当前正在追加的链
     active_chain: Vec<WitnessEntry>,
 
-    /// Anchor signature interval
+    /// 锚点签名间隔
     anchor_interval: usize,  // 100
 
-    /// Device signing key
+    /// 设备签名密钥
     device_key: DeviceKeyPair,
 
-    /// Cross-attestation peers
+    /// 跨设备背书对端
     attestation_peers: Vec<DeviceId>,
 
-    /// RVF container for persistence
+    /// 用于持久化的 RVF 容器
     container: RvfContainer,
 }
 
 impl WitnessChainStore {
-    /// Append an event to the chain
+    /// 向链中追加一个事件
     pub fn witness(&mut self, event: WitnessedEvent) -> Result<u64, AuditError> {
         let index = self.active_chain.len() as u64;
         let previous_hash = self.active_chain.last()
@@ -305,10 +305,10 @@ impl WitnessChainStore {
             anchor_signature: None,
         };
 
-        // Compute entry hash
+        // 计算本条记录的哈希
         entry.entry_hash = compute_entry_hash(&entry);
 
-        // Add anchor signature at interval
+        // 按间隔添加锚点签名
         if index % self.anchor_interval as u64 == 0 {
             entry.anchor_signature = Some(
                 self.device_key.sign_hybrid(&entry.entry_hash)?
@@ -317,13 +317,13 @@ impl WitnessChainStore {
 
         self.active_chain.push(entry);
 
-        // Persist to RVF container
+        // 持久化到 RVF 容器
         self.container.append_witness(&self.active_chain.last().unwrap())?;
 
         Ok(index)
     }
 
-    /// Query chain for events in a time range
+    /// 按时间范围查询链上事件
     pub fn query_range(&self, start: DateTime<Utc>, end: DateTime<Utc>)
         -> Vec<&WitnessEntry>
     {
@@ -332,7 +332,7 @@ impl WitnessChainStore {
             .collect()
     }
 
-    /// Export chain for external audit
+    /// 导出链供外部审计
     pub fn export_for_audit(&self) -> AuditBundle {
         AuditBundle {
             chain: self.active_chain.clone(),
@@ -344,59 +344,59 @@ impl WitnessChainStore {
 }
 ```
 
-### Performance Impact
+### 性能影响
 
-| Operation | Latency | Notes |
+| 操作 | 时延 | 说明 |
 |-----------|---------|-------|
-| Append entry | 0.05 ms | Hash computation + serialize |
-| Append with anchor signature | 0.5 ms | + ML-DSA-65 sign |
-| Verify single entry | 0.02 ms | Hash comparison |
-| Verify anchor | 0.3 ms | ML-DSA-65 verify |
-| Full chain verify (10K entries) | 50 ms | Sequential hash verification |
-| Cross-attestation | 1 ms | Sign + network round-trip |
+| 追加记录 | 0.05 ms | 计算哈希 + 序列化 |
+| 追加并做锚点签名 | 0.5 ms | + ML-DSA-65 签名 |
+| 校验单条记录 | 0.02 ms | 哈希比对 |
+| 校验锚点 | 0.3 ms | ML-DSA-65 验签 |
+| 整链校验（1 万条） | 50 ms | 顺序哈希校验 |
+| 跨设备背书 | 1 ms | 签名 + 网络往返 |
 
-### Storage Requirements
+### 存储需求
 
-| Chain Length | Entries/Hour | Size/Hour | Size/Day |
+| 链活跃度 | 条目/小时 | 体积/小时 | 体积/天 |
 |-------------|-------------|-----------|----------|
-| Low activity | ~100 | ~20 KB | ~480 KB |
-| Normal operation | ~1,000 | ~200 KB | ~4.8 MB |
-| Disaster response | ~10,000 | ~2 MB | ~48 MB |
-| High-intensity scan | ~50,000 | ~10 MB | ~240 MB |
+| 低活动 | ~100 | ~20 KB | ~480 KB |
+| 正常运行 | ~1,000 | ~200 KB | ~4.8 MB |
+| 灾害响应 | ~10,000 | ~2 MB | ~48 MB |
+| 高强度扫描 | ~50,000 | ~10 MB | ~240 MB |
 
-## Consequences
+## 影响
 
-### Positive
-- **Tamper-evident**: Any modification to historical records is detectable
-- **Non-repudiable**: Signed anchors prove device identity
-- **Complete history**: Every detection, triage, and correction is recorded
-- **Cross-verified**: Multi-device attestation strengthens guarantees
-- **Forensically sound**: Exportable audit bundles for legal proceedings
-- **Low overhead**: 0.05ms per entry; minimal storage for normal operation
+### 正面影响
+- **篡改可发现**：对历史记录的任何改动都能被检出
+- **不可抵赖**：带签名的锚点可证明设备身份
+- **历史完整**：每次检测、分诊与更正都有记录
+- **交叉核验**：多设备背书增强了保证力度
+- **取证可用**：可导出审计包用于法律程序
+- **开销低**：每条记录 0.05ms；正常运行下存储占用很小
 
-### Negative
-- **Append-only growth**: Chains grow monotonically; need archival strategy for long deployments
-- **Key management**: Device keys must be provisioned and protected
-- **Clock dependency**: Wall-clock timestamps are best-effort; monotonic timestamps are device-local
-- **Verification cost**: Full chain verification of long chains takes meaningful time (50ms/10K entries)
-- **Privacy tension**: Detailed audit trails contain operational intelligence
+### 负面影响
+- **只增不减**：链单调增长，长期部署需要归档策略
+- **密钥管理**：设备密钥必须下发并妥善保护
+- **时钟依赖**：墙上时钟时间戳只是尽力而为；单调时间戳是设备本地的
+- **校验成本**：长链整链校验耗时可观（1 万条约 50ms）
+- **隐私张力**：详细的审计链包含行动情报
 
-### Regulatory Alignment
+### 法规对齐
 
-| Requirement | How Witness Chains Address It |
+| 要求 | 见证链如何满足 |
 |------------|------------------------------|
-| GDPR (Right to erasure) | Event hashes stored, not personal data; original data deletable while chain proves historical integrity |
-| HIPAA (Audit controls) | Complete access/modification log with non-repudiation |
-| ISO 27001 (Information security) | Tamper-evident records, access logging, integrity verification |
-| NIST SP 800-53 (AU controls) | Audit record generation, protection, and review capability |
-| FEMA ICS (Incident Command) | Chain of custody for all operational decisions |
+| GDPR（删除权） | 存的是事件哈希而非个人数据；原始数据可删除，链仍能证明历史完整性 |
+| HIPAA（审计控制） | 完整且不可抵赖的访问/修改日志 |
+| ISO 27001（信息安全） | 篡改可发现的记录、访问日志、完整性校验 |
+| NIST SP 800-53（AU 控制项） | 具备审计记录生成、保护与复核能力 |
+| FEMA ICS（事件指挥） | 所有行动决策都有监管链 |
 
-## References
+## 参考资料
 
 - [Witness Chains in Distributed Systems](https://eprint.iacr.org/2019/747)
 - [SHAKE-256 (FIPS 202)](https://csrc.nist.gov/pubs/fips/202/final)
 - [Tamper-Evident Logging](https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf)
 - [RuVector Witness Implementation](https://github.com/ruvnet/ruvector)
-- ADR-001: WiFi-Mat Disaster Detection Architecture
-- ADR-007: Post-Quantum Cryptography for Secure Sensing
-- ADR-008: Distributed Consensus for Multi-AP Coordination
+- ADR-001：WiFi-Mat 灾害检测架构
+- ADR-007：面向安全感知的后量子密码
+- ADR-008：面向多 AP 的分布式共识

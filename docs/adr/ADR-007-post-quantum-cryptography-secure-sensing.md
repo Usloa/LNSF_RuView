@@ -1,50 +1,50 @@
-# ADR-007: Post-Quantum Cryptography for Secure Sensing
+# ADR-007：面向安全感知的后量子密码
 
-## Status
+## 状态
 Proposed
 
-## Date
+## 日期
 2026-02-28
 
-## Context
+## 背景
 
-### Threat Model
+### 威胁模型
 
-WiFi-DensePose processes data that can reveal:
-- **Human presence/absence** in private spaces (surveillance risk)
-- **Health indicators** via breathing/heartbeat detection (medical privacy)
-- **Movement patterns** (behavioral profiling)
-- **Building occupancy** (physical security intelligence)
+WiFi-DensePose 处理的数据可能暴露：
+- **私人空间内是否有人**（监控风险）
+- **健康指标**（通过呼吸/心跳检测，涉及医疗隐私）
+- **活动模式**（行为画像）
+- **建筑物占用情况**（物理安全情报）
 
-In disaster scenarios (wifi-densepose-mat), the stakes are even higher:
-- **Triage classifications** affect rescue priority (life-or-death decisions)
-- **Survivor locations** are operationally sensitive
-- **Detection audit trails** may be used in legal proceedings (liability)
-- **False negatives** (missed survivors) could be forensically investigated
+在灾害场景（wifi-densepose-mat）中，风险更高：
+- **分诊分类**影响救援优先级（生死攸关的决策）
+- **幸存者位置**具有行动敏感性
+- **检测审计链**可能用于法律程序（责任认定）
+- **漏检**（未发现幸存者）可能被取证调查
 
-Current security: The system uses standard JWT (HS256) for API authentication and has no cryptographic protection on data at rest, model integrity, or detection audit trails.
+当前安全状况：系统使用标准 JWT（HS256）做 API 认证，静态数据、模型完整性和检测审计链都没有密码学保护。
 
-### Quantum Threat Timeline
+### 量子威胁时间表
 
-NIST estimates cryptographically relevant quantum computers could emerge by 2030-2035. Data captured today with classical encryption may be decrypted retroactively ("harvest now, decrypt later"). For a system that may be deployed for decades in infrastructure, post-quantum readiness is prudent.
+NIST 估计具备密码学意义的量子计算机可能在 2030-2035 年间出现。今天用经典加密采集的数据，未来可能被追溯解密（「先窃取，后解密」）。对于可能在基础设施中部署数十年的系统，提前具备后量子能力是稳妥的。
 
-### RuVector's Crypto Stack
+### RuVector 的密码技术栈
 
-RuVector provides a layered cryptographic system:
+RuVector 提供分层的密码体系：
 
-| Algorithm | Purpose | Standard | Quantum Resistant |
+| 算法 | 用途 | 标准 | 抗量子 |
 |-----------|---------|----------|-------------------|
-| ML-DSA-65 | Digital signatures | FIPS 204 | Yes (lattice-based) |
-| Ed25519 | Digital signatures | RFC 8032 | No (classical fallback) |
-| SLH-DSA-128s | Digital signatures | FIPS 205 | Yes (hash-based) |
-| SHAKE-256 | Hashing | FIPS 202 | Yes |
-| AES-256-GCM | Symmetric encryption | FIPS 197 | Yes (Grover's halves, still 128-bit) |
+| ML-DSA-65 | 数字签名 | FIPS 204 | 是（基于格） |
+| Ed25519 | 数字签名 | RFC 8032 | 否（经典算法回退） |
+| SLH-DSA-128s | 数字签名 | FIPS 205 | 是（基于哈希） |
+| SHAKE-256 | 哈希 | FIPS 202 | 是 |
+| AES-256-GCM | 对称加密 | FIPS 197 | 是（Grover 算法使强度减半，仍为 128 位） |
 
-## Decision
+## 决策
 
-We will integrate RuVector's cryptographic layer to provide defense-in-depth for WiFi-DensePose data, using a **hybrid classical+PQ** approach where both Ed25519 and ML-DSA-65 signatures are applied (belt-and-suspenders until PQ algorithms mature).
+我们将接入 RuVector 的密码层，为 WiFi-DensePose 数据提供纵深防御，采用**经典 + 后量子混合**方案：同时施加 Ed25519 与 ML-DSA-65 签名（在后量子算法成熟之前保持双保险）。
 
-### Cryptographic Scope
+### 密码保护范围
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -88,49 +88,49 @@ We will integrate RuVector's cryptographic layer to provide defense-in-depth for
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### Hybrid Signature Scheme
+### 混合签名方案
 
 ```rust
-/// Hybrid signature combining classical Ed25519 with PQ ML-DSA-65
+/// 混合签名：经典 Ed25519 与后量子 ML-DSA-65 结合
 pub struct HybridSignature {
-    /// Classical Ed25519 signature (64 bytes)
+    /// 经典 Ed25519 签名（64 字节）
     ed25519_sig: [u8; 64],
 
-    /// Post-quantum ML-DSA-65 signature (3309 bytes)
+    /// 后量子 ML-DSA-65 签名（3309 字节）
     ml_dsa_sig: Vec<u8>,
 
-    /// Signer's public key fingerprint (SHAKE-256, 32 bytes)
+    /// 签名者公钥指纹（SHAKE-256，32 字节）
     signer_fingerprint: [u8; 32],
 
-    /// Timestamp of signing
+    /// 签名时间戳
     timestamp: u64,
 }
 
 impl HybridSignature {
-    /// Verify requires BOTH signatures to be valid
+    /// 校验要求两个签名都有效
     pub fn verify(&self, message: &[u8], ed25519_pk: &Ed25519PublicKey,
                   ml_dsa_pk: &MlDsaPublicKey) -> Result<bool, CryptoError> {
         let ed25519_valid = ed25519_pk.verify(message, &self.ed25519_sig)?;
         let ml_dsa_valid = ml_dsa_pk.verify(message, &self.ml_dsa_sig)?;
 
-        // Both must pass (defense in depth)
+        // 两者都必须通过（纵深防御）
         Ok(ed25519_valid && ml_dsa_valid)
     }
 }
 ```
 
-### Model Integrity Verification
+### 模型完整性校验
 
 ```rust
-/// Verify model weights have not been tampered with
+/// 校验模型权重未被篡改
 pub fn verify_model_integrity(model_container: &ModelContainer) -> Result<(), SecurityError> {
-    // 1. Extract embedded signature from container
+    // 1. 从容器中取出内嵌签名
     let signature = model_container.crypto_segment().signature()?;
 
-    // 2. Compute SHAKE-256 hash of weight data
+    // 2. 计算权重数据的 SHAKE-256 哈希
     let weight_hash = shake256(model_container.weights_segment().data());
 
-    // 3. Verify hybrid signature
+    // 3. 校验混合签名
     let publisher_keys = load_publisher_keys()?;
     if !signature.verify(&weight_hash, &publisher_keys.ed25519, &publisher_keys.ml_dsa)? {
         return Err(SecurityError::ModelTampered {
@@ -143,21 +143,21 @@ pub fn verify_model_integrity(model_container: &ModelContainer) -> Result<(), Se
 }
 ```
 
-### CSI Data Encryption
+### CSI 数据加密
 
-For privacy-sensitive deployments, CSI vectors can be encrypted at rest:
+对隐私敏感的部署，CSI 向量可以加密后静态存储：
 
 ```rust
-/// Encrypt CSI vectors for storage in RVF container
+/// 加密 CSI 向量以存入 RVF 容器
 pub struct CsiEncryptor {
-    /// AES-256-GCM key (derived from device key + container salt)
+    /// AES-256-GCM 密钥（由设备密钥 + 容器盐值派生）
     key: Aes256GcmKey,
 }
 
 impl CsiEncryptor {
-    /// Encrypt a CSI feature vector
-    /// Note: HNSW search operates on encrypted vectors using
-    /// distance-preserving encryption (approximate, configurable trade-off)
+    /// 加密单个 CSI 特征向量
+    /// 注意：HNSW 检索在加密向量上进行，使用
+    /// 保距加密（近似，权衡程度可配置）
     pub fn encrypt_vector(&self, vector: &[f32]) -> EncryptedVector {
         let nonce = generate_nonce();
         let plaintext = bytemuck::cast_slice::<f32, u8>(vector);
@@ -167,17 +167,17 @@ impl CsiEncryptor {
 }
 ```
 
-### Performance Impact
+### 性能影响
 
-| Operation | Without Crypto | With Crypto | Overhead |
+| 操作 | 无加密 | 有加密 | 额外开销 |
 |-----------|---------------|-------------|----------|
-| Model load | 50 ms | 52 ms | +2 ms (signature verify) |
-| Vector insert | 0.1 ms | 0.15 ms | +0.05 ms (encrypt) |
-| HNSW search | 0.3 ms | 0.35 ms | +0.05 ms (decrypt top-K) |
-| Container open | 10 ms | 12 ms | +2 ms (integrity check) |
-| Detection event logging | 0.01 ms | 0.5 ms | +0.49 ms (hash chain) |
+| 模型加载 | 50 ms | 52 ms | +2 ms（签名校验） |
+| 向量插入 | 0.1 ms | 0.15 ms | +0.05 ms（加密） |
+| HNSW 检索 | 0.3 ms | 0.35 ms | +0.05 ms（解密 top-K） |
+| 容器打开 | 10 ms | 12 ms | +2 ms（完整性检查） |
+| 检测事件记录 | 0.01 ms | 0.5 ms | +0.49 ms（哈希链） |
 
-### Feature Flags
+### 特性开关
 
 ```toml
 [features]
@@ -189,27 +189,27 @@ crypto-encrypt = ["aes-gcm"]  # Data-at-rest encryption
 crypto-full = ["crypto-hybrid", "crypto-encrypt"]
 ```
 
-## Consequences
+## 影响
 
-### Positive
-- **Future-proof**: Lattice-based signatures resist quantum attacks
-- **Tamper detection**: Model poisoning and data manipulation are detectable
-- **Privacy compliance**: Encrypted CSI data meets GDPR/HIPAA requirements
-- **Forensic integrity**: Signed audit trails are admissible as evidence
-- **Low overhead**: <1ms per operation for most crypto operations
+### 正面影响
+- **面向未来**：基于格的签名可抵抗量子攻击
+- **篡改检测**：模型投毒与数据篡改可被发现
+- **隐私合规**：加密后的 CSI 数据满足 GDPR/HIPAA 要求
+- **取证完整性**：带签名的审计链可作为证据采信
+- **开销低**：多数密码操作每次 <1ms
 
-### Negative
-- **Signature size**: ML-DSA-65 signatures are 3.3 KB vs 64 bytes for Ed25519
-- **Key management complexity**: Device key provisioning, rotation, revocation
-- **HNSW on encrypted data**: Distance-preserving encryption is approximate; search recall may degrade
-- **Dependency weight**: PQ crypto libraries add ~2 MB to binary
-- **Standards maturity**: FIPS 204/205 are finalized but implementations are evolving
+### 负面影响
+- **签名体积**：ML-DSA-65 签名为 3.3 KB，而 Ed25519 仅 64 字节
+- **密钥管理复杂度**：设备密钥的下发、轮换与吊销
+- **在加密数据上做 HNSW**：保距加密是近似的，检索召回率可能下降
+- **依赖体积**：后量子密码库给二进制增加约 2 MB
+- **标准成熟度**：FIPS 204/205 已定稿，但实现仍在演进
 
-## References
+## 参考资料
 
 - [FIPS 204: ML-DSA (Module-Lattice Digital Signature)](https://csrc.nist.gov/pubs/fips/204/final)
 - [FIPS 205: SLH-DSA (Stateless Hash-Based Digital Signature)](https://csrc.nist.gov/pubs/fips/205/final)
 - [FIPS 202: SHA-3 / SHAKE](https://csrc.nist.gov/pubs/fips/202/final)
 - [RuVector Crypto Implementation](https://github.com/ruvnet/ruvector)
-- ADR-002: RuVector RVF Integration Strategy
-- ADR-010: Witness Chains for Audit Trail Integrity
+- ADR-002：RuVector RVF 集成策略
+- ADR-010：面向审计链完整性的见证链
