@@ -42,7 +42,7 @@ export class DataExport {
 
   showExportDialog() {
     if (this.buffer.length === 0) {
-      toastManager.warning('No sensor data to export. Connect to a data source first.');
+      toastManager.warning('没有可导出的传感器数据。请先连接数据源。');
       return;
     }
 
@@ -50,29 +50,29 @@ export class DataExport {
     const overlay = document.createElement('div');
     overlay.className = 'export-dialog-overlay';
     overlay.innerHTML = `
-      <div class="export-dialog" role="dialog" aria-label="Export data" aria-modal="true">
-        <h3>Export Sensor Data</h3>
-        <p class="export-dialog-info">${this.buffer.length} data points available</p>
+      <div class="export-dialog" role="dialog" aria-label="导出数据" aria-modal="true">
+        <h3>导出传感器数据</h3>
+        <p class="export-dialog-info">可用数据点 ${this.buffer.length} 个</p>
         <div class="export-dialog-options">
           <label class="export-option">
             <input type="radio" name="export-format" value="json" checked>
             <span>JSON</span>
-            <small>Full data with nested fields</small>
+            <small>含嵌套字段的完整数据</small>
           </label>
           <label class="export-option">
             <input type="radio" name="export-format" value="csv">
             <span>CSV</span>
-            <small>Flat table, spreadsheet-ready</small>
+            <small>扁平表格，可直接用表格软件打开</small>
           </label>
         </div>
         <div class="export-dialog-range">
           <label>
-            Last <input type="number" id="export-count" value="${Math.min(this.buffer.length, 500)}" min="1" max="${this.buffer.length}"> data points
+            最近 <input type="number" id="export-count" value="${Math.min(this.buffer.length, 500)}" min="1" max="${this.buffer.length}"> 个数据点
           </label>
         </div>
         <div class="export-dialog-actions">
-          <button class="btn btn--secondary export-cancel">Cancel</button>
-          <button class="btn btn--primary export-confirm">Export</button>
+          <button class="btn btn--secondary export-cancel">取消</button>
+          <button class="btn btn--primary export-confirm">导出</button>
         </div>
       </div>
     `;

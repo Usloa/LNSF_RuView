@@ -726,19 +726,19 @@ export class SettingsPanel {
     
     const isVisible = advancedSection.style.display !== 'none';
     advancedSection.style.display = isVisible ? 'none' : 'block';
-    toggleBtn.textContent = isVisible ? 'Show Advanced' : 'Hide Advanced';
+    toggleBtn.textContent = isVisible ? '显示高级设置' : '隐藏高级设置';
     
     this.logger.debug('Advanced settings toggled', { visible: !isVisible });
   }
 
   resetSettings() {
-    if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+    if (confirm('将所有设置恢复为默认值？此操作不可撤销。')) {
       this.settings = this.getDefaultSettings();
       this.updateUI();
       this.saveSettings();
       this.notifyCallback('onSettingsChange', { reset: true, settings: this.settings });
-      this.updateStatus('Settings reset to defaults');
-      this.logger.info('Settings reset to defaults');
+      this.updateStatus('设置已恢复默认');
+      this.logger.info('设置已恢复默认');
     }
   }
 
@@ -757,9 +757,9 @@ export class SettingsPanel {
     a.click();
     URL.revokeObjectURL(url);
     
-    this.updateStatus('Settings exported');
+    this.updateStatus('设置已导出');
     this.notifyCallback('onExport', data);
-    this.logger.info('Settings exported');
+    this.logger.info('设置已导出');
   }
 
   importSettings(event) {
@@ -777,15 +777,15 @@ export class SettingsPanel {
           this.saveSettings();
           this.notifyCallback('onSettingsChange', { imported: true, settings: this.settings });
           this.notifyCallback('onImport', data);
-          this.updateStatus('Settings imported successfully');
-          this.logger.info('Settings imported successfully');
+          this.updateStatus('设置导入成功');
+          this.logger.info('设置导入成功');
         } else {
-          throw new Error('Invalid settings file format');
+          throw new Error('设置文件格式无效');
         }
       } catch (error) {
-        this.updateStatus('Error importing settings');
-        this.logger.error('Error importing settings', { error: error.message });
-        alert('Error importing settings: ' + error.message);
+        this.updateStatus('导入设置失败');
+        this.logger.error('导入设置失败', { error: error.message });
+        alert('导入设置失败：' + error.message);
       }
     };
     
@@ -798,7 +798,7 @@ export class SettingsPanel {
       try {
         localStorage.setItem(`pose-settings-${this.containerId}`, JSON.stringify(this.settings));
       } catch (error) {
-        this.logger.warn('Failed to save settings to localStorage', { error: error.message });
+        this.logger.warn('设置保存到本地存储失败', { error: error.message });
       }
     }
   }
@@ -812,7 +812,7 @@ export class SettingsPanel {
           this.logger.debug('Settings loaded from localStorage');
         }
       } catch (error) {
-        this.logger.warn('Failed to load settings from localStorage', { error: error.message });
+        this.logger.warn('从本地存储读取设置失败', { error: error.message });
       }
     }
   }
@@ -865,7 +865,7 @@ export class SettingsPanel {
       
       // Clear status after 3 seconds
       setTimeout(() => {
-        statusElement.textContent = 'Settings ready';
+        statusElement.textContent = '设置已就绪';
       }, 3000);
     }
   }
@@ -915,11 +915,11 @@ export class SettingsPanel {
         });
       }
 
-      this.updateStatus('Settings applied to services');
-      this.logger.info('Settings applied to services');
+      this.updateStatus('设置已应用到各服务');
+      this.logger.info('设置已应用到各服务');
     } catch (error) {
-      this.logger.error('Error applying settings to services', { error: error.message });
-      this.updateStatus('Error applying settings');
+      this.logger.error('设置应用到服务时出错', { error: error.message });
+      this.updateStatus('应用设置失败');
     }
   }
 

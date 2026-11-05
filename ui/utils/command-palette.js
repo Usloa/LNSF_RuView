@@ -22,20 +22,20 @@ export class CommandPalette {
   registerCommands() {
     // Navigation commands
     const tabs = [
-      { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
-      { id: 'hardware', label: 'Hardware', icon: 'cpu' },
-      { id: 'demo', label: 'Live Demo', icon: 'play' },
-      { id: 'architecture', label: 'Architecture', icon: 'layers' },
-      { id: 'performance', label: 'Performance', icon: 'zap' },
-      { id: 'applications', label: 'Applications', icon: 'box' },
-      { id: 'sensing', label: 'Sensing', icon: 'wifi' },
-      { id: 'training', label: 'Training', icon: 'database' },
+      { id: 'dashboard', label: '仪表盘', icon: 'grid' },
+      { id: 'hardware', label: '硬件', icon: 'cpu' },
+      { id: 'demo', label: '实时演示', icon: 'play' },
+      { id: 'architecture', label: '架构', icon: 'layers' },
+      { id: 'performance', label: '性能', icon: 'zap' },
+      { id: 'applications', label: '应用场景', icon: 'box' },
+      { id: 'sensing', label: '感知', icon: 'wifi' },
+      { id: 'training', label: '训练', icon: 'database' },
     ];
 
     tabs.forEach(tab => {
       this.commands.push({
-        category: 'Navigation',
-        label: `Go to ${tab.label}`,
+        category: '导航',
+        label: `前往${tab.label}`,
         keywords: [tab.id, tab.label.toLowerCase()],
         icon: tab.icon,
         action: () => {
@@ -47,15 +47,15 @@ export class CommandPalette {
 
     // External pages
     this.commands.push({
-      category: 'Navigation',
-      label: 'Open Pose Fusion',
+      category: '导航',
+      label: '打开姿态融合',
       keywords: ['pose', 'fusion', 'camera'],
       icon: 'external',
       action: () => { window.location.href = 'pose-fusion.html'; }
     });
     this.commands.push({
-      category: 'Navigation',
-      label: 'Open Observatory',
+      category: '导航',
+      label: '打开观测站',
       keywords: ['observatory', '3d', 'signal'],
       icon: 'external',
       action: () => { window.location.href = 'observatory.html'; }
@@ -63,43 +63,43 @@ export class CommandPalette {
 
     // Actions
     this.commands.push({
-      category: 'Actions',
-      label: 'Toggle Dark/Light Theme',
+      category: '操作',
+      label: '切换深色/浅色主题',
       keywords: ['theme', 'dark', 'light', 'mode', 'color'],
       icon: 'moon',
       action: () => document.dispatchEvent(new CustomEvent('toggle-theme'))
     });
     this.commands.push({
-      category: 'Actions',
-      label: 'Toggle Performance Monitor',
+      category: '操作',
+      label: '切换性能监视器',
       keywords: ['perf', 'fps', 'memory', 'performance', 'monitor'],
       icon: 'activity',
       action: () => document.dispatchEvent(new CustomEvent('toggle-perf-monitor'))
     });
     this.commands.push({
-      category: 'Actions',
-      label: 'Toggle Activity Log',
+      category: '操作',
+      label: '切换活动日志',
       keywords: ['log', 'events', 'activity', 'history'],
       icon: 'list',
       action: () => document.dispatchEvent(new CustomEvent('toggle-activity-log'))
     });
     this.commands.push({
-      category: 'Actions',
-      label: 'Export Sensor Data',
+      category: '操作',
+      label: '导出传感器数据',
       keywords: ['export', 'download', 'csv', 'json', 'data', 'save'],
       icon: 'download',
       action: () => document.dispatchEvent(new CustomEvent('export-data'))
     });
     this.commands.push({
-      category: 'Actions',
-      label: 'Toggle Fullscreen',
+      category: '操作',
+      label: '切换全屏',
       keywords: ['fullscreen', 'full', 'screen', 'maximize'],
       icon: 'maximize',
       action: () => document.dispatchEvent(new CustomEvent('toggle-fullscreen'))
     });
     this.commands.push({
-      category: 'Actions',
-      label: 'Show Keyboard Shortcuts',
+      category: '操作',
+      label: '显示键盘快捷键',
       keywords: ['keyboard', 'shortcuts', 'keys', 'help'],
       icon: 'keyboard',
       action: () => document.dispatchEvent(new CustomEvent('show-shortcuts'))
@@ -110,21 +110,21 @@ export class CommandPalette {
     this.overlay = document.createElement('div');
     this.overlay.className = 'cmd-palette-overlay';
     this.overlay.setAttribute('role', 'dialog');
-    this.overlay.setAttribute('aria-label', 'Command palette');
+    this.overlay.setAttribute('aria-label', '命令面板');
     this.overlay.setAttribute('aria-modal', 'true');
 
     this.overlay.innerHTML = `
       <div class="cmd-palette">
         <div class="cmd-palette-input-wrap">
           <svg class="cmd-palette-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" class="cmd-palette-input" placeholder="Type a command..." aria-label="Search commands" autocomplete="off" spellcheck="false">
+          <input type="text" class="cmd-palette-input" placeholder="输入命令…" aria-label="搜索命令" autocomplete="off" spellcheck="false">
           <kbd class="cmd-palette-hint">Esc</kbd>
         </div>
-        <div class="cmd-palette-results" role="listbox" aria-label="Commands"></div>
+        <div class="cmd-palette-results" role="listbox" aria-label="命令"></div>
         <div class="cmd-palette-footer">
-          <span><kbd>Up</kbd><kbd>Down</kbd> navigate</span>
-          <span><kbd>Enter</kbd> execute</span>
-          <span><kbd>Esc</kbd> close</span>
+          <span><kbd>Up</kbd><kbd>Down</kbd> 移动</span>
+          <span><kbd>Enter</kbd> 执行</span>
+          <span><kbd>Esc</kbd> 关闭</span>
         </div>
       </div>
     `;

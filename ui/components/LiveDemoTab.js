@@ -135,7 +135,7 @@ export class LiveDemoTab {
       this.logger.info('LiveDemoTab component initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize LiveDemoTab', { error: error.message });
-      this.showError(`Initialization failed: ${error.message}`);
+      this.showError(`初始化失败：${error.message}`);
     }
   }
 
@@ -1130,7 +1130,7 @@ export class LiveDemoTab {
   handleCanvasError(error) {
     this.metrics.errorCount++;
     this.logger.error('Canvas error', { error: error.message });
-    this.showError(`Canvas error: ${error.message}`);
+    this.showError(`画布错误：${error.message}`);
   }
 
   handleConnectionStateChange(state) {
@@ -1161,11 +1161,11 @@ export class LiveDemoTab {
       await this.components.poseCanvas.start();
       
       this.logger.info('Enhanced demo started successfully');
-      this.updateDebugOutput('Demo started successfully');
+      this.updateDebugOutput('演示已成功启动');
       
     } catch (error) {
       this.logger.error('Failed to start enhanced demo', { error: error.message });
-      this.showError(`Failed to start: ${error.message}`);
+      this.showError(`启动失败：${error.message}`);
       this.setState({ isActive: false, connectionState: 'error' });
     }
   }
@@ -1188,11 +1188,11 @@ export class LiveDemoTab {
       this.clearError();
       
       this.logger.info('Enhanced demo stopped successfully');
-      this.updateDebugOutput('Demo stopped successfully');
+      this.updateDebugOutput('演示已停止');
       
     } catch (error) {
       this.logger.error('Error stopping enhanced demo', { error: error.message });
-      this.showError(`Error stopping: ${error.message}`);
+      this.showError(`停止失败：${error.message}`);
     }
   }
 
@@ -1207,7 +1207,7 @@ export class LiveDemoTab {
     }
     
     if (debugBtn) {
-      debugBtn.textContent = this.state.debugMode ? 'Hide Debug' : 'Debug Mode';
+      debugBtn.textContent = this.state.debugMode ? '隐藏调试' : '调试模式';
       debugBtn.classList.toggle('active', this.state.debugMode);
     }
     
@@ -1231,17 +1231,17 @@ export class LiveDemoTab {
 
   async forceReconnect() {
     if (!this.state.isActive) {
-      this.showError('Cannot reconnect - demo not active');
+      this.showError('无法重连 —— 演示未运行');
       return;
     }
     
     try {
       this.logger.info('Forcing reconnection');
       await this.components.poseCanvas.reconnect();
-      this.updateDebugOutput('Force reconnection initiated');
+      this.updateDebugOutput('已发起强制重连');
     } catch (error) {
       this.logger.error('Force reconnection failed', { error: error.message });
-      this.showError(`Reconnection failed: ${error.message}`);
+      this.showError(`重连失败：${error.message}`);
     }
   }
 
@@ -1249,8 +1249,8 @@ export class LiveDemoTab {
     this.metrics.errorCount = 0;
     this.clearError();
     poseService.clearValidationErrors();
-    this.updateDebugOutput('Errors cleared');
-    this.logger.info('Errors cleared');
+    this.updateDebugOutput('错误已清空');
+    this.logger.info('错误已清空');
   }
 
   exportLogs() {
@@ -1271,8 +1271,8 @@ export class LiveDemoTab {
     a.click();
     URL.revokeObjectURL(url);
     
-    this.updateDebugOutput('Logs exported');
-    this.logger.info('Logs exported');
+    this.updateDebugOutput('日志已导出');
+    this.logger.info('日志已导出');
   }
 
   // State management
@@ -1313,15 +1313,15 @@ export class LiveDemoTab {
 
   getStatusText() {
     if (!this.state.isActive) {
-      return this.state.connectionState === 'error' ? 'Error' : 'Ready';
+      return this.state.connectionState === 'error' ? '错误' : '就绪';
     }
     const ds = sensingService.dataSource;
-    if (ds === 'live') return 'Active \u2014 ESP32 Live';
-    if (ds === 'server-simulated') return 'Active \u2014 Simulated Data';
-    if (ds === 'unreachable') return 'No Data \u2014 Server Unreachable';
-    if (ds === 'simulated') return 'INVENTED DATA \u2014 Not Measured';
-    if (ds === 'auth-required') return 'API Token Required';
-    return 'Connecting...';
+    if (ds === 'live') return '运行中 \u2014 ESP32 实时';
+    if (ds === 'server-simulated') return '运行中 \u2014 模拟数据';
+    if (ds === 'unreachable') return '无数据 \u2014 服务器不可达';
+    if (ds === 'simulated') return '虚构数据 \u2014 未经实测';
+    if (ds === 'auth-required') return '需要 API 令牌';
+    return '连接中…';
   }
 
   /** Update the prominent data-source banner at the top of Live Demo. */
@@ -1330,12 +1330,12 @@ export class LiveDemoTab {
     if (!banner) return;
     const ds = sensingService.dataSource;
     const config = {
-      'live':             { text: 'LIVE \u2014 ESP32 Hardware Connected',           cls: 'demo-source-live' },
-      'server-simulated': { text: 'SIMULATED DATA \u2014 No Hardware Detected',     cls: 'demo-source-sim' },
-      'reconnecting':     { text: 'RECONNECTING TO SERVER...',                      cls: 'demo-source-reconnecting' },
-      'unreachable':      { text: 'NO DATA \u2014 Server Unreachable, Display Is Stale', cls: 'demo-source-offline' },
-      'simulated':        { text: 'INVENTED DATA \u2014 Generated By Your Browser, Not Measured', cls: 'demo-source-offline' },
-      'auth-required':    { text: 'API TOKEN REQUIRED \u2014 Settings \u2192 API Access', cls: 'demo-source-offline' },
+      'live':             { text: '实时 \u2014 已连接 ESP32 硬件',           cls: 'demo-source-live' },
+      'server-simulated': { text: '模拟数据 \u2014 未检测到硬件',     cls: 'demo-source-sim' },
+      'reconnecting':     { text: '正在重新连接服务器…',                      cls: 'demo-source-reconnecting' },
+      'unreachable':      { text: '无数据 \u2014 服务器不可达，画面已过期', cls: 'demo-source-offline' },
+      'simulated':        { text: '虚构数据 \u2014 由浏览器生成，并非实测', cls: 'demo-source-offline' },
+      'auth-required':    { text: '需要 API 令牌 \u2014 请到 设置 → API 访问', cls: 'demo-source-offline' },
     };
     const cfg = config[ds] || config['reconnecting'];
     banner.textContent = cfg.text;
@@ -1372,11 +1372,11 @@ export class LiveDemoTab {
     if (elements.connectionStatus) {
       const ds = sensingService.dataSource;
       const dsLabels = {
-        'live':              'Connected \u2014 ESP32',
-        'server-simulated':  'Connected \u2014 Simulated',
-        'reconnecting':      'Reconnecting...',
-        'simulated':         'Offline \u2014 Simulated',
-        'auth-required':     'API token required',
+        'live':              '已连接 \u2014 ESP32',
+        'server-simulated':  '已连接 \u2014 模拟',
+        'reconnecting':      '重新连接中…',
+        'simulated':         '离线 \u2014 模拟',
+        'auth-required':     '需要 API 令牌',
       };
       const label = dsLabels[ds] || this.state.connectionState;
       elements.connectionStatus.textContent = label;
@@ -1419,20 +1419,20 @@ export class LiveDemoTab {
 
     if (source === 'model_inference') {
       badge.className = 'pose-source-badge pose-source-model';
-      badge.textContent = 'Model Inference';
+      badge.textContent = '模型推理';
       description.textContent =
-        'Pose is estimated by a trained neural network ' +
-        'loaded from an RVF container.';
+        '姿态由训练好的神经网络估算，' +
+        '该网络从 RVF 容器加载。';
     } else if (source === 'signal_derived') {
       badge.className = 'pose-source-badge pose-source-signal';
-      badge.textContent = 'Signal-Derived';
+      badge.textContent = '信号推导';
       description.textContent =
-        'Keypoints are derived from live CSI signal features ' +
-        '(motion power, breathing rate, variance).';
+        '关键点由实时 CSI 信号特征推导而来 ' +
+        '（运动功率、呼吸频率、方差）。';
     } else {
       badge.className = 'pose-source-badge pose-source-unknown';
-      badge.textContent = 'Unknown';
-      description.textContent = 'Waiting for first frame...';
+      badge.textContent = '未知';
+      description.textContent = '等待第一帧…';
     }
   }
 
@@ -1460,14 +1460,14 @@ export class LiveDemoTab {
       this.updateHealthDisplay('api-health', poseHealth.apiHealthy);
 
     } catch (error) {
-      this.logger.error('Health check failed', { error: error.message });
+      this.logger.error('健康检查失败', { error: error.message });
     }
   }
 
   updateHealthDisplay(elementId, isHealthy) {
     const element = this.container.querySelector(`#${elementId}`);
     if (element) {
-      element.textContent = isHealthy ? 'Good' : 'Poor';
+      element.textContent = isHealthy ? '良好' : '较差';
       element.className = isHealthy ? 'health-good' : 'health-poor';
     }
   }
@@ -1518,7 +1518,7 @@ export class LiveDemoTab {
         this.updateModelUI();
       }
     } catch (error) {
-      this.logger.warn('Could not fetch models', { error: error.message });
+      this.logger.warn('无法获取模型列表', { error: error.message });
     }
   }
 
@@ -1530,7 +1530,7 @@ export class LiveDemoTab {
     this.modelState.models.forEach(model => {
       const opt = document.createElement('option');
       opt.value = model.id || model.model_id || model.name;
-      opt.textContent = model.name || model.id || 'Unknown Model';
+      opt.textContent = model.name || model.id || '未知模型';
       selector.appendChild(opt);
     });
     if (this.modelState.activeModelId) {
@@ -1543,7 +1543,7 @@ export class LiveDemoTab {
     const selector = this.container.querySelector('#model-selector');
     const modelId = selector?.value;
     if (!modelId) {
-      this.setModelStatus('Select a model first');
+      this.setModelStatus('请先选择模型');
       return;
     }
     try {
@@ -1583,7 +1583,7 @@ export class LiveDemoTab {
       this.setModelStatus(`Error: ${error.message}`);
       const loadBtn = this.container.querySelector('#load-model-btn');
       if (loadBtn) loadBtn.disabled = false;
-      this.logger.error('Failed to load model', { error: error.message });
+      this.logger.error('模型加载失败', { error: error.message });
     }
   }
 
@@ -1601,7 +1601,7 @@ export class LiveDemoTab {
       this.setState({ poseSource: 'signal_derived' });
     } catch (error) {
       this.setModelStatus(`Error: ${error.message}`);
-      this.logger.error('Failed to unload model', { error: error.message });
+      this.logger.error('卸载模型失败', { error: error.message });
     }
   }
 
@@ -1644,7 +1644,7 @@ export class LiveDemoTab {
       if (pckEl) pckEl.textContent = `PCK: ${pck}`;
       this.setModelStatus(`Model: ${name} (PCK: ${pck})`);
     } else if (!isLoaded) {
-      this.setModelStatus('No model loaded');
+      this.setModelStatus('尚未加载模型');
     }
 
     // LoRA profiles
@@ -1683,7 +1683,7 @@ export class LiveDemoTab {
     this.splitViewActive = !this.splitViewActive;
     const toggle = this.container.querySelector('#split-view-toggle');
     if (toggle) {
-      toggle.textContent = this.splitViewActive ? 'On' : 'Off';
+      toggle.textContent = this.splitViewActive ? '开启' : '关闭';
       toggle.classList.toggle('active', this.splitViewActive);
     }
     this.updateSplitViewOverlay();
@@ -1693,7 +1693,7 @@ export class LiveDemoTab {
     this.splitViewActive = false;
     const toggle = this.container.querySelector('#split-view-toggle');
     if (toggle) {
-      toggle.textContent = 'Off';
+      toggle.textContent = '关闭';
       toggle.classList.remove('active');
     }
     this.updateSplitViewOverlay();
@@ -1713,12 +1713,12 @@ export class LiveDemoTab {
 
       const leftLabel = document.createElement('div');
       leftLabel.className = 'split-view-label left';
-      leftLabel.textContent = 'Signal-Derived';
+      leftLabel.textContent = '信号推导';
       mainContainer.appendChild(leftLabel);
 
       const rightLabel = document.createElement('div');
       rightLabel.className = 'split-view-label right';
-      rightLabel.textContent = 'Model Inference';
+      rightLabel.textContent = '模型推理';
       mainContainer.appendChild(rightLabel);
     }
   }
@@ -1737,9 +1737,9 @@ export class LiveDemoTab {
       badge.textContent = `Training epoch ${this.trainingState.epoch}/${this.trainingState.totalEpochs}`;
     } else if (state === 'recording') {
       badge.classList.add('recording');
-      badge.textContent = 'Recording...';
+      badge.textContent = '录制中…';
     } else {
-      badge.textContent = 'Idle';
+      badge.textContent = '空闲';
     }
   }
 
@@ -1785,7 +1785,7 @@ export class LiveDemoTab {
           </div>
           <div class="setting-row-ld">
             <label class="ld-label" style="flex: 1;">Training service:</label>
-            <span style="color: ${trainingService ? '#00cc88' : '#ef4444'}; font-size: 12px;">${trainingService ? 'Connected' : 'Not available'}</span>
+            <span style="color: ${trainingService ? '#00cc88' : '#ef4444'}; font-size: 12px;">${trainingService ? '已连接' : '不可用'}</span>
           </div>
         </div>
       </div>

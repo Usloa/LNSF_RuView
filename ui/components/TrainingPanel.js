@@ -60,7 +60,7 @@ export default class TrainingPanel {
   constructor(container) {
     this.container = typeof container === 'string'
       ? document.getElementById(container) : container;
-    if (!this.container) throw new Error('TrainingPanel: container element not found');
+    if (!this.container) throw new Error('TrainingPanel：未找到容器元素');
 
     this.state = {
       recordings: [], trainingStatus: null, isRecording: false,
@@ -192,32 +192,32 @@ export default class TrainingPanel {
 
   _renderHeader() {
     const h = this._el('div', 'tp-header');
-    h.appendChild(this._el('span', 'tp-title', 'Training'));
+    h.appendChild(this._el('span', 'tp-title', '训练'));
     const ts = this.state.trainingStatus;
-    let cls = 'tp-badge tp-badge-idle', txt = 'Idle';
-    if (ts && ts.active) { cls = 'tp-badge tp-badge-active'; txt = 'Training'; }
-    else if (ts && !ts.active && this.progressData.losses.length > 0) { cls = 'tp-badge tp-badge-done'; txt = 'Completed'; }
+    let cls = 'tp-badge tp-badge-idle', txt = '空闲';
+    if (ts && ts.active) { cls = 'tp-badge tp-badge-active'; txt = '训练'; }
+    else if (ts && !ts.active && this.progressData.losses.length > 0) { cls = 'tp-badge tp-badge-done'; txt = '已完成'; }
     h.appendChild(this._el('span', cls, txt));
     return h;
   }
 
   _renderRecordings() {
     const s = this._el('div', 'tp-section');
-    s.appendChild(this._el('div', 'tp-section-title', 'CSI Recordings'));
+    s.appendChild(this._el('div', 'tp-section-title', 'CSI 录制'));
     if (this.state.recordings.length === 0 && !this.state.loading) {
-      s.appendChild(this._el('div', 'tp-empty', 'Start recording CSI data to train a model'));
+      s.appendChild(this._el('div', 'tp-empty', '开始录制 CSI 数据以训练模型'));
     } else {
       this.state.recordings.forEach(rec => {
         const row = this._el('div', 'tp-rec-row');
         const info = this._el('div', 'tp-rec-info');
         info.appendChild(this._el('span', 'tp-rec-name', rec.name || rec.id));
         const parts = [];
-        if (rec.frame_count != null) parts.push(rec.frame_count + ' frames');
+        if (rec.frame_count != null) parts.push(rec.frame_count + ' 帧');
         if (rec.file_size_bytes != null) parts.push(this._fmtB(rec.file_size_bytes));
         if (rec.started_at && rec.ended_at) parts.push(Math.round((new Date(rec.ended_at) - new Date(rec.started_at)) / 1000) + 's');
         info.appendChild(this._el('span', 'tp-rec-meta', parts.join(' / ')));
         row.appendChild(info);
-        const del = this._btn('Delete', 'tp-btn tp-btn-muted', () => this._delRec(rec.id));
+        const del = this._btn('删除', 'tp-btn tp-btn-muted', () => this._delRec(rec.id));
         del.disabled = this.state.loading;
         row.appendChild(del);
         s.appendChild(row);
@@ -225,10 +225,10 @@ export default class TrainingPanel {
     }
     const acts = this._el('div', 'tp-rec-actions');
     if (this.state.isRecording) {
-      const b = this._btn('Stop Recording', 'tp-btn tp-btn-danger', () => this._stopRec());
+      const b = this._btn('停止录制', 'tp-btn tp-btn-danger', () => this._stopRec());
       b.disabled = this.state.loading; acts.appendChild(b);
     } else {
-      const b = this._btn('Start Recording', 'tp-btn tp-btn-rec', () => this._startRec());
+      const b = this._btn('开始录制', 'tp-btn tp-btn-rec', () => this._startRec());
       b.disabled = this.state.loading; acts.appendChild(b);
     }
     s.appendChild(acts);
@@ -238,15 +238,15 @@ export default class TrainingPanel {
   _renderConfig() {
     const s = this._el('div', 'tp-section');
     const hdr = this._el('div', 'tp-config-header');
-    hdr.appendChild(this._el('span', 'tp-section-title', 'Training Configuration'));
-    hdr.appendChild(this._btn(this.state.configOpen ? 'Collapse' : 'Expand', 'tp-btn tp-btn-muted',
+    hdr.appendChild(this._el('span', 'tp-section-title', '训练配置'));
+    hdr.appendChild(this._btn(this.state.configOpen ? '收起' : '展开', 'tp-btn tp-btn-muted',
       () => { this.state.configOpen = !this.state.configOpen; this.render(); }));
     s.appendChild(hdr);
     if (!this.state.configOpen) return s;
 
     const form = this._el('div', 'tp-config-form');
     if (this.state.recordings.length > 0) {
-      form.appendChild(this._el('label', 'tp-label', 'Datasets'));
+      form.appendChild(this._el('label', 'tp-label', '数据集'));
       const dc = this._el('div', 'tp-ds-container');
       this.state.recordings.forEach(rec => {
         const lb = this._el('label', 'tp-ds-item');
@@ -271,12 +271,12 @@ export default class TrainingPanel {
       inp.addEventListener('change', () => fn(inp.value));
       r.appendChild(inp); return r;
     };
-    form.appendChild(ir('Epochs', 'number', this.config.epochs, v => { this.config.epochs = parseInt(v) || 100; }));
-    form.appendChild(ir('Batch Size', 'number', this.config.batch_size, v => { this.config.batch_size = parseInt(v) || 32; }));
-    form.appendChild(ir('Learning Rate', 'text', this.config.learning_rate, v => { this.config.learning_rate = parseFloat(v) || 3e-4; }));
-    form.appendChild(ir('Early Stop Patience', 'number', this.config.patience, v => { this.config.patience = parseInt(v) || 15; }));
-    form.appendChild(ir('Base Model (opt.)', 'text', this.config.base_model, v => { this.config.base_model = v; }));
-    form.appendChild(ir('LoRA Profile (opt.)', 'text', this.config.lora_profile_name, v => { this.config.lora_profile_name = v; }));
+    form.appendChild(ir('训练轮数', 'number', this.config.epochs, v => { this.config.epochs = parseInt(v) || 100; }));
+    form.appendChild(ir('批大小', 'number', this.config.batch_size, v => { this.config.batch_size = parseInt(v) || 32; }));
+    form.appendChild(ir('学习率', 'text', this.config.learning_rate, v => { this.config.learning_rate = parseFloat(v) || 3e-4; }));
+    form.appendChild(ir('早停耐心值', 'number', this.config.patience, v => { this.config.patience = parseInt(v) || 15; }));
+    form.appendChild(ir('基础模型（可选）', 'text', this.config.base_model, v => { this.config.base_model = v; }));
+    form.appendChild(ir('LoRA 配置（可选）', 'text', this.config.lora_profile_name, v => { this.config.lora_profile_name = v; }));
     s.appendChild(form);
 
     // ADR-186 P5: if the server reports in-server training disabled
@@ -287,19 +287,19 @@ export default class TrainingPanel {
     const cli = (ts && ts.cli) || 'wifi-densepose train-room';
     if (disabled) {
       const note = this._el('div', 'tp-empty',
-        `In-server training is disabled on this build. Train from the CLI:  ${cli}`);
+        `此构建未启用服务端训练。请改用命令行：  ${cli}`);
       s.appendChild(note);
     }
 
     const acts = this._el('div', 'tp-train-actions');
     const btns = [
-      this._btn('Start Training', 'tp-btn tp-btn-success', () => this._launchTraining('startTraining', { patience: this.config.patience, base_model: this.config.base_model || undefined })),
-      this._btn('Pretrain', 'tp-btn tp-btn-secondary', () => this._launchTraining('startPretraining')),
+      this._btn('开始训练', 'tp-btn tp-btn-success', () => this._launchTraining('startTraining', { patience: this.config.patience, base_model: this.config.base_model || undefined })),
+      this._btn('预训练', 'tp-btn tp-btn-secondary', () => this._launchTraining('startPretraining')),
       this._btn('LoRA', 'tp-btn tp-btn-secondary', () => this._launchTraining('startLoraTraining', { base_model: this.config.base_model || undefined, profile_name: this.config.lora_profile_name || 'default' }))
     ];
     btns.forEach(b => {
       b.disabled = this.state.loading || disabled;
-      if (disabled) b.title = `In-server training disabled — use: ${cli}`;
+      if (disabled) b.title = `服务端训练已禁用 —— 请使用：${cli}`;
       acts.appendChild(b);
     });
     s.appendChild(acts);
@@ -309,14 +309,14 @@ export default class TrainingPanel {
   _renderProgress() {
     const ts = this.state.trainingStatus || {};
     const s = this._el('div', 'tp-section');
-    s.appendChild(this._el('div', 'tp-section-title', 'Training Progress'));
+    s.appendChild(this._el('div', 'tp-section-title', '训练进度'));
 
     const pct = ts.total_epochs ? Math.round((ts.epoch / ts.total_epochs) * 100) : 0;
     const bar = this._el('div', 'tp-progress-bar');
     const fill = this._el('div', 'tp-progress-fill');
     fill.style.width = pct + '%';
     bar.appendChild(fill); s.appendChild(bar);
-    s.appendChild(this._el('div', 'tp-progress-label', `Epoch ${ts.epoch ?? 0} / ${ts.total_epochs ?? '?'}  (${pct}%)`));
+    s.appendChild(this._el('div', 'tp-progress-label', `第 ${ts.epoch ?? 0} / ${ts.total_epochs ?? '?'} 轮  (${pct}%)`));
 
     const cr = this._el('div', 'tp-chart-row');
     const lc = document.createElement('canvas'); lc.id = 'tp-loss-chart'; lc.width = 260; lc.height = 140;
@@ -325,17 +325,17 @@ export default class TrainingPanel {
 
     const g = this._el('div', 'tp-metrics-grid');
     const mc = (l, v) => { const c = this._el('div', 'tp-metric-cell'); c.appendChild(this._el('div', 'tp-metric-label', l)); c.appendChild(this._el('div', 'tp-metric-value', v)); return c; };
-    g.appendChild(mc('Loss', ts.train_loss != null ? ts.train_loss.toFixed(4) : '--'));
+    g.appendChild(mc('损失', ts.train_loss != null ? ts.train_loss.toFixed(4) : '--'));
     g.appendChild(mc('PCK', ts.val_pck != null ? (ts.val_pck * 100).toFixed(1) + '%' : '--'));
     g.appendChild(mc('OKS', ts.val_oks != null ? ts.val_oks.toFixed(3) : '--'));
     g.appendChild(mc('LR', ts.lr != null ? ts.lr.toExponential(1) : '--'));
-    g.appendChild(mc('Best PCK', ts.best_pck != null ? (ts.best_pck * 100).toFixed(1) + '% (e' + (ts.best_epoch ?? '?') + ')' : '--'));
-    g.appendChild(mc('Patience', ts.patience_remaining != null ? String(ts.patience_remaining) : '--'));
-    g.appendChild(mc('ETA', ts.eta_secs != null ? this._fmtEta(ts.eta_secs) : '--'));
-    g.appendChild(mc('Phase', ts.phase || '--'));
+    g.appendChild(mc('最佳 PCK', ts.best_pck != null ? (ts.best_pck * 100).toFixed(1) + '% (e' + (ts.best_epoch ?? '?') + ')' : '--'));
+    g.appendChild(mc('耐心值', ts.patience_remaining != null ? String(ts.patience_remaining) : '--'));
+    g.appendChild(mc('预计剩余', ts.eta_secs != null ? this._fmtEta(ts.eta_secs) : '--'));
+    g.appendChild(mc('阶段', ts.phase || '--'));
     s.appendChild(g);
 
-    const stop = this._btn('Stop Training', 'tp-btn tp-btn-danger', () => this._stopTraining());
+    const stop = this._btn('停止训练', 'tp-btn tp-btn-danger', () => this._stopTraining());
     stop.disabled = this.state.loading; stop.style.marginTop = '10px'; s.appendChild(stop);
     return s;
   }
@@ -343,17 +343,17 @@ export default class TrainingPanel {
   _renderComplete() {
     const ts = this.state.trainingStatus || {};
     const s = this._el('div', 'tp-section');
-    s.appendChild(this._el('div', 'tp-section-title', 'Training Complete'));
+    s.appendChild(this._el('div', 'tp-section-title', '训练完成'));
     const g = this._el('div', 'tp-metrics-grid');
     const mc = (l, v) => { const c = this._el('div', 'tp-metric-cell'); c.appendChild(this._el('div', 'tp-metric-label', l)); c.appendChild(this._el('div', 'tp-metric-value', v)); return c; };
     const losses = this.progressData.losses;
-    g.appendChild(mc('Final Loss', losses.length > 0 ? losses[losses.length - 1].toFixed(4) : '--'));
-    g.appendChild(mc('Best PCK', ts.best_pck != null ? (ts.best_pck * 100).toFixed(1) + '%' : '--'));
-    g.appendChild(mc('Best Epoch', ts.best_epoch != null ? String(ts.best_epoch) : '--'));
-    g.appendChild(mc('Total Epochs', String(losses.length)));
+    g.appendChild(mc('最终损失', losses.length > 0 ? losses[losses.length - 1].toFixed(4) : '--'));
+    g.appendChild(mc('最佳 PCK', ts.best_pck != null ? (ts.best_pck * 100).toFixed(1) + '%' : '--'));
+    g.appendChild(mc('最佳轮次', ts.best_epoch != null ? String(ts.best_epoch) : '--'));
+    g.appendChild(mc('总轮数', String(losses.length)));
     s.appendChild(g);
     const acts = this._el('div', 'tp-train-actions');
-    acts.appendChild(this._btn('New Training', 'tp-btn tp-btn-secondary', () => {
+    acts.appendChild(this._btn('新建训练', 'tp-btn tp-btn-secondary', () => {
       this.progressData = { losses: [], pcks: [] }; this._set({ trainingStatus: null });
     }));
     s.appendChild(acts);
@@ -363,7 +363,7 @@ export default class TrainingPanel {
   // --- Chart drawing ---
 
   _drawCharts() {
-    this._drawChart('tp-loss-chart', this.progressData.losses, { color: '#ff6b6b', label: 'Loss', yMin: 0, yMax: null });
+    this._drawChart('tp-loss-chart', this.progressData.losses, { color: '#ff6b6b', label: '损失', yMin: 0, yMax: null });
     this._drawChart('tp-pck-chart', this.progressData.pcks, { color: '#51cf66', label: 'PCK', yMin: 0, yMax: 1 });
   }
 
@@ -374,7 +374,7 @@ export default class TrainingPanel {
     const p = { t: 20, r: 10, b: 24, l: 44 };
     ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#8899aa'; ctx.font = '11px -apple-system,sans-serif'; ctx.fillText(opts.label, p.l, 14);
-    if (!data.length) { ctx.fillStyle = '#6b7a8d'; ctx.fillText('No data', w / 2 - 20, h / 2); return; }
+    if (!data.length) { ctx.fillStyle = '#6b7a8d'; ctx.fillText('暂无数据', w / 2 - 20, h / 2); return; }
     const pw = w - p.l - p.r, ph = h - p.t - p.b;
     let yMin = opts.yMin ?? Math.min(...data), yMax = opts.yMax ?? Math.max(...data);
     if (yMax === yMin) yMax = yMin + 1;

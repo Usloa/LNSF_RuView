@@ -22,8 +22,8 @@ export class NotificationCenter {
   createButton() {
     this.button = document.createElement('button');
     this.button.className = 'notif-bell';
-    this.button.setAttribute('aria-label', 'Notifications');
-    this.button.setAttribute('title', 'Notifications');
+    this.button.setAttribute('aria-label', '通知');
+    this.button.setAttribute('title', '通知');
     this.button.innerHTML = `
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -45,13 +45,13 @@ export class NotificationCenter {
     this.panel = document.createElement('div');
     this.panel.className = 'notif-panel';
     this.panel.setAttribute('role', 'region');
-    this.panel.setAttribute('aria-label', 'Notification history');
+    this.panel.setAttribute('aria-label', '通知历史');
     this.panel.innerHTML = `
       <div class="notif-panel-header">
-        <span>Notifications</span>
+        <span>通知</span>
         <div class="notif-panel-actions">
-          <button class="notif-mark-read" title="Mark all read">Mark read</button>
-          <button class="notif-clear" title="Clear all">Clear</button>
+          <button class="notif-mark-read" title="全部标为已读">全部已读</button>
+          <button class="notif-clear" title="清空全部">清空</button>
         </div>
       </div>
       <div class="notif-panel-body"></div>
@@ -90,7 +90,7 @@ export class NotificationCenter {
       origInfo.apply(console, args);
       const msg = args.map(String).join(' ');
       // Only capture app-relevant messages
-      if (msg.includes('[WS-') || msg.includes('Backend') || msg.includes('Service worker') ||
+      if (msg.includes('[WS-') || msg.includes('后端') || msg.includes('Service worker') ||
           msg.includes('connected') || msg.includes('initialized') || msg.includes('sensing')) {
         this.add(msg, 'info');
       }
@@ -100,7 +100,7 @@ export class NotificationCenter {
     console.warn = (...args) => {
       origWarn.apply(console, args);
       const msg = args.map(String).join(' ');
-      if (msg.includes('Backend') || msg.includes('unavailable') || msg.includes('[WS-') ||
+      if (msg.includes('后端') || msg.includes('unavailable') || msg.includes('[WS-') ||
           msg.includes('connection') || msg.includes('timeout')) {
         this.add(msg, 'warning');
       }

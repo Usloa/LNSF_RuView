@@ -39,7 +39,7 @@ class WiFiDensePoseApp {
   // Initialize application
   async init() {
     try {
-      console.log('Initializing WiFi DensePose UI...');
+      console.log('正在初始化 WiFi DensePose 界面…');
       
       // Set up error handling
       this.setupErrorHandling();
@@ -57,11 +57,11 @@ class WiFiDensePoseApp {
       this.setupEventListeners();
 
       this.isInitialized = true;
-      console.log('WiFi DensePose UI initialized successfully');
+      console.log('WiFi DensePose 界面初始化成功');
       
     } catch (error) {
-      console.error('Failed to initialize application:', error);
-      this.showGlobalError('Failed to initialize application. Please refresh the page.');
+      console.error('应用初始化失败：', error);
+      this.showGlobalError('应用初始化失败，请刷新页面。');
     }
   }
 
@@ -70,7 +70,7 @@ class WiFiDensePoseApp {
     // Add request interceptor for error handling
     apiService.addResponseInterceptor(async (response, url) => {
       if (!response.ok && response.status === 401) {
-        console.warn('Authentication required for:', url);
+        console.warn('以下地址需要认证：', url);
         // Handle authentication if needed
       }
       return response;
@@ -86,17 +86,17 @@ class WiFiDensePoseApp {
       mockServer.start();
       
       // Show notification to user
-      this.showBackendStatus('Mock server active - testing mode', 'warning');
+      this.showBackendStatus('模拟服务器已启用 — 测试模式', 'warning');
     } else {
       console.log('🔌 Connecting to backend...');
 
       try {
         const health = await healthService.checkLiveness();
         console.log('✅ Backend responding:', health);
-        this.showBackendStatus('Connected to Rust sensing server', 'success');
+        this.showBackendStatus('已连接 Rust 感知服务器', 'success');
       } catch (error) {
         console.warn('⚠️ Backend not available:', error.message);
-        this.showBackendStatus('Backend unavailable — start sensing-server', 'warning');
+        this.showBackendStatus('后端不可用 — 请启动 sensing-server', 'warning');
       }
 
       // Mount the global provenance bar before the service starts, so the very
@@ -113,7 +113,7 @@ class WiFiDensePoseApp {
   initializeComponents() {
     const container = document.querySelector('.container');
     if (!container) {
-      throw new Error('Main container not found');
+      throw new Error('未找到主容器');
     }
 
     // Initialize tab manager
@@ -137,7 +137,7 @@ class WiFiDensePoseApp {
     if (dashboardContainer) {
       this.components.dashboard = new DashboardTab(dashboardContainer);
       this.components.dashboard.init().catch(error => {
-        console.error('Failed to initialize dashboard:', error);
+        console.error('仪表盘初始化失败：', error);
       });
     }
 
@@ -189,7 +189,7 @@ class WiFiDensePoseApp {
         this.components.modelPanel = new ModelPanel(modelContainer);
       }
     } catch (error) {
-      console.error('Failed to load Training tab components:', error);
+      console.error('训练标签页组件加载失败：', error);
     }
   }
 
@@ -251,16 +251,16 @@ class WiFiDensePoseApp {
 
     // Keyboard shortcuts (pass app reference for tab switching)
     this.keyboardShortcuts = new KeyboardShortcuts(this);
-    this.keyboardShortcuts.register('l', 'Toggle activity log', () => {
+    this.keyboardShortcuts.register('l', '切换活动日志', () => {
       document.dispatchEvent(new CustomEvent('toggle-activity-log'));
     });
-    this.keyboardShortcuts.register('e', 'Export sensor data', () => {
+    this.keyboardShortcuts.register('e', '导出传感器数据', () => {
       document.dispatchEvent(new CustomEvent('export-data'));
     });
-    this.keyboardShortcuts.register('f', 'Toggle fullscreen', () => {
+    this.keyboardShortcuts.register('f', '切换全屏', () => {
       document.dispatchEvent(new CustomEvent('toggle-fullscreen'));
     });
-    this.keyboardShortcuts.register('s', 'Take screenshot', () => {
+    this.keyboardShortcuts.register('s', '截图', () => {
       document.dispatchEvent(new CustomEvent('take-screenshot'));
     });
     this.keyboardShortcuts.init();
@@ -332,7 +332,7 @@ class WiFiDensePoseApp {
         // Lazy-init sensing tab on first visit
         if (this.components.sensing && !this.components.sensing.splatRenderer) {
           this.components.sensing.init().catch(error => {
-            console.error('Failed to initialize sensing tab:', error);
+            console.error('感知标签页初始化失败：', error);
           });
         }
         break;
@@ -414,14 +414,14 @@ class WiFiDensePoseApp {
     window.addEventListener('error', (event) => {
       if (event.error) {
         console.error('Global error:', event.error);
-        this.showGlobalError('An unexpected error occurred');
+        this.showGlobalError('发生意外错误');
       }
     });
 
     window.addEventListener('unhandledrejection', (event) => {
       if (event.reason) {
         console.error('Unhandled promise rejection:', event.reason);
-        this.showGlobalError('An unexpected error occurred');
+        this.showGlobalError('发生意外错误');
       }
     });
   }
@@ -441,7 +441,7 @@ class WiFiDensePoseApp {
 
   // Clean up resources
   cleanup() {
-    console.log('Cleaning up application resources...');
+    console.log('正在清理应用资源…');
     
     // Dispose all components
     Object.values(this.components).forEach(component => {

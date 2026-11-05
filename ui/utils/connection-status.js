@@ -26,8 +26,8 @@ export class ConnectionStatus {
     this.widget.setAttribute('aria-live', 'polite');
     this.widget.innerHTML = `
       <span class="conn-status-dot"></span>
-      <span class="conn-status-label">Connecting</span>
-      <button class="conn-status-reconnect" aria-label="Reconnect" title="Reconnect" style="display:none">
+      <span class="conn-status-label">连接中</span>
+      <button class="conn-status-reconnect" aria-label="重新连接" title="重新连接" style="display:none">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       </button>
     `;
@@ -42,7 +42,7 @@ export class ConnectionStatus {
     });
 
     this.widget.querySelector('.conn-status-reconnect').addEventListener('click', () => {
-      this.setStatus('reconnecting', 'Reconnecting...');
+      this.setStatus('reconnecting', '重新连接中…');
       sensingService.reconnect?.();
     });
 
@@ -66,15 +66,15 @@ export class ConnectionStatus {
     const source = sensingService.dataSource;
 
     if (state === 'connected' || state === 'streaming') {
-      const label = source === 'live' ? 'Live' :
-                    source === 'server-simulated' ? 'Simulated' :
-                    'Connected';
+      const label = source === 'live' ? '实时' :
+                    source === 'server-simulated' ? '模拟' :
+                    '已连接';
       this.setStatus('connected', label);
     } else if (state === 'connecting' || state === 'reconnecting') {
-      this.setStatus('reconnecting', 'Connecting...');
+      this.setStatus('reconnecting', '连接中…');
     } else if (state === 'auth-required') {
-      this.setStatus('error', 'Token required');
-      this.widget.title = 'This server requires an API token. Click to open Settings \u2192 API Access.';
+      this.setStatus('error', '需要令牌');
+      this.widget.title = '此服务器需要 API 令牌。点击打开 设置 → API 访问。';
       // Open the panel once per page load; after that the widget stays
       // clickable but does not keep popping the panel up.
       if (!this._openedApiAccess) {
@@ -84,9 +84,9 @@ export class ConnectionStatus {
         setTimeout(() => openApiAccess(sensingService.authRequired), 0);
       }
     } else if (state === 'error') {
-      this.setStatus('error', 'Error');
+      this.setStatus('error', '错误');
     } else {
-      this.setStatus('disconnected', 'Offline');
+      this.setStatus('disconnected', '离线');
     }
   }
 

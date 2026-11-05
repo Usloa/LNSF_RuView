@@ -26,31 +26,31 @@ export class Onboarding {
   defineSteps() {
     this.steps = [
       {
-        title: 'Welcome to RuView',
+        title: '欢迎使用 RuView',
         text: 'WiFi-based human pose estimation that works through walls. Let\'s take a quick tour of the dashboard.',
         target: null, // No highlight, centered
         position: 'center'
       },
       {
-        title: 'System Status',
+        title: '系统状态',
         text: 'Monitor your WiFi sensing hardware and API server status in real time. Green means everything is connected.',
         target: '.live-status-panel',
         position: 'bottom'
       },
       {
-        title: 'Live Demo',
+        title: '实时演示',
         text: 'Switch to the Live Demo tab to see real-time pose detection. Connect an ESP32 sensor or use the built-in simulation.',
         target: '[data-tab="demo"]',
         position: 'bottom'
       },
       {
-        title: 'Sensing Visualization',
+        title: '感知可视化',
         text: 'The Sensing tab shows a 3D Gaussian splat visualization of WiFi signal fields, with real-time metrics.',
         target: '[data-tab="sensing"]',
         position: 'bottom'
       },
       {
-        title: 'Keyboard Shortcuts',
+        title: '键盘快捷键',
         text: 'Press ? for shortcuts, Ctrl+K for the command palette, or use number keys 1-8 to switch tabs quickly.',
         target: null,
         position: 'center'
@@ -88,7 +88,7 @@ export class Onboarding {
     this.overlay = document.createElement('div');
     this.overlay.className = 'onboarding-overlay';
     this.overlay.setAttribute('role', 'dialog');
-    this.overlay.setAttribute('aria-label', 'Onboarding tour');
+    this.overlay.setAttribute('aria-label', '新手引导');
     this.overlay.setAttribute('aria-modal', 'true');
     document.body.appendChild(this.overlay);
   }
@@ -128,10 +128,10 @@ export class Onboarding {
         <h3 class="onboarding-title">${step.title}</h3>
         <p class="onboarding-text">${step.text}</p>
         <div class="onboarding-actions">
-          <button class="onboarding-skip">Skip tour</button>
+          <button class="onboarding-skip">跳过引导</button>
           <div class="onboarding-nav">
-            ${!isFirst ? '<button class="onboarding-prev">Back</button>' : ''}
-            <button class="onboarding-next">${isLast ? 'Get started' : 'Next'}</button>
+            ${!isFirst ? '<button class="onboarding-prev">上一步</button>' : ''}
+            <button class="onboarding-next">${isLast ? '开始使用' : '下一步'}</button>
           </div>
         </div>
       </div>
