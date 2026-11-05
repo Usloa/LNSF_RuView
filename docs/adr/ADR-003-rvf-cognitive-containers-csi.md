@@ -1,30 +1,30 @@
-# ADR-003: RVF Cognitive Containers for CSI Data
+# ADR-003：面向 CSI 数据的 RVF 认知容器
 
-## Status
+## 状态
 Proposed
 
-## Date
+## 日期
 2026-02-28
 
-## Context
+## 背景
 
-### Problem
+### 问题
 
-WiFi-DensePose processes CSI (Channel State Information) data through a multi-stage pipeline: raw capture → preprocessing → feature extraction → neural inference → pose output. Each stage produces intermediate data that is currently ephemeral:
+WiFi-DensePose 通过多级流水线处理 CSI（信道状态信息）数据：原始采集 → 预处理 → 特征提取 → 神经网络推理 → 姿态输出。每一级都会产生中间数据，而目前这些数据都是用完即弃：
 
-1. **Raw CSI measurements** (`CsiData`): Amplitude matrices (num_antennas x num_subcarriers), phase arrays, SNR values, metadata. Stored only in a bounded `VecDeque` (max 500 entries in Python, similar in Rust).
+1. **原始 CSI 测量值**（`CsiData`）：幅度矩阵（天线数 × 子载波数）、相位数组、SNR 值、元数据。只保存在有上限的 `VecDeque` 中（Python 版最多 500 条，Rust 版类似）。
 
-2. **Extracted features** (`CsiFeatures`): Amplitude mean/variance, phase differences, correlation matrices, Doppler shifts, power spectral density. Discarded after single-pass inference.
+2. **提取出的特征**（`CsiFeatures`）：幅度均值/方差、相位差、相关矩阵、多普勒频移、功率谱密度。单次推理后即丢弃。
 
-3. **Trained model weights**: Static ONNX/PyTorch files loaded from disk. No mechanism to persist adapted weights or experimental variations.
+3. **训练好的模型权重**：从磁盘加载的静态 ONNX/PyTorch 文件，没有机制持久化适配后的权重或实验变体。
 
-4. **Detection results** (`HumanDetectionResult`): Confidence scores, motion scores, detection booleans. Logged but not indexed for pattern retrieval.
+4. **检测结果**（`HumanDetectionResult`）：置信度分数、运动分数、检测布尔值。只写日志，没有建索引供模式检索。
 
-5. **Environment fingerprints**: Each physical space has a unique CSI signature affected by room geometry, furniture, building materials. No persistent fingerprint database exists.
+5. **环境指纹**：每个物理空间都有独特的 CSI 特征，受房间几何、家具、建材影响。目前没有持久化的指纹库。
 
-### Opportunity
+### 机会
 
-RuVector's RVF (Cognitive Container) format provides a single-file packaging solution with 25 segment types that can encapsulate the entire WiFi-DensePose operational state:
+RuVector 的 RVF（认知容器）格式提供单文件打包方案，含 25 种段类型，可以封装 WiFi-DensePose 的全部运行状态：
 
 ```
 RVF Cognitive Container Structure:
@@ -43,37 +43,37 @@ RVF Cognitive Container Structure:
 └─────────────────────────────────────────────┘
 ```
 
-## Decision
+## 决策
 
-We will adopt the RVF Cognitive Container format as the primary persistence and deployment unit for WiFi-DensePose operational data, implementing the following container types:
+我们将采用 RVF 认知容器格式作为 WiFi-DensePose 运行数据的主要持久化与部署单元，实现以下几类容器：
 
-### 1. CSI Fingerprint Container (`.rvf.csi`)
+### 1. CSI 指纹容器（`.rvf.csi`）
 
-Packages environment-specific CSI signatures for location recognition:
+打包环境专属的 CSI 特征，用于位置识别：
 
 ```rust
-/// CSI Fingerprint container storing environment signatures
+/// 存放环境特征的 CSI 指纹容器
 pub struct CsiFingerprintContainer {
-    /// Container metadata
+    /// 容器元数据
     metadata: ContainerMetadata,
 
-    /// VEC segment: Normalized CSI feature vectors
-    /// Each vector = [amplitude_mean(N) | amplitude_var(N) | phase_diff(N-1) | doppler(10) | psd(128)]
-    /// Typical dimensionality: 64 subcarriers → 64+64+63+10+128 = 329 dimensions
+    /// VEC 段：归一化后的 CSI 特征向量
+    /// 每个向量 = [amplitude_mean(N) | amplitude_var(N) | phase_diff(N-1) | doppler(10) | psd(128)]
+    /// 典型维度：64 个子载波 → 64+64+63+10+128 = 329 维
     fingerprint_vectors: VecSegment,
 
-    /// INDEX segment: HNSW index for O(log n) nearest-neighbor lookup
+    /// INDEX 段：用于 O(log n) 近邻查询的 HNSW 索引
     hnsw_index: IndexSegment,
 
-    /// COW_MAP: Branches for different times-of-day, occupancy levels
+    /// COW_MAP：按不同时段、人员密度分别建立的分支
     branches: CowMapSegment,
 
-    /// Metadata per vector: room_id, timestamp, occupancy_count, furniture_hash
+    /// 每个向量的元数据：room_id、timestamp、occupancy_count、furniture_hash
     annotations: AnnotationSegment,
 }
 ```
 
-**Vector encoding**: Each CSI snapshot is encoded as a fixed-dimension vector:
+**向量编码**：每个 CSI 快照编码为固定维度的向量：
 ```
 CSI Feature Vector (329-dim for 64 subcarriers):
 ┌──────────────────┬──────────────────┬─────────────────┬──────────┬─────────┐
@@ -82,62 +82,62 @@ CSI Feature Vector (329-dim for 64 subcarriers):
 └──────────────────┴──────────────────┴─────────────────┴──────────┴─────────┘
 ```
 
-### 2. Model Container (`.rvf.model`)
+### 2. 模型容器（`.rvf.model`）
 
-Packages neural network weights with versioning:
+打包神经网络权重并支持版本管理：
 
 ```rust
-/// Model container with version tracking and A/B comparison
+/// 带版本追踪与 A/B 比较的模型容器
 pub struct ModelContainer {
-    /// Container metadata with model version history
+    /// 含模型版本历史的容器元数据
     metadata: ContainerMetadata,
 
-    /// Primary model weights (ONNX serialized)
+    /// 主模型权重（ONNX 序列化）
     primary_weights: BlobSegment,
 
-    /// SONA adaptation deltas (LoRA low-rank matrices)
+    /// SONA 适配增量（LoRA 低秩矩阵）
     adaptation_deltas: VecSegment,
 
-    /// COW branches for model experiments
-    /// e.g., "baseline", "adapted-office-env", "adapted-warehouse"
+    /// 用于模型实验的 COW 分支
+    /// 例如 "baseline"、"adapted-office-env"、"adapted-warehouse"
     branches: CowMapSegment,
 
-    /// Performance metrics per branch
+    /// 每个分支的性能指标
     metrics: AnnotationSegment,
 
-    /// Witness chain: every weight update recorded
+    /// 见证链：每一次权重更新都会记录
     audit_trail: WitnessSegment,
 }
 ```
 
-### 3. Session Container (`.rvf.session`)
+### 3. 会话容器（`.rvf.session`）
 
-Captures a complete sensing session for replay and analysis:
+保存完整的感知会话，供回放与分析：
 
 ```rust
-/// Session container for recording and replaying sensing sessions
+/// 用于记录与回放感知会话的会话容器
 pub struct SessionContainer {
-    /// Session metadata (start time, duration, hardware config)
+    /// 会话元数据（开始时间、时长、硬件配置）
     metadata: ContainerMetadata,
 
-    /// Time-series CSI vectors at capture rate
+    /// 按采集速率保存的时序 CSI 向量
     csi_timeseries: VecSegment,
 
-    /// Detection results aligned to CSI timestamps
+    /// 与 CSI 时间戳对齐的检测结果
     detections: AnnotationSegment,
 
-    /// Pose estimation outputs
+    /// 姿态估计输出
     poses: VecSegment,
 
-    /// Index for temporal range queries
+    /// 用于时间范围查询的索引
     temporal_index: IndexSegment,
 
-    /// Cryptographic integrity proof
+    /// 加密完整性证明
     witness_chain: WitnessSegment,
 }
 ```
 
-### Container Lifecycle
+### 容器生命周期
 
 ```
   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
@@ -157,24 +157,24 @@ pub struct SessionContainer {
   └──────────┘   └──────────┘
 ```
 
-### Integration with Existing Crates
+### 与现有 crate 的集成
 
-The container system integrates through adapter traits:
+容器系统通过适配器 trait 集成：
 
 ```rust
-/// Trait for types that can be vectorized into RVF containers
+/// 可向量化进 RVF 容器的类型所实现的 trait
 pub trait RvfVectorizable {
-    /// Encode self as a fixed-dimension f32 vector
+    /// 把自身编码为固定维度的 f32 向量
     fn to_rvf_vector(&self) -> Vec<f32>;
 
-    /// Reconstruct from an RVF vector
+    /// 从 RVF 向量还原出对象
     fn from_rvf_vector(vec: &[f32]) -> Result<Self, RvfError> where Self: Sized;
 
-    /// Vector dimensionality
+    /// 向量维度
     fn vector_dim() -> usize;
 }
 
-// Implementation for existing types
+// 针对已有类型的实现
 impl RvfVectorizable for CsiFeatures {
     fn to_rvf_vector(&self) -> Vec<f32> {
         let mut vec = Vec::with_capacity(Self::vector_dim());
@@ -187,24 +187,24 @@ impl RvfVectorizable for CsiFeatures {
     }
 
     fn vector_dim() -> usize {
-        // 64 + 64 + 63 + 10 + 128 = 329 (for 64 subcarriers)
+        // 64 + 64 + 63 + 10 + 128 = 329（64 个子载波）
         329
     }
     // ...
 }
 ```
 
-### Storage Characteristics
+### 存储特征
 
-| Container Type | Typical Size | Vector Count | Use Case |
+| 容器类型 | 典型大小 | 向量数量 | 使用场景 |
 |----------------|-------------|-------------|----------|
-| Fingerprint | 5-50 MB | 10K-100K | Room/building fingerprint DB |
-| Model | 50-500 MB | N/A (blob) | Neural network deployment |
-| Session | 10-200 MB | 50K-500K | 1-hour recording at 100 Hz |
+| 指纹 | 5-50 MB | 10K-100K | 房间/建筑指纹库 |
+| 模型 | 50-500 MB | 不适用（blob） | 神经网络部署 |
+| 会话 | 10-200 MB | 50K-500K | 100 Hz 录制 1 小时 |
 
-### COW Branching for Environment Adaptation
+### 用 COW 分支做环境适配
 
-The copy-on-write mechanism enables zero-overhead experimentation:
+写时复制机制让实验几乎不产生额外开销：
 
 ```
 main (office baseline: 50K vectors)
@@ -214,38 +214,38 @@ main (office baseline: 50K vectors)
   └── branch/furniture-moved (delta: 5K vectors, ~150 KB)
 ```
 
-Total overhead for 4 branches on a 50K-vector container: ~250 KB additional (0.5%).
+在 5 万向量的容器上建 4 个分支，总开销约 250 KB（0.5%）。
 
-## Consequences
+## 影响
 
-### Positive
-- **Single-file deployment**: Move a fingerprint database between sites by copying one `.rvf` file
-- **Versioned models**: A/B test model variants without duplicating full weight sets
-- **Session replay**: Reproduce detection results from recorded CSI data
-- **Atomic operations**: Container writes are transactional; no partial state corruption
-- **Cross-platform**: Same container format works on server, WASM, and embedded
-- **Storage efficient**: COW branching avoids duplicating unchanged data
+### 正面影响
+- **单文件部署**：拷贝一个 `.rvf` 文件就能在站点之间迁移指纹库
+- **模型带版本**：A/B 测试模型变体时无需复制整套权重
+- **会话回放**：用录制的 CSI 数据复现检测结果
+- **原子操作**：容器写入是事务性的，不会出现半截状态损坏
+- **跨平台**：同一容器格式在服务器、WASM 与嵌入式设备上通用
+- **存储高效**：COW 分支避免重复保存未变化的数据
 
-### Negative
-- **Format lock-in**: RVF is not yet a widely-adopted standard
-- **Serialization overhead**: Converting between native types and RVF vectors adds latency (~0.1-0.5 ms per vector)
-- **Learning curve**: Team must understand segment types and container lifecycle
-- **File size for sessions**: High-rate CSI capture (1000 Hz) generates large session containers
+### 负面影响
+- **格式绑定**：RVF 目前还不是广泛采用的标准
+- **序列化开销**：原生类型与 RVF 向量之间转换会增加时延（每个向量约 0.1-0.5 ms）
+- **学习成本**：团队需要理解段类型与容器生命周期
+- **会话文件偏大**：高采样率 CSI（1000 Hz）会生成很大的会话容器
 
-### Performance Targets
+### 性能目标
 
-| Operation | Target Latency | Notes |
+| 操作 | 目标时延 | 说明 |
 |-----------|---------------|-------|
-| Container open | <10 ms | Memory-mapped I/O |
-| Vector insert | <0.1 ms | Append to VEC segment |
-| HNSW query (100K vectors) | <1 ms | See ADR-004 |
-| Branch create | <1 ms | COW metadata only |
-| Branch merge | <100 ms | Delta application |
-| Container export | ~1 ms/MB | Sequential write |
+| 打开容器 | <10 ms | 内存映射 I/O |
+| 插入向量 | <0.1 ms | 追加到 VEC 段 |
+| HNSW 查询（10 万向量） | <1 ms | 见 ADR-004 |
+| 创建分支 | <1 ms | 仅改 COW 元数据 |
+| 合并分支 | <100 ms | 应用增量 |
+| 导出容器 | ~1 ms/MB | 顺序写入 |
 
-## References
+## 参考资料
 
-- [RuVector Cognitive Container Specification](https://github.com/ruvnet/ruvector)
-- [Memory-Mapped I/O in Rust](https://docs.rs/memmap2)
-- [Copy-on-Write Data Structures](https://en.wikipedia.org/wiki/Copy-on-write)
-- ADR-002: RuVector RVF Integration Strategy
+- [RuVector 认知容器规范](https://github.com/ruvnet/ruvector)
+- [Rust 中的内存映射 I/O](https://docs.rs/memmap2)
+- [写时复制数据结构](https://en.wikipedia.org/wiki/Copy-on-write)
+- ADR-002：RuVector RVF 集成策略

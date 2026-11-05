@@ -1,53 +1,53 @@
-# ADR-006: GNN-Enhanced CSI Pattern Recognition
+# ADR-006：GNN 增强的 CSI 模式识别
 
-## Status
-Partially realized in [ADR-023](ADR-023-trained-densepose-model-ruvector-pipeline.md); extended by [ADR-027](ADR-027-cross-environment-domain-generalization.md)
+## 状态
+部分在 [ADR-023](ADR-023-trained-densepose-model-ruvector-pipeline.md) 中落地；由 [ADR-027](ADR-027-cross-environment-domain-generalization.md) 扩展
 
-> **Note:** ADR-023 implements a 2-layer GCN on the COCO skeleton graph for spatial reasoning. ADR-027 (MERIDIAN) adds domain-adversarial regularization via a gradient reversal layer that forces the GCN to learn environment-invariant graph features, shedding room-specific multipath patterns.
+> **说明：** ADR-023 在 COCO 骨架图上实现了 2 层 GCN 用于空间推理。ADR-027（MERIDIAN）通过梯度反转层加入领域对抗正则，迫使 GCN 学到与环境无关的图特征，剥离房间特有的多径模式。
 
-## Date
+## 日期
 2026-02-28
 
-## Context
+## 背景
 
-### Limitations of Independent Vector Search
+### 独立向量检索的局限
 
-ADR-004 introduces HNSW-based similarity search for CSI pattern matching. While HNSW provides fast nearest-neighbor retrieval, it treats each vector independently. CSI patterns, however, have rich relational structure:
+ADR-004 引入了基于 HNSW 的相似度检索来匹配 CSI 模式。HNSW 的最近邻检索很快，但它把每个向量当作彼此独立。而 CSI 模式本身有丰富的关联结构：
 
-1. **Temporal adjacency**: CSI frames captured 10ms apart are more related than frames 10s apart. Sequential patterns reveal motion trajectories.
+1. **时间相邻**：相隔 10ms 采集的 CSI 帧，比相隔 10s 的帧关联更强，连续模式能反映运动轨迹。
 
-2. **Spatial correlation**: CSI readings from adjacent subcarriers are highly correlated due to frequency proximity. Antenna pairs capture different spatial perspectives.
+2. **空间相关**：相邻子载波的 CSI 读数因频率接近而高度相关，不同天线对则捕捉到不同的空间视角。
 
-3. **Cross-session similarity**: The "walking to kitchen" pattern from Tuesday should inform Wednesday's recognition, but the environment baseline may have shifted.
+3. **跨会话相似**：周二记录到的「走向厨房」模式应当有助于周三的识别，但环境基线可能已经变了。
 
-4. **Multi-person entanglement**: When multiple people are present, CSI patterns are superpositions. Disentangling requires understanding which pattern fragments co-occur.
+4. **多人混叠**：多人在场时，CSI 模式是叠加结果，要解耦就得理解哪些模式片段会共同出现。
 
-Standard HNSW cannot capture these relationships. Each query returns neighbors based solely on vector distance, ignoring the graph structure of how patterns relate to each other.
+标准 HNSW 无法表达这些关系。每次查询只按向量距离返回邻居，忽略了模式之间如何关联的图结构。
 
-### RuVector's GNN Enhancement
+### RuVector 的 GNN 增强
 
-RuVector implements a Graph Neural Network layer that sits on top of the HNSW index:
+RuVector 在 HNSW 索引之上实现了一层图神经网络（GNN）：
 
 ```
 Standard HNSW: Query → Distance-based neighbors → Results
 GNN-Enhanced:  Query → Distance-based neighbors → GNN refinement → Improved results
 ```
 
-The GNN performs three operations in <1ms:
-1. **Message passing**: Each node aggregates information from its HNSW neighbors
-2. **Attention weighting**: Multi-head attention identifies which neighbors are most relevant for the current query context
-3. **Representation update**: Node embeddings are refined based on neighborhood context
+GNN 在 <1ms 内完成三步操作：
+1. **消息传递**：每个节点聚合其 HNSW 邻居的信息
+2. **注意力加权**：多头注意力判断在当前查询语境下哪些邻居最相关
+3. **表示更新**：根据邻域上下文细化节点嵌入
 
-Additionally, **temporal learning** tracks query sequences to discover:
-- Vectors that frequently appear together in sessions
-- Temporal ordering patterns (A usually precedes B)
-- Session context that changes relevance rankings
+此外，**时序学习**会跟踪查询序列，用于发现：
+- 会话中经常一起出现的向量
+- 时序先后模式（A 通常先于 B 出现）
+- 会改变相关性排序的会话上下文
 
-## Decision
+## 决策
 
-We will integrate RuVector's GNN layer to enhance CSI pattern recognition with three core capabilities: relational search, temporal sequence modeling, and multi-person disentanglement.
+我们将集成 RuVector 的 GNN 层，用关系检索、时序序列建模、多人解耦三项核心能力增强 CSI 模式识别。
 
-### GNN Architecture for CSI
+### 面向 CSI 的 GNN 架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -87,126 +87,126 @@ We will integrate RuVector's GNN layer to enhance CSI pattern recognition with t
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Three Integration Modes
+### 三种集成模式
 
-#### Mode 1: Query-Time Refinement (Default)
+#### 模式 1：查询时精化（默认）
 
-GNN refines HNSW results after retrieval. No modifications to stored vectors.
+GNN 在检索之后精化 HNSW 结果，不改动已存储的向量。
 
 ```rust
 pub struct GnnQueryRefiner {
-    /// GNN weights (small: ~50K parameters)
+    /// GNN 权重（很小：约 5 万参数）
     gnn_weights: GnnModel,
 
-    /// Number of message passing rounds
+    /// 消息传递轮数
     num_rounds: usize,  // 2
 
-    /// Attention heads for neighbor weighting
+    /// 用于邻居加权的注意力头数
     num_heads: usize,  // 4
 
-    /// How many HNSW neighbors to consider in GNN
+    /// GNN 考虑多少个 HNSW 邻居
     neighborhood_size: usize,  // 20 (retrieve 20, GNN selects best 5)
 }
 
 impl GnnQueryRefiner {
-    /// Refine HNSW results using graph context
+    /// 用图上下文精化 HNSW 结果
     pub fn refine(&self, query: &[f32], hnsw_results: &[SearchResult]) -> Vec<SearchResult> {
-        // Build local subgraph from query + HNSW results
+        // 由查询与 HNSW 结果构建局部子图
         let subgraph = self.build_local_subgraph(query, hnsw_results);
 
-        // Run message passing
+        // 运行消息传递
         let refined = self.message_pass(&subgraph, self.num_rounds);
 
-        // Re-rank based on refined representations
+        // 按细化后的表示重新排序
         self.rerank(query, &refined)
     }
 }
 ```
 
-**Latency**: +0.2ms on top of HNSW search (total <1.5ms for 100K vectors).
+**时延**：在 HNSW 检索之上增加 0.2ms（10 万向量下合计 <1.5ms）。
 
-#### Mode 2: Temporal Sequence Recognition
+#### 模式 2：时序序列识别
 
-Tracks CSI vector sequences to recognize activity patterns that span multiple frames:
+跟踪 CSI 向量序列，识别跨多帧的活动模式：
 
 ```rust
-/// Temporal pattern recognizer using GNN edges
+/// 基于 GNN 边的时序模式识别器
 pub struct TemporalPatternRecognizer {
-    /// Sliding window of recent query vectors
+    /// 近期查询向量的滑动窗口
     window: VecDeque<TimestampedVector>,
 
-    /// Maximum window size (in frames)
+    /// 窗口上限（按帧计）
     max_window: usize,  // 100 (10 seconds at 10 Hz)
 
-    /// Temporal edge decay factor
+    /// 时序边衰减因子
     decay: f64,  // 0.95 (edges weaken with time)
 
-    /// Known activity sequences (learned from data)
+    /// 已知活动序列（从数据中学得）
     activity_templates: HashMap<String, Vec<Vec<f32>>>,
 }
 
 impl TemporalPatternRecognizer {
-    /// Feed new CSI vector and check for activity pattern matches
+    /// 输入新的 CSI 向量并检查是否匹配活动模式
     pub fn observe(&mut self, vector: &[f32], timestamp: f64) -> Vec<ActivityMatch> {
         self.window.push_back(TimestampedVector { vector: vector.to_vec(), timestamp });
 
-        // Build temporal subgraph from window
+        // 由窗口构建时序子图
         let temporal_graph = self.build_temporal_graph();
 
-        // GNN aggregates temporal context
+        // GNN 聚合时序上下文
         let sequence_embedding = self.gnn_aggregate(&temporal_graph);
 
-        // Match against known activity templates
+        // 与已知活动模板匹配
         self.match_activities(&sequence_embedding)
     }
 }
 ```
 
-**Activity patterns detectable**:
+**可识别的活动模式**：
 
-| Activity | Frames Needed | CSI Signature |
+| 活动 | 所需帧数 | CSI 特征 |
 |----------|--------------|---------------|
-| Walking | 10-30 | Periodic Doppler oscillation |
-| Falling | 5-15 | Sharp amplitude spike → stillness |
-| Sitting down | 10-20 | Gradual descent in reflection height |
-| Breathing (still) | 30-100 | Micro-periodic phase variation |
-| Gesture (wave) | 5-15 | Localized high-frequency amplitude variation |
+| 行走 | 10-30 | 周期性多普勒振荡 |
+| 跌倒 | 5-15 | 幅度骤升后归于静止 |
+| 坐下 | 10-20 | 反射高度逐渐下降 |
+| 呼吸（静止） | 30-100 | 微周期性相位变化 |
+| 手势（挥手） | 5-15 | 局部高频幅度变化 |
 
-#### Mode 3: Multi-Person Disentanglement
+#### 模式 3：多人解耦
 
-When N>1 people are present, CSI is a superposition. The GNN learns to cluster pattern fragments:
+当在场人数 N>1 时，CSI 是叠加信号。GNN 学习把模式片段聚类开：
 
 ```rust
-/// Multi-person CSI disentanglement using GNN clustering
+/// 用 GNN 聚类做多人 CSI 解耦
 pub struct MultiPersonDisentangler {
-    /// Maximum expected simultaneous persons
+    /// 预期的最大同时在场人数
     max_persons: usize,  // 10
 
-    /// GNN-based spectral clustering
+    /// 基于 GNN 的谱聚类
     cluster_gnn: GnnModel,
 
-    /// Per-person tracking state
+    /// 每人的跟踪状态
     person_tracks: Vec<PersonTrack>,
 }
 
 impl MultiPersonDisentangler {
-    /// Separate CSI features into per-person components
+    /// 把 CSI 特征拆成按人划分的分量
     pub fn disentangle(&mut self, features: &CsiFeatures) -> Vec<PersonFeatures> {
-        // Decompose CSI into subcarrier groups using GNN attention
+        // 用 GNN 注意力把 CSI 分解成子载波组
         let subcarrier_graph = self.build_subcarrier_graph(features);
 
-        // GNN clusters subcarriers by person contribution
+        // GNN 按各人贡献对子载波聚类
         let clusters = self.cluster_gnn.cluster(&subcarrier_graph, self.max_persons);
 
-        // Extract per-person features from clustered subcarriers
+        // 从聚类后的子载波中提取每人的特征
         clusters.iter().map(|c| self.extract_person_features(features, c)).collect()
     }
 }
 ```
 
-### GNN Learning Loop
+### GNN 学习闭环
 
-The GNN improves with every query through RuVector's built-in learning:
+借助 RuVector 内置的学习机制，GNN 会在每次查询后改进：
 
 ```
 Query → HNSW retrieval → GNN refinement → User action (click/confirm/reject)
@@ -218,46 +218,46 @@ Query → HNSW retrieval → GNN refinement → User action (click/confirm/rejec
                                     3. Temporal: successful sequences reinforce edges
 ```
 
-For WiFi-DensePose, "user action" is replaced by:
-- **Temporal consistency**: If frame N+1 confirms frame N's detection, reinforce
-- **Multi-AP agreement**: If two APs agree on detection, reinforce both
-- **Physical plausibility**: If pose satisfies skeletal constraints, reinforce
+在 WiFi-DensePose 中，「用户动作」被替换为：
+- **时间一致性**：若第 N+1 帧印证了第 N 帧的检测结果，则强化
+- **多 AP 一致**：若两个 AP 的检测结果一致，则同时强化
+- **物理合理性**：若姿态满足骨骼约束，则强化
 
-### Performance Budget
+### 性能预算
 
-| Component | Parameters | Memory | Latency (per query) |
+| 组件 | 参数量 | 内存 | 时延（每次查询） |
 |-----------|-----------|--------|-------------------|
-| GNN weights (2 layers, 4 heads) | 52K | 208 KB | 0.15 ms |
-| Temporal graph (100-frame window) | N/A | ~130 KB | 0.05 ms |
-| Multi-person clustering | 18K | 72 KB | 0.3 ms |
-| **Total GNN overhead** | **70K** | **410 KB** | **0.5 ms** |
+| GNN 权重（2 层、4 头） | 52K | 208 KB | 0.15 ms |
+| 时序图（100 帧窗口） | 不适用 | ~130 KB | 0.05 ms |
+| 多人聚类 | 18K | 72 KB | 0.3 ms |
+| **GNN 开销合计** | **70K** | **410 KB** | **0.5 ms** |
 
-## Consequences
+## 影响
 
-### Positive
-- **Context-aware search**: Results account for temporal and spatial relationships, not just vector distance
-- **Activity recognition**: Temporal GNN enables sequence-level pattern matching
-- **Multi-person support**: GNN clustering separates overlapping CSI patterns
-- **Self-improving**: Every query provides learning signal to refine attention weights
-- **Lightweight**: 70K parameters, 410 KB memory, 0.5ms latency overhead
+### 正面影响
+- **上下文感知检索**：结果会考虑时间与空间关系，而不只是向量距离
+- **活动识别**：时序 GNN 支持序列级模式匹配
+- **多人支持**：GNN 聚类可分离相互叠加的 CSI 模式
+- **自我改进**：每次查询都提供学习信号来细化注意力权重
+- **轻量**：7 万参数、410 KB 内存、0.5ms 时延开销
 
-### Negative
-- **Training data needed**: GNN weights require initial training on CSI pattern graphs
-- **Complexity**: Three modes increase testing and debugging surface
-- **Graph maintenance**: Temporal edges must be pruned to prevent unbounded growth
-- **Approximation**: GNN clustering for multi-person is approximate; may merge/split incorrectly
+### 负面影响
+- **需要训练数据**：GNN 权重需要先用 CSI 模式图做初始训练
+- **复杂度**：三种模式扩大了测试与调试面
+- **图维护**：时序边必须定期剪枝，否则会无限增长
+- **近似性**：多人场景的 GNN 聚类是近似的，可能错误合并或拆分
 
-### Interaction with Other ADRs
-- **ADR-004** (HNSW): GNN operates on HNSW graph structure; depends on HNSW being available
-- **ADR-005** (SONA): GNN weights can be adapted via SONA LoRA for environment-specific tuning
-- **ADR-003** (RVF): GNN weights stored in model container alongside inference weights
-- **ADR-010** (Witness): GNN weight updates recorded in witness chain
+### 与其它 ADR 的关系
+- **ADR-004**（HNSW）：GNN 运行在 HNSW 图结构之上，依赖 HNSW 可用
+- **ADR-005**（SONA）：GNN 权重可通过 SONA LoRA 适配，做环境专属调优
+- **ADR-003**（RVF）：GNN 权重与推理权重一起存放在模型容器中
+- **ADR-010**（Witness）：GNN 权重更新会记入见证链
 
-## References
+## 参考资料
 
 - [Graph Attention Networks (GAT)](https://arxiv.org/abs/1710.10903)
 - [Temporal Graph Networks](https://arxiv.org/abs/2006.10637)
 - [Spectral Clustering with Graph Neural Networks](https://arxiv.org/abs/1907.00481)
 - [WiFi-based Multi-Person Sensing](https://dl.acm.org/doi/10.1145/3534592)
 - [RuVector GNN Implementation](https://github.com/ruvnet/ruvector)
-- ADR-004: HNSW Vector Search for Signal Fingerprinting
+- ADR-004：用于信号指纹的 HNSW 向量检索

@@ -1,39 +1,39 @@
-# ADR-001: WiFi-Mat Disaster Detection Architecture
+# ADR-001：WiFi-Mat 灾害检测架构
 
-## Status
+## 状态
 Accepted
 
-## Date
+## 日期
 2026-01-13
 
-## Context
+## 背景
 
-Natural disasters such as earthquakes, building collapses, avalanches, and floods trap victims under rubble or debris. Traditional search and rescue methods using visual inspection, thermal cameras, or acoustic devices have significant limitations:
+地震、建筑倒塌、雪崩、洪水等自然灾害会把受困人员压在瓦砾或废墟之下。传统的目视检查、热成像仪、声学设备搜救方式存在明显局限：
 
-- **Visual/Optical**: Cannot penetrate rubble, debris, or collapsed structures
-- **Thermal**: Limited penetration depth, affected by ambient temperature
-- **Acoustic**: Requires victim to make sounds, high false positive rate
-- **K9 Units**: Limited availability, fatigue, environmental hazards
+- **视觉/光学**：无法穿透瓦砾、碎石或坍塌结构
+- **热成像**：穿透深度有限，且受环境温度影响
+- **声学**：需要受困者发出声音，误报率高
+- **搜救犬**：数量有限、易疲劳，现场环境还有危险
 
-WiFi-based sensing offers a unique advantage: **RF signals can penetrate non-metallic debris** (concrete, wood, drywall) and detect subtle human movements including breathing patterns and heartbeats through Channel State Information (CSI) analysis.
+基于 WiFi 的感知具备独特优势：**射频信号可以穿透非金属废墟**（混凝土、木材、石膏板），并能通过信道状态信息（CSI）分析检测到包括呼吸节律和心跳在内的细微人体动作。
 
-### Problem Statement
+### 问题陈述
 
-We need a modular extension to the WiFi-DensePose Rust implementation that:
+我们需要为 WiFi-DensePose 的 Rust 实现增加一个模块化扩展，使其能够：
 
-1. Detects human presence in disaster scenarios with high sensitivity
-2. Localizes survivors within rubble/debris fields
-3. Classifies victim status (conscious movement, breathing only, critical)
-4. Provides real-time alerts to rescue teams
-5. Operates in degraded/field conditions with portable hardware
+1. 在灾害场景中以高灵敏度检测人体存在
+2. 在瓦砾/废墟区域内定位幸存者
+3. 判定受困者状态（有意识活动、仅有呼吸、危重）
+4. 向救援队提供实时告警
+5. 在条件恶劣的野外环境中依托便携硬件运行
 
-## Decision
+## 决策
 
-We will create a new crate `wifi-densepose-mat` (Mass Casualty Assessment Tool) as a modular addition to the existing Rust workspace with the following architecture:
+我们将新建一个 crate `wifi-densepose-mat`（大规模伤亡评估工具），作为现有 Rust workspace 的模块化扩展，架构如下：
 
-### 1. Domain-Driven Design (DDD) Approach
+### 1. 领域驱动设计（DDD）方法
 
-The module follows DDD principles with clear bounded contexts:
+该模块遵循 DDD 原则，划分出清晰的限界上下文：
 
 ```
 wifi-densepose-mat/
@@ -61,14 +61,14 @@ wifi-densepose-mat/
 │       └── nn_adapter.rs      # Adapts wifi-densepose-nn
 ```
 
-### 2. Core Architectural Decisions
+### 2. 核心架构决策
 
-#### 2.1 Event-Driven Architecture
-- All survivor detections emit domain events
-- Events enable audit trails and replay for post-incident analysis
-- Supports distributed deployments with multiple scan teams
+#### 2.1 事件驱动架构
+- 所有幸存者检测结果都会发出领域事件
+- 事件支持审计追踪与事后复盘重放
+- 支持多支扫描队协同的分布式部署
 
-#### 2.2 Configurable Detection Pipeline
+#### 2.2 可配置的检测流水线
 ```rust
 pub struct DetectionPipeline {
     breathing_detector: BreathingDetector,
@@ -78,24 +78,24 @@ pub struct DetectionPipeline {
 }
 ```
 
-#### 2.3 Triage Classification (START Protocol Compatible)
-| Status | Detection Criteria | Priority |
+#### 2.3 分诊分类（兼容 START 协议）
+| 状态 | 判定条件 | 优先级 |
 |--------|-------------------|----------|
-| Immediate (Red) | Breathing detected, no movement | P1 |
-| Delayed (Yellow) | Movement + breathing, stable vitals | P2 |
-| Minor (Green) | Strong movement, responsive patterns | P3 |
-| Deceased (Black) | No vitals for >30 minutes continuous scan | P4 |
+| 立即处置（红） | 检测到呼吸，无活动 | P1 |
+| 延迟处置（黄） | 有活动且有呼吸，生命体征平稳 | P2 |
+| 轻伤（绿） | 活动有力，有响应性动作模式 | P3 |
+| 死亡（黑） | 连续扫描 >30 分钟无任何生命体征 | P4 |
 
-#### 2.4 Hardware Abstraction
-Supports multiple deployment scenarios:
-- **Portable**: Single TX/RX with handheld device
-- **Distributed**: Multiple APs deployed around collapse site
-- **Drone-mounted**: UAV-based scanning for large areas
-- **Vehicle-mounted**: Mobile command post with array
+#### 2.4 硬件抽象
+支持多种部署场景：
+- **便携式**：单个 TX/RX 配手持设备
+- **分布式**：在坍塌现场周围部署多个 AP
+- **无人机载**：基于 UAV 的大范围扫描
+- **车载**：移动指挥所配天线阵列
 
-### 3. Integration Strategy
+### 3. 集成策略
 
-The module integrates with existing crates through adapters:
+该模块通过适配器与现有 crate 集成：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -123,49 +123,49 @@ The module integrates with existing crates through adapters:
 └───────────────┘  └───────────────┘  └───────────────┘
 ```
 
-### 4. Performance Requirements
+### 4. 性能要求
 
-| Metric | Target | Rationale |
+| 指标 | 目标 | 依据 |
 |--------|--------|-----------|
-| Detection Latency | <500ms | Real-time feedback for rescuers |
-| False Positive Rate | <5% | Minimize wasted rescue efforts |
-| False Negative Rate | <1% | Cannot miss survivors |
-| Penetration Depth | 3-5m | Typical rubble pile depth |
-| Battery Life (portable) | >8 hours | Full shift operation |
-| Concurrent Zones | 16+ | Large disaster site coverage |
+| 检测时延 | <500ms | 为救援人员提供实时反馈 |
+| 误报率 | <5% | 减少无效救援投入 |
+| 漏报率 | <1% | 不能漏掉幸存者 |
+| 穿透深度 | 3-5m | 典型瓦砾堆深度 |
+| 电池续航（便携式） | >8 小时 | 满足一个完整班次 |
+| 并发区域数 | 16+ | 覆盖大型灾害现场 |
 
-### 5. Safety and Reliability
+### 5. 安全与可靠性
 
-- **Fail-safe defaults**: Always assume life present on ambiguous signals
-- **Redundant detection**: Multiple algorithms vote on presence
-- **Continuous monitoring**: Re-scan zones periodically
-- **Offline operation**: Full functionality without network
-- **Audit logging**: Complete trace of all detections
+- **失效安全默认值**：信号不明确时一律假定有生命存在
+- **冗余检测**：多个算法对「有人」结果投票
+- **持续监测**：周期性重扫各区域
+- **离线运行**：无网络时功能完整
+- **审计日志**：完整记录每一次检测
 
-## Consequences
+## 影响
 
-### Positive
-- Modular design allows independent development and testing
-- DDD ensures domain experts can validate logic
-- Event-driven enables distributed deployments
-- Adapters isolate from upstream changes
-- Compatible with existing WiFi-DensePose infrastructure
+### 正面影响
+- 模块化设计便于独立开发与测试
+- DDD 让领域专家能够校验业务逻辑
+- 事件驱动支持分布式部署
+- 适配器隔离上游变更带来的影响
+- 与现有 WiFi-DensePose 基础设施兼容
 
-### Negative
-- Additional complexity from event system
-- Learning curve for rescue teams
-- Requires calibration for different debris types
-- RF interference in disaster zones
+### 负面影响
+- 事件系统带来额外复杂度
+- 救援队需要学习成本
+- 不同废墟类型需要分别标定
+- 灾害现场存在射频干扰
 
-### Risks and Mitigations
-| Risk | Mitigation |
+### 风险与缓解措施
+| 风险 | 缓解措施 |
 |------|------------|
-| Metal debris blocking signals | Multi-angle scanning, adaptive frequency |
-| Environmental RF interference | Spectral sensing, frequency hopping |
-| False positives from animals | Size/pattern classification |
-| Power constraints in field | Low-power modes, solar charging |
+| 金属废墟遮挡信号 | 多角度扫描、自适应频率 |
+| 环境射频干扰 | 频谱感知、跳频 |
+| 动物造成误报 | 按体型/动作模式分类 |
+| 现场供电受限 | 低功耗模式、太阳能充电 |
 
-## References
+## 参考资料
 
 - [WiFi-based Vital Signs Monitoring](https://dl.acm.org/doi/10.1145/3130944)
 - [Through-Wall Human Sensing](https://ieeexplore.ieee.org/document/8645344)
