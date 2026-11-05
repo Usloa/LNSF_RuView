@@ -1,59 +1,59 @@
-# ADR-296: Sensor data-plane hardening — UDP bind control and source allowlist (step one)
+# ADR-296：传感器数据面加固 —— UDP 绑定控制与来源允许列表（第一步）
 
-- **Status**: Accepted — initial implementation (this PR)
-- **Date**: 2026-08-11
-- **Deciders**: ruv
-- **Tags**: security, udp, sensor-ingest, sensing-server
+- **状态**：Accepted — initial implementation (this PR)
+- **日期**：2026-08-11
+- **决策者**：ruv
+- **标签**：security（安全）、udp、sensor-ingest（传感器接入）、sensing-server（感知服务器）
 
-## Context
+## 背景
 
-The CSI UDP receiver binds `0.0.0.0:{udp_port}` unconditionally
-(`main.rs:5706`), with no equivalent of the HTTP `--bind-addr` flag (which
-correctly defaults to `127.0.0.1`), no source allowlist, no message
-authentication, no device identity, and no replay defense. Any host that can
-reach the UDP port can inject a valid-shaped frame, flip an auto-detecting
-server into a live source state, and influence presence/vital/automation
-outputs (issue 1394).
+CSI UDP 接收端无条件地把套接字绑定到 `0.0.0.0:{udp_port}`
+（`main.rs:5706`），且没有与 HTTP `--bind-addr` 标志（其
+正确默认值为 `127.0.0.1`）等效的机制，也没有来源允许列表、没有消息
+认证、没有设备标识、没有重放防御。任何能
+到达 UDP 端口的主机都可注入一个合法形状的帧，把自动探测的
+服务器翻转为 live 来源状态，并影响 presence/vital/自动化
+输出（issue 1394）。
 
-An IP allowlist does not stop LAN spoofing, but bind control plus an allowlist
-is the correct, shippable first step; per-device keys + authenticated
-encryption + monotonic sequence + freshness window + replay rejection is the
-full fix and is larger.
+IP 允许列表无法阻止 LAN 欺骗，但绑定控制加上允许列表
+是正确且可交付的第一步；按设备密钥 + 认证
+加密 + 单调递增序列 + 新鲜度窗口 + 重放拒绝，才是
+完整的修复，且工作量更大。
 
-## Decision
+## 决策
 
-**This PR (step one):**
+**本 PR（第一步）：**
 
-- Add `--udp-bind` (env `RUVIEW_UDP_BIND`), **defaulting to `127.0.0.1`**.
-  Binding to a routable address is now an explicit operator choice, mirroring
-  the HTTP path. Desktop/appliance defaults stay loopback.
-- Add an optional source IP/CIDR allowlist (`--udp-allow`); when set, frames
-  from other sources are dropped and counted. Loopback is always allowed.
-- Emit a startup security log line stating the bind scope and whether an
-  allowlist is active; refuse a routable bind without an allowlist unless an
-  explicit `--udp-insecure-lan` override is passed (parallel to the existing
-  Docker HTTP refusal).
-- Publish a `SECURITY.md`/advisory note describing the threat model and safe
-  deployment.
+- 新增 `--udp-bind`（环境变量 `RUVIEW_UDP_BIND`），**默认值为 `127.0.0.1`**。
+  绑定到可路由地址现已成为操作员的显式选择，与
+  HTTP 路径一致。桌面/设备默认仍为回环。
+- 新增可选的源 IP/CIDR 允许列表（`--udp-allow`）；一旦设置，来自
+  其它来源的帧会被丢弃并计数。回环地址始终被允许。
+- 在启动时输出一条安全日志，说明绑定范围以及是否
+  启用了允许列表；若没有允许列表却绑定到可路由地址，则拒绝，除非
+  传入显式的 `--udp-insecure-lan` 覆盖标志（与现有的
+  Docker HTTP 拒绝行为一致）。
+- 发布一份 `SECURITY.md`/公告说明威胁模型与安全
+  部署方式。
 
-**Explicitly deferred to a follow-up ADR (step two):** per-device provisioned
-keys, MAC/AEAD, device identifiers, monotonic sequence numbers, freshness
-window, and replay rejection. This ADR documents that gap rather than
-implying the data plane is authenticated.
+**明确推迟到后续 ADR（第二步）：** 按设备预置的
+密钥、MAC/AEAD、设备标识符、单调递增序列号、新鲜度
+窗口，以及重放拒绝。本 ADR 记录这一缺口，而非
+暗示数据面已被认证。
 
-## Consequences
+## 后果
 
-- Removes the default open-to-LAN exposure with a one-line-safe default.
-- Not spoof-proof on a trusted LAN — the advisory says so plainly, and the
-  override name (`--udp-insecure-lan`) makes the residual risk legible.
-- A behavior change for anyone relying on the old implicit `0.0.0.0` default;
-  called out in the changelog and the startup log.
+- 用一行即可生效的安全默认值，消除了默认向 LAN 暴露的问题。
+- 在可信 LAN 上并非防欺骗——公告已直白说明，且
+  覆盖标志名（`--udp-insecure-lan`）让残余风险清晰可见。
+- 对任何依赖旧的隐式 `0.0.0.0` 默认值的人而言是一次行为变更；
+  已在变更日志与启动日志中说明。
 
-## Validation
+## 验证
 
-- Unit tests: default bind is loopback; routable bind without allowlist is
-  refused unless overridden; allowlist accept/drop with counting; loopback
-  always allowed.
-- `cargo test -p wifi-densepose-sensing-server`.
-- Real-silicon validation of the LAN path remains required before any
-  deployment claim.
+- 单元测试：默认绑定为回环；没有允许列表时的可路由绑定会
+  被拒绝，除非显式覆盖；允许列表的接收/丢弃均计入；回环
+  始终被允许。
+- 运行：`cargo test -p wifi-densepose-sensing-server`。
+- 在做出任何
+  部署声明之前，仍需对 LAN 路径做真实硬件验证。
