@@ -1,81 +1,81 @@
-# ADR-026: Survivor Track Lifecycle Management for MAT Crate
+# ADR-026：MAT crate 的幸存者轨迹生命周期管理
 
-**Status:** Accepted
-**Date:** 2026-03-01
-**Deciders:** WiFi-DensePose Core Team
-**Domain:** MAT (Mass Casualty Assessment Tool) — `wifi-densepose-mat`
-**Supersedes:** None
-**Related:** ADR-001 (WiFi-MAT disaster detection), ADR-017 (ruvector signal/MAT integration)
+**状态：** Accepted
+**日期：** 2026-03-01
+**决策者：** WiFi-DensePose 核心团队
+**领域：** MAT（大规模伤亡评估工具）—— `wifi-densepose-mat`
+**取代：** 无
+**关联：** ADR-001（WiFi-MAT 灾害检测）、ADR-017（ruvector 信号/MAT 集成）
 
 ---
 
-## Context
+## 背景
 
-The MAT crate's `Survivor` entity has `SurvivorStatus` states
-(`Active / Rescued / Lost / Deceased / FalsePositive`) and `is_stale()` /
-`mark_lost()` methods, but these are insufficient for real operational use:
+MAT crate 的 `Survivor` 实体已有 `SurvivorStatus` 状态
+（`Active / Rescued / Lost / Deceased / FalsePositive`）以及 `is_stale()` /
+`mark_lost()` 方法，但这些都不足以支撑实际作业使用：
 
-1. **Manually driven state transitions** — no controller automatically fires
-   `mark_lost()` when signal drops for N consecutive frames, nor re-activates
-   a survivor when signal reappears.
+1. **状态转换靠人工驱动** — 没有控制器会自动在信号连续 N 帧
+   掉线时触发 `mark_lost()`，也不会在信号重新出现时把
+   幸存者重新激活。
 
-2. **Frame-local assignment only** — `DynamicPersonMatcher` (metrics.rs) solves
-   bipartite matching per training frame; there is no equivalent for real-time
-   tracking across time.
+2. **仅做帧内关联** — `DynamicPersonMatcher`（metrics.rs）只解决
+   单个训练帧内的二分图匹配；没有等价机制可用于跨时间的
+   实时跟踪。
 
-3. **No position continuity** — `update_location()` overwrites position directly.
-   Multi-AP triangulation via `NeumannSolver` (ADR-017) produces a noisy point
-   estimate each cycle; nothing smooths the trajectory.
+3. **没有位置连续性** — `update_location()` 直接覆写位置。
+   通过 `NeumannSolver`（ADR-017）做多 AP 三角定位，每个周期都会给出
+   带噪声的点估计；没有任何环节平滑轨迹。
 
-4. **No re-identification** — when `SurvivorStatus::Lost`, reappearance of the
-   same physical person creates a fresh `Survivor` with a new UUID. Vital-sign
-   history is lost and survivor count is inflated.
+4. **没有重识别** — 当状态为 `SurvivorStatus::Lost` 时，同一
+   个人再次出现会新建一个带新 UUID 的 `Survivor`。生命体征
+   历史随之丢失，幸存者计数也被虚增。
 
-### Operational Impact in Disaster SAR
+### 灾害搜救中的作业影响
 
-| Gap | Consequence |
+| 缺口 | 后果 |
 |-----|-------------|
-| No auto `mark_lost()` | Stale `Active` survivors persist indefinitely |
-| No re-ID | Duplicate entries per signal dropout; incorrect triage workload |
-| No position filter | Rescue teams see jumpy, noisy location updates |
-| No birth gate | Single spurious CSI spike creates a permanent survivor record |
+| 没有自动 `mark_lost()` | 过期的 `Active` 幸存者会一直留存 |
+| 没有重识别 | 每次信号掉线都产生重复条目；检伤分类工作量失真 |
+| 没有位置滤波 | 救援队看到的位置更新跳变、噪声大 |
+| 没有出生门控 | 单次虚假 CSI 尖峰就会生成永久幸存者记录 |
 
 ---
 
-## Decision
+## 决策
 
-Add a **`tracking` bounded context** within `wifi-densepose-mat` at
-`src/tracking/`, implementing three collaborating components:
+在 `wifi-densepose-mat` 中新增一个 **`tracking` 限界上下文**，位置在
+`src/tracking/`，实现三个相互协作的组件：
 
-### 1. Kalman Filter — Constant-Velocity 3-D Model (`kalman.rs`)
+### 1. 卡尔曼滤波 — 恒速 3-D 模型（`kalman.rs`）
 
-State vector `x = [px, py, pz, vx, vy, vz]` (position + velocity in metres / m·s⁻¹).
+状态向量 `x = [px, py, pz, vx, vy, vz]`（位置 + 速度，单位米 / m·s⁻¹）。
 
-| Parameter | Value | Rationale |
+| 参数 | 值 | 理由 |
 |-----------|-------|-----------|
-| Process noise σ_a | 0.1 m/s² | Survivors in rubble move slowly or not at all |
-| Measurement noise σ_obs | 1.5 m | Typical indoor multi-AP WiFi accuracy |
-| Initial covariance P₀ | 10·I₆ | Large uncertainty until first update |
+| 过程噪声 σ_a | 0.1 m/s² | 废墟中的幸存者移动缓慢或根本不动 |
+| 观测噪声 σ_obs | 1.5 m | 室内多 AP WiFi 的典型精度 |
+| 初始协方差 P₀ | 10·I₆ | 首次更新前不确定性很大 |
 
-Provides **Mahalanobis gating** (threshold χ²(3 d.o.f.) = 9.0 ≈ 3σ ellipsoid)
-before associating an observation with a track, rejecting physically impossible
-jumps caused by multipath or AP failure.
+提供**马氏距离门控**（阈值 χ²(3 d.o.f.) = 9.0 ≈ 3σ 椭球），
+在把观测关联到轨迹之前先做筛选，剔除由多径或 AP 故障引起的
+物理上不可能的跳变。
 
-### 2. CSI Fingerprint Re-Identification (`fingerprint.rs`)
+### 2. CSI 指纹重识别（`fingerprint.rs`）
 
-Features extracted from `VitalSignsReading` and last-known `Coordinates3D`:
+从 `VitalSignsReading` 与最后已知的 `Coordinates3D` 中提取特征：
 
-| Feature | Weight | Notes |
+| 特征 | 权重 | 说明 |
 |---------|--------|-------|
-| `breathing_rate_bpm` | 0.40 | Most stable biometric across short gaps |
-| `breathing_amplitude` | 0.25 | Varies with debris depth |
-| `heartbeat_rate_bpm` | 0.20 | Optional; available from `HeartbeatDetector` |
-| `location_hint [x,y,z]` | 0.15 | Last known position before loss |
+| `breathing_rate_bpm` | 0.40 | 短时中断期间最稳定的生物特征 |
+| `breathing_amplitude` | 0.25 | 随废墟埋深变化 |
+| `heartbeat_rate_bpm` | 0.20 | 可选；由 `HeartbeatDetector` 提供 |
+| `location_hint [x,y,z]` | 0.15 | 丢失前的最后已知位置 |
 
-Normalized weighted Euclidean distance. Re-ID fires when distance < 0.35 and
-the `Lost` track has not exceeded `max_lost_age_secs` (default 30 s).
+采用归一化加权欧氏距离。当距离 < 0.35 且 `Lost` 轨迹
+尚未超过 `max_lost_age_secs`（默认 30 s）时触发重识别。
 
-### 3. Track Lifecycle State Machine (`lifecycle.rs`)
+### 3. 轨迹生命周期状态机（`lifecycle.rs`）
 
 ```
          ┌────────────── birth observation ──────────────┐
@@ -87,16 +87,16 @@ the `Lost` track has not exceeded `max_lost_age_secs` (default 30 s).
                                     └── (manual) ──► [Rescued]└─(age > 30s)──► [Terminated]
 ```
 
-- **Tentative**: 2-hit confirmation gate prevents single-frame CSI spikes from
-  generating survivor records.
-- **Active**: normal tracking; updated each cycle.
-- **Lost**: Kalman predicts position; re-ID window open.
-- **Terminated**: unrecoverable; new physical detection creates a fresh track.
-- **Rescued**: operator-confirmed; metrics only.
+- **Tentative**：2 次命中确认门控可防止单帧 CSI 尖峰
+  生成幸存者记录。
+- **Active**：正常跟踪；每个周期更新。
+- **Lost**：由卡尔曼滤波预测位置；重识别窗口开启。
+- **Terminated**：不可恢复；新的物理检测会创建全新轨迹。
+- **Rescued**：由操作员确认；仅用于统计。
 
-### 4. `SurvivorTracker` Aggregate Root (`tracker.rs`)
+### 4. `SurvivorTracker` 聚合根（`tracker.rs`）
 
-Per-tick algorithm:
+每个 tick 的算法：
 
 ```
 update(observations, dt_secs):
@@ -111,9 +111,9 @@ update(observations, dt_secs):
 
 ---
 
-## Domain-Driven Design
+## 领域驱动设计
 
-### Bounded Context: `tracking`
+### 限界上下文：`tracking`
 
 ```
 tracking/
@@ -127,82 +127,82 @@ tracking/
                       AssociationResult value object
 ```
 
-### Integration with `DisasterResponse`
+### 与 `DisasterResponse` 的集成
 
-`DisasterResponse` gains a `SurvivorTracker` field. In `scan_cycle()`:
+`DisasterResponse` 新增一个 `SurvivorTracker` 字段。在 `scan_cycle()` 中：
 
-1. Detections from `DetectionPipeline` become `DetectionObservation`s.
-2. `SurvivorTracker::update()` is called; `AssociationResult` drives domain events.
-3. `DisasterResponse::survivors()` returns `active_tracks()` from the tracker.
+1. `DetectionPipeline` 的检测结果转换为 `DetectionObservation`。
+2. 调用 `SurvivorTracker::update()`；由 `AssociationResult` 驱动领域事件。
+3. `DisasterResponse::survivors()` 返回 tracker 的 `active_tracks()`。
 
-### New Domain Events
+### 新增领域事件
 
-`DomainEvent::Tracking(TrackingEvent)` variant added to `events.rs`:
+在 `events.rs` 中新增 `DomainEvent::Tracking(TrackingEvent)` 变体：
 
-| Event | Trigger |
+| 事件 | 触发条件 |
 |-------|---------|
-| `TrackBorn` | Tentative → Active (confirmed survivor) |
-| `TrackLost` | Active → Lost (signal dropout) |
-| `TrackReidentified` | Lost → Active (fingerprint match) |
-| `TrackTerminated` | Lost → Terminated (age exceeded) |
-| `TrackRescued` | Active → Rescued (operator action) |
+| `TrackBorn` | Tentative → Active（已确认幸存者）|
+| `TrackLost` | Active → Lost（信号掉线）|
+| `TrackReidentified` | Lost → Active（指纹匹配）|
+| `TrackTerminated` | Lost → Terminated（时长超限）|
+| `TrackRescued` | Active → Rescued（操作员操作）|
 
 ---
 
-## Consequences
+## 影响
 
-### Positive
+### 正面影响
 
-- **Eliminates duplicate survivor records** from signal dropout (estimated 60–80%
-  reduction in field tests with similar WiFi sensing systems).
-- **Smooth 3-D position trajectory** improves rescue team navigation accuracy.
-- **Vital-sign history preserved** across signal gaps ≤ 30 s.
-- **Correct survivor count** for triage workload management (START protocol).
-- **Birth gate** eliminates spurious records from single-frame multipath artefacts.
+- **消除信号掉线造成的重复幸存者记录**（在同类 WiFi 感知系统的现场测试中，
+  估计可减少 60–80%）。
+- **平滑的 3-D 位置轨迹**提升救援队的导航精度。
+- **生命体征历史得以保留**，可跨越 ≤ 30 s 的信号中断。
+- **幸存者计数准确**，便于检伤分类工作量管理（START 协议）。
+- **出生门控**消除单帧多径伪影造成的虚假记录。
 
-### Negative
+### 负面影响
 
-- Re-ID threshold (0.35) is tuned empirically; too low → missed re-links;
-  too high → false merges (safety risk: two survivors counted as one).
-- Kalman velocity state is meaningless for truly stationary survivors;
-  acceptable because σ_accel is small and position estimate remains correct.
-- Adds ~500 lines of tracking code to the MAT crate.
+- 重识别阈值（0.35）由经验调参；过低 → 漏掉重新关联；
+  过高 → 错误合并（安全风险：两名幸存者被算作一人）。
+- 对真正静止的幸存者，卡尔曼速度状态没有意义；
+  但 σ_accel 很小且位置估计仍然正确，因此可以接受。
+- 给 MAT crate 增加约 500 行跟踪代码。
 
-### Risk Mitigation
+### 风险缓解
 
-- **Conservative re-ID**: threshold 0.35 (not 0.5) — prefer new survivor record
-  over incorrect merge. Operators can manually merge via the API if needed.
-- **Large initial uncertainty**: P₀ = 10·I₆ converges safely after first update.
-- **`Terminated` is unrecoverable**: prevents runaway re-linking.
-- All thresholds exposed in `TrackerConfig` for operational tuning.
+- **保守的重识别**：阈值取 0.35（而非 0.5）— 宁可新建幸存者记录，
+  也不错误合并。必要时操作员可通过 API 手动合并。
+- **较大的初始不确定性**：P₀ = 10·I₆ 在首次更新后即可安全收敛。
+- **`Terminated` 不可恢复**：防止重关联失控。
+- 所有阈值都在 `TrackerConfig` 中开放，便于运行时调参。
 
 ---
 
-## Alternatives Considered
+## 考虑过的备选方案
 
-| Alternative | Rejected Because |
+| 备选方案 | 否决理由 |
 |-------------|-----------------|
-| **DeepSORT** (appearance embedding + Kalman) | Requires visual features; not applicable to WiFi CSI |
-| **Particle filter** | Better for nonlinear dynamics; overkill for slow-moving rubble survivors |
-| **Pure frame-local assignment** | Current state — insufficient; causes all described problems |
-| **IoU-based tracking** | Requires bounding boxes from camera; WiFi gives only positions |
+| **DeepSORT**（外观嵌入 + 卡尔曼）| 需要视觉特征；不适用于 WiFi CSI |
+| **粒子滤波** | 更适合非线性动力学；对缓慢移动的废墟幸存者属杀鸡用牛刀 |
+| **纯帧内关联** | 当前状态 — 不够用；会引发上述所有问题 |
+| **基于 IoU 的跟踪** | 需要摄像头给出边界框；WiFi 只提供位置 |
 
 ---
 
-## Implementation Notes
+## 实现说明
 
-- No new Cargo dependencies required; `ndarray` (already in mat `Cargo.toml`)
-  available if needed, but all Kalman math uses `[[f64; 6]; 6]` stack arrays.
-- Feature-gate not needed: tracking is always-on for the MAT crate.
-- `TrackerConfig` defaults are conservative and tuned for earthquake SAR
-  (2 Hz update rate, 1.5 m position uncertainty, 0.1 m/s² process noise).
+- 不需要新增 Cargo 依赖；`ndarray`（已在 mat 的 `Cargo.toml` 中）
+  可按需使用，但所有卡尔曼运算都用 `[[f64; 6]; 6]` 栈上数组。
+- 不需要 feature gate：tracking 对 MAT crate 始终开启。
+- `TrackerConfig` 的默认值偏保守，针对地震搜救调参
+  （2 Hz 更新率、1.5 m 位置不确定度、0.1 m/s² 过程噪声）。
 
 ---
 
-## References
+## 参考资料
 
-- Welch, G. & Bishop, G. (2006). *An Introduction to the Kalman Filter*.
-- Bewley et al. (2016). *Simple Online and Realtime Tracking (SORT)*. ICIP.
-- Wojke et al. (2017). *Simple Online and Realtime Tracking with a Deep Association Metric (DeepSORT)*. ICIP.
-- ADR-001: WiFi-MAT Disaster Detection Architecture
-- ADR-017: RuVector Signal and MAT Integration
+- Welch, G. 与 Bishop, G.（2006）。*An Introduction to the Kalman Filter*。
+- Bewley 等（2016）。*Simple Online and Realtime Tracking (SORT)*。ICIP。
+- Wojke 等（2017）。*Simple Online and Realtime Tracking with a Deep Association Metric (DeepSORT)*。ICIP。
+- ADR-001：WiFi-MAT 灾害检测架构
+- ADR-017：RuVector 信号与 MAT 集成

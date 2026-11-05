@@ -1,85 +1,85 @@
-# ADR-025: macOS CoreWLAN WiFi Sensing via Swift Helper Bridge
+# ADR-025：通过 Swift Helper Bridge 实现 macOS CoreWLAN WiFi 感知
 
-| Field | Value |
+| 字段 | 值 |
 |-------|-------|
-| **Status** | Proposed |
-| **Date** | 2026-03-01 |
-| **Updated** | 2026-10-01: macOS 27 also redacts SSID without Location Services; the connected link is kept with a synthetic id, and `auto`+wifi keeps UDP bound (see Amendment 1) |
-| **Deciders** | ruv |
-| **Codename** | **ORCA** — OS-native Radio Channel Acquisition |
-| **Relates to** | ADR-013 (Feature-Level Sensing Commodity Gear), ADR-022 (Windows WiFi Enhanced Fidelity), ADR-014 (SOTA Signal Processing), ADR-018 (ESP32 Dev Implementation) |
-| **Issue** | [#56](https://github.com/ruvnet/wifi-densepose/issues/56) |
-| **Build/Test Target** | Mac Mini (M2 Pro, macOS 26.3) |
+| **状态** | Proposed |
+| **日期** | 2026-03-01 |
+| **更新** | 2026-10-01：macOS 27 在没有定位服务时也会屏蔽 SSID；已连接的链路改用合成 id 保留，`auto`+wifi 保持 UDP 绑定（见修订 1） |
+| **决策者** | ruv |
+| **代号** | **ORCA** — OS-native Radio Channel Acquisition |
+| **关联** | ADR-013（通用商用设备上的特征级感知）、ADR-022（Windows WiFi 保真度增强）、ADR-014（SOTA 信号处理）、ADR-018（ESP32 开发实现） |
+| **问题单** | [#56](https://github.com/ruvnet/wifi-densepose/issues/56) |
+| **构建/测试目标** | Mac Mini (M2 Pro, macOS 26.3) |
 
 ---
 
-## 1. Context
+## 1. 背景
 
-### 1.1 The Gap: macOS Is a Silent Fallback
+### 1.1 缺口：macOS 会静默回退
 
-The `--source auto` path in `sensing-server` probes for ESP32 UDP, then Windows `netsh`, then falls back to simulated mode. macOS users hit the simulation path silently — there is no macOS WiFi adapter. This is the only major desktop platform without real WiFi sensing support.
+`sensing-server` 中的 `--source auto` 路径会先探测 ESP32 UDP，再探测 Windows `netsh`，最后回退到模拟模式。macOS 用户会悄无声息地走进模拟路径——目前没有 macOS WiFi 适配器。这是唯一一个缺少真实 WiFi 感知支持的主流桌面平台。
 
-### 1.2 Platform Constraints (macOS 26.3+)
+### 1.2 平台约束（macOS 26.3+）
 
-| Constraint | Detail |
+| 约束 | 说明 |
 |------------|--------|
-| **`airport` CLI removed** | Apple removed `/System/Library/PrivateFrameworks/.../airport` in macOS 15. No CLI fallback exists. |
-| **CoreWLAN is the only path** | `CWWiFiClient` (Swift/ObjC) is the supported API for WiFi scanning. Returns RSSI, channel, SSID, noise, PHY mode, security. |
-| **BSSIDs redacted** | macOS privacy policy redacts MAC addresses from `CWNetwork.bssid` unless the app has Location Services + WiFi entitlement. Apps without entitlement see `nil` for BSSID. |
-| **No raw CSI** | Apple does not expose CSI or per-subcarrier data. macOS WiFi sensing is RSSI-only, same tier as Windows `netsh`. |
-| **Scan rate** | `CWInterface.scanForNetworks()` takes ~2-4 seconds. Effective rate: ~0.3-0.5 Hz without caching. |
-| **Permissions** | Location Services prompt required for BSSID access. Without it, SSID + RSSI + channel still available. |
+| **`airport` CLI 已移除** | Apple 在 macOS 15 中移除了 `/System/Library/PrivateFrameworks/.../airport`。没有任何 CLI 兜底方案。 |
+| **CoreWLAN 是唯一路径** | `CWWiFiClient`（Swift/ObjC）是受支持的 WiFi 扫描 API，返回 RSSI、信道、SSID、噪声、PHY 模式与安全类型。 |
+| **BSSID 被屏蔽** | 除非应用同时具备定位服务与 WiFi entitlement，macOS 隐私策略会屏蔽 `CWNetwork.bssid` 中的 MAC 地址。无 entitlement 的应用读到 `nil`。 |
+| **没有原始 CSI** | Apple 不开放 CSI 或逐子载波数据。macOS WiFi 感知只能是 RSSI 级，与 Windows `netsh` 同档。 |
+| **扫描速率** | `CWInterface.scanForNetworks()` 耗时约 2-4 秒。无缓存时有效速率约 0.3-0.5 Hz。 |
+| **权限** | 读取 BSSID 需要弹出定位服务授权提示。没有授权时，SSID + RSSI + 信道仍可获取。 |
 
-### 1.3 The Opportunity: Multi-AP RSSI Diversity
+### 1.3 机会：多 AP 的 RSSI 分集
 
-Same principle as ADR-022 (Windows): visible APs serve as pseudo-subcarriers. A typical indoor environment exposes 10-30+ SSIDs across 2.4 GHz and 5 GHz bands. Each AP's RSSI responds differently to human movement based on geometry, creating spatial diversity.
+原理与 ADR-022（Windows）相同：可见的 AP 充当伪子载波。典型室内环境在 2.4 GHz 与 5 GHz 频段上会暴露 10-30 个以上 SSID。受几何位置影响，每个 AP 的 RSSI 对人体移动的响应各不相同，由此形成空间分集。
 
-| Source | Effective Subcarriers | Sample Rate | Capabilities |
+| 来源 | 等效子载波数 | 采样率 | 能力 |
 |--------|----------------------|-------------|-------------|
-| ESP32-S3 (CSI) | 56-192 | 20 Hz | Full: pose, vitals, through-wall |
-| Windows `netsh` (ADR-022) | 10-30 BSSIDs | ~2 Hz | Presence, motion, coarse breathing |
-| **macOS CoreWLAN (this ADR)** | **10-30 SSIDs** | **~0.3-0.5 Hz** | **Presence, motion** |
+| ESP32-S3 (CSI) | 56-192 | 20 Hz | 完整：姿态、生命体征、穿墙 |
+| Windows `netsh`（ADR-022） | 10-30 BSSIDs | ~2 Hz | 存在检测、运动、粗粒度呼吸 |
+| **macOS CoreWLAN（本 ADR）** | **10-30 SSIDs** | **~0.3-0.5 Hz** | **存在检测、运动** |
 
-The lower scan rate vs Windows is offset by higher signal quality — CoreWLAN returns calibrated dBm (not percentage) plus noise floor, enabling proper SNR computation.
+相比 Windows 更低的扫描速率，由更高的信号质量补偿——CoreWLAN 返回经过校准的 dBm（而非百分比）外加底噪，因而可以正确计算 SNR。
 
-### 1.4 Why Swift Subprocess (Not FFI)
+### 1.4 为什么用 Swift 子进程（而非 FFI）
 
-| Approach | Complexity | Maintenance | Build | Verdict |
+| 方案 | 复杂度 | 可维护性 | 构建 | 裁定 |
 |----------|-----------|-------------|-------|---------|
-| **Swift CLI → JSON → stdout** | Low | Independent binary, versionable | `swiftc` (ships with Xcode CLT) | **Chosen** |
-| ObjC FFI via `cc` crate | Medium | Fragile header bindings, ABI churn | Requires Xcode headers | Rejected |
-| `objc2` crate (Rust ObjC bridge) | High | CoreWLAN not in upstream `objc2-frameworks` | Requires manual class definitions | Rejected |
-| `swift-bridge` crate | High | Young ecosystem, async bridging unsupported | Requires Swift build integration in Cargo | Rejected |
+| **Swift CLI → JSON → stdout** | Low | 独立二进制，可单独做版本管理 | `swiftc`（随 Xcode CLT 提供） | **Chosen** |
+| 通过 `cc` crate 做 ObjC FFI | Medium | 头文件绑定脆弱，ABI 易变 | 需要 Xcode 头文件 | Rejected |
+| `objc2` crate（Rust ObjC 桥） | High | 上游 `objc2-frameworks` 未收录 CoreWLAN | 需要手写类定义 | Rejected |
+| `swift-bridge` crate | High | 生态年轻，不支持异步桥接 | 需要在 Cargo 中集成 Swift 构建 | Rejected |
 
-The `Command::new()` + parse JSON pattern is proven — it's exactly what `NetshBssidScanner` does for Windows. The subprocess boundary also isolates Apple framework dependencies from the Rust build graph.
+`Command::new()` + 解析 JSON 的模式已经过验证——Windows 侧的 `NetshBssidScanner` 正是这么做的。子进程边界还把 Apple framework 依赖隔离在 Rust 构建图之外。
 
-### 1.5 SOTA: Platform-Adaptive WiFi Sensing
+### 1.5 SOTA：平台自适应 WiFi 感知
 
-Recent work validates multi-platform RSSI-based sensing:
+近期研究验证了跨平台、基于 RSSI 的感知：
 
-- **WiFind** (2024): Cross-platform WiFi fingerprinting using RSSI vectors from heterogeneous hardware. Demonstrates that normalization across scan APIs (dBm, percentage, raw) is critical for model portability.
-- **WiGesture** (2025): RSSI variance-based gesture recognition achieving 89% accuracy on commodity hardware with 15+ APs. Shows that temporal RSSI variance alone carries significant motion information.
-- **CrossSense** (2024): Transfer learning from CSI-rich hardware to RSSI-only devices. Pre-trained signal features transfer with 78% effectiveness, validating multi-tier hardware strategy.
-
----
-
-## 2. Decision
-
-Implement a **macOS CoreWLAN sensing adapter** as a Swift helper binary + Rust adapter pair, following the established `NetshBssidScanner` subprocess pattern from ADR-022. Real RSSI data flows through the existing 8-stage `WindowsWifiPipeline` (which operates on `BssidObservation` structs regardless of platform origin).
-
-### 2.1 Design Principles
-
-1. **Subprocess isolation** — Swift binary is a standalone tool, built and versioned independently of the Rust workspace.
-2. **Same domain types** — macOS adapter produces `Vec<BssidObservation>`, identical to the Windows path. All downstream processing reuses as-is.
-3. **SSID:channel as synthetic BSSID** — When real BSSIDs are redacted (no Location Services), `sha256(ssid + channel)[:12]` generates a stable pseudo-BSSID. Documented limitation: same-SSID same-channel APs collapse to one observation.
-4. **`#[cfg(target_os = "macos")]` gating** — macOS-specific code compiles only on macOS. Windows and Linux builds are unaffected.
-5. **Graceful degradation** — If the Swift helper is not found or fails, `--source auto` skips macOS WiFi and falls back to simulated mode with a clear warning.
+- **WiFind**（2024）：用异构硬件的 RSSI 向量做跨平台 WiFi 指纹，证明跨扫描 API（dBm、百分比、原始值）做归一化对模型可移植性至关重要。
+- **WiGesture**（2025）：基于 RSSI 方差的手势识别，在有 15 个以上 AP 的通用硬件上达到 89% 准确率，说明单凭时序 RSSI 方差就携带了可观的运动信息。
+- **CrossSense**（2024）：从 CSI 丰富的硬件向仅有 RSSI 的设备做迁移学习，预训练信号特征以 78% 的有效性完成迁移，印证了分层硬件策略。
 
 ---
 
-## 3. Architecture
+## 2. 决策
 
-### 3.1 Component Overview
+沿用 ADR-022 中已确立的 `NetshBssidScanner` 子进程模式，把 **macOS CoreWLAN 感知适配器**实现为 Swift helper 二进制 + Rust adapter 的组合。真实 RSSI 数据走现有的 8 阶段 `WindowsWifiPipeline`（该流水线只面向 `BssidObservation` 结构，与平台来源无关）。
+
+### 2.1 设计原则
+
+1. **子进程隔离** — Swift 二进制是独立工具，与 Rust workspace 分开构建、独立版本化。
+2. **同一套领域类型** — macOS 适配器产出 `Vec<BssidObservation>`，与 Windows 路径完全一致，所有下游处理原样复用。
+3. **以 SSID:channel 作为合成 BSSID** — 当真实 BSSID 被屏蔽（无定位服务）时，用 `sha256(ssid + channel)[:12]` 生成稳定的伪 BSSID。已知局限：同 SSID、同信道的 AP 会被合并成一条观测。
+4. **`#[cfg(target_os = "macos")]` 门控** — macOS 专用代码只在 macOS 上编译，Windows 与 Linux 构建不受影响。
+5. **优雅降级** — 若 Swift helper 不存在或执行失败，`--source auto` 跳过 macOS WiFi 并回退到模拟模式，同时给出明确告警。
+
+---
+
+## 3. 架构
+
+### 3.1 组件总览
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -106,17 +106,17 @@ Implement a **macOS CoreWLAN sensing adapter** as a Swift helper binary + Rust a
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Swift Helper Binary
+### 3.2 Swift Helper 二进制
 
-**File:** `v2/tools/macos-wifi-scan/main.swift`
+**文件：** `v2/tools/macos-wifi-scan/main.swift`
 
 ```swift
-// Modes:
-//   (no args)    → Full scan, output JSON array to stdout
-//   --probe      → Quick availability check, output {"available": true/false}
-//   --connected  → Connected network info only
+// 模式：
+//   （无参数）    → 完整扫描，向 stdout 输出 JSON 数组
+//   --probe      → 快速可用性检查，输出 {"available": true/false}
+//   --connected  → 仅输出已连接网络信息
 //
-// Output schema (scan mode):
+// 输出结构（扫描模式）：
 // [
 //   {
 //     "ssid": "MyNetwork",
@@ -131,19 +131,19 @@ Implement a **macOS CoreWLAN sensing adapter** as a Swift helper binary + Rust a
 // ]
 ```
 
-**Build:**
+**构建：**
 
 ```bash
-# Requires Xcode Command Line Tools (xcode-select --install)
+# 需要 Xcode Command Line Tools (xcode-select --install)
 cd tools/macos-wifi-scan
 swiftc -framework CoreWLAN -framework Foundation -O -o macos-wifi-scan main.swift
 ```
 
-**Build script:** `tools/macos-wifi-scan/build.sh`
+**构建脚本：** `tools/macos-wifi-scan/build.sh`
 
-### 3.3 Rust Adapter
+### 3.3 Rust 适配器
 
-**File:** `crates/wifi-densepose-wifiscan/src/adapter/macos_scanner.rs`
+**文件：** `crates/wifi-densepose-wifiscan/src/adapter/macos_scanner.rs`
 
 ```rust
 // #[cfg(target_os = "macos")]
@@ -160,29 +160,29 @@ impl MacosCoreWlanScanner {
 }
 ```
 
-**Key mappings:**
+**关键映射：**
 
-| CoreWLAN field | → | BssidObservation field | Transform |
+| CoreWLAN 字段 | → | BssidObservation 字段 | 变换 |
 |----------------|---|----------------------|-----------|
-| `rssi` (dBm) | → | `signal_dbm` | Direct (CoreWLAN gives calibrated dBm) |
-| `rssi` (dBm) | → | `amplitude` | `rssi_to_amplitude()` (existing) |
-| `noise` (dBm) | → | `snr` | `rssi - noise` (new field, macOS advantage) |
-| `channel` | → | `channel` | Direct |
-| `band` | → | `band` | `BandType::from_channel()` (existing) |
-| `phy_mode` | → | `radio_type` | Map string → `RadioType` enum |
-| `bssid` | → | `bssid_id` | Direct if available, else `sha256(ssid:channel)[:12]` |
-| `ssid` | → | `ssid` | Direct |
+| `rssi` (dBm) | → | `signal_dbm` | 直接映射（CoreWLAN 给出已校准的 dBm） |
+| `rssi` (dBm) | → | `amplitude` | `rssi_to_amplitude()`（已有） |
+| `noise` (dBm) | → | `snr` | `rssi - noise`（新增字段，macOS 独有优势） |
+| `channel` | → | `channel` | 直接映射 |
+| `band` | → | `band` | `BandType::from_channel()`（已有） |
+| `phy_mode` | → | `radio_type` | 字符串映射到 `RadioType` 枚举 |
+| `bssid` | → | `bssid_id` | 可用则直接映射，否则 `sha256(ssid:channel)[:12]` |
+| `ssid` | → | `ssid` | 直接映射 |
 
-### 3.4 Sensing Server Integration
+### 3.4 感知服务器集成
 
-**File:** `crates/wifi-densepose-sensing-server/src/main.rs`
+**文件：** `crates/wifi-densepose-sensing-server/src/main.rs`
 
-| Function | Purpose |
+| 函数 | 用途 |
 |----------|---------|
-| `probe_macos_wifi()` | Calls `MacosCoreWlanScanner::probe()`, returns bool |
-| `macos_wifi_task()` | Async loop: scan → build `BssidObservation` vec → feed into `BssidRegistry` + `WindowsWifiPipeline` → emit `SensingUpdate`. Same structure as `windows_wifi_task()`. |
+| `probe_macos_wifi()` | 调用 `MacosCoreWlanScanner::probe()`，返回 bool |
+| `macos_wifi_task()` | 异步循环：扫描 → 构建 `BssidObservation` 向量 → 送入 `BssidRegistry` + `WindowsWifiPipeline` → 发出 `SensingUpdate`。结构与 `windows_wifi_task()` 一致。 |
 
-**Auto-detection order (updated):**
+**自动检测顺序（已更新）：**
 
 ```
 1. ESP32 UDP probe (port 5005)     → --source esp32
@@ -191,145 +191,145 @@ impl MacosCoreWlanScanner {
 4. Simulated fallback              → --source simulated
 ```
 
-### 3.5 Pipeline Reuse
+### 3.5 流水线复用
 
-The existing 8-stage `WindowsWifiPipeline` (ADR-022) operates entirely on `BssidObservation` / `MultiApFrame` types:
+现有的 8 阶段 `WindowsWifiPipeline`（ADR-022）完全基于 `BssidObservation` / `MultiApFrame` 类型运行：
 
-| Stage | Reusable? | Notes |
+| 阶段 | 可复用？ | 说明 |
 |-------|-----------|-------|
-| 1. Predictive Gating | Yes | Filters static APs by temporal variance |
-| 2. Attention Weighting | Yes | Weights APs by motion sensitivity |
-| 3. Spatial Correlation | Yes | Cross-AP signal correlation |
-| 4. Motion Estimation | Yes | RSSI variance → motion level |
-| 5. Breathing Extraction | **Marginal** | 0.3 Hz scan rate is below Nyquist for breathing (0.1-0.5 Hz). May detect very slow breathing only. |
-| 6. Quality Gating | Yes | Rejects low-confidence estimates |
-| 7. Fingerprint Matching | Yes | Location/posture classification |
-| 8. Orchestration | Yes | Fuses all stages |
+| 1. Predictive Gating | Yes | 按时间方差过滤静止 AP |
+| 2. Attention Weighting | Yes | 按运动敏感度给 AP 加权 |
+| 3. Spatial Correlation | Yes | 跨 AP 信号相关性 |
+| 4. Motion Estimation | Yes | RSSI 方差 → 运动强度 |
+| 5. Breathing Extraction | **Marginal** | 0.3 Hz 扫描速率低于呼吸（0.1-0.5 Hz）的奈奎斯特频率，最多只能检出极慢的呼吸。 |
+| 6. Quality Gating | Yes | 丢弃低置信度估计 |
+| 7. Fingerprint Matching | Yes | 位置/姿态分类 |
+| 8. Orchestration | Yes | 融合所有阶段 |
 
-**Limitation:** CoreWLAN scan rate (~0.3-0.5 Hz) is significantly slower than `netsh` (~2 Hz). Breathing extraction (stage 5) will have reduced accuracy. Motion and presence detection remain effective since they depend on variance over longer windows.
+**限制：** CoreWLAN 扫描速率（约 0.3-0.5 Hz）明显慢于 `netsh`（约 2 Hz），呼吸提取（阶段 5）精度会下降。由于运动与存在检测依赖更长时间窗上的方差，它们仍然有效。
 
 ---
 
-## 4. Files
+## 4. 文件
 
-### 4.1 New Files
+### 4.1 新增文件
 
-| File | Purpose | Lines (est.) |
+| 文件 | 用途 | 行数（估） |
 |------|---------|-------------|
-| `tools/macos-wifi-scan/main.swift` | CoreWLAN scanner, JSON output | ~120 |
-| `tools/macos-wifi-scan/build.sh` | Build script (`swiftc` invocation) | ~15 |
-| `crates/wifi-densepose-wifiscan/src/adapter/macos_scanner.rs` | Rust adapter: spawn helper, parse JSON, produce `BssidObservation` | ~200 |
+| `tools/macos-wifi-scan/main.swift` | CoreWLAN 扫描器，输出 JSON | ~120 |
+| `tools/macos-wifi-scan/build.sh` | 构建脚本（调用 `swiftc`） | ~15 |
+| `crates/wifi-densepose-wifiscan/src/adapter/macos_scanner.rs` | Rust adapter：启动 helper、解析 JSON、产出 `BssidObservation` | ~200 |
 
-### 4.2 Modified Files
+### 4.2 修改文件
 
-| File | Change |
+| 文件 | 改动 |
 |------|--------|
-| `crates/wifi-densepose-wifiscan/src/adapter/mod.rs` | Add `#[cfg(target_os = "macos")] pub mod macos_scanner;` + re-export |
-| `crates/wifi-densepose-wifiscan/src/lib.rs` | Add `MacosCoreWlanScanner` re-export |
-| `crates/wifi-densepose-sensing-server/src/main.rs` | Add `probe_macos_wifi()`, `macos_wifi_task()`, update auto-detect + `--source wifi` dispatch |
+| `crates/wifi-densepose-wifiscan/src/adapter/mod.rs` | 加入 `#[cfg(target_os = "macos")] pub mod macos_scanner;` 并重新导出 |
+| `crates/wifi-densepose-wifiscan/src/lib.rs` | 重新导出 `MacosCoreWlanScanner` |
+| `crates/wifi-densepose-sensing-server/src/main.rs` | 加入 `probe_macos_wifi()`、`macos_wifi_task()`，更新自动检测与 `--source wifi` 分发 |
 
-### 4.3 No New Rust Dependencies
+### 4.3 不新增 Rust 依赖
 
-- `std::process::Command` — subprocess spawning (stdlib)
-- `serde_json` — JSON parsing (already in workspace)
-- No changes to `Cargo.toml`
+- `std::process::Command` — 启动子进程（标准库）
+- `serde_json` — 解析 JSON（workspace 中已有）
+- `Cargo.toml` 不作改动
 
 ---
 
-## 5. Verification Plan
+## 5. 验证计划
 
-All verification on Mac Mini (M2 Pro, macOS 26.3).
+全部验证在 Mac Mini（M2 Pro，macOS 26.3）上进行。
 
-### 5.1 Swift Helper
+### 5.1 Swift Helper（辅助程序）
 
-| Test | Command | Expected |
+| 测试 | 命令 | 预期 |
 |------|---------|----------|
-| Build | `cd tools/macos-wifi-scan && ./build.sh` | Produces `macos-wifi-scan` binary |
-| Probe | `./macos-wifi-scan --probe` | `{"available": true}` |
-| Scan | `./macos-wifi-scan` | JSON array with real SSIDs, RSSI in dBm, channels |
-| Connected | `./macos-wifi-scan --connected` | Single JSON object for connected network |
-| No WiFi | Disable WiFi → `./macos-wifi-scan` | `{"available": false}` or empty array |
+| Build | `cd tools/macos-wifi-scan && ./build.sh` | 生成 `macos-wifi-scan` 二进制 |
+| Probe | `./macos-wifi-scan --probe` | 返回 `{"available": true}` |
+| Scan | `./macos-wifi-scan` | 含真实 SSID、dBm 单位 RSSI 和信道的 JSON 数组 |
+| Connected | `./macos-wifi-scan --connected` | 单个已连接网络的 JSON 对象 |
+| No WiFi | 关闭 WiFi → `./macos-wifi-scan` | `{"available": false}` 或空数组 |
 
-### 5.2 Rust Adapter
+### 5.2 Rust 适配器
 
-| Test | Method | Expected |
+| 测试 | 方法 | 预期 |
 |------|--------|----------|
-| Unit: JSON parsing | `#[test]` with fixture JSON | Correct `BssidObservation` values |
-| Unit: synthetic BSSID | `#[test]` with nil bssid input | Stable `sha256(ssid:channel)[:12]` |
-| Unit: helper not found | `#[test]` with bad path | `WifiScanError::ProcessError` |
-| Integration: real scan | `cargo test` on Mac Mini | Live observations from CoreWLAN |
+| Unit: JSON parsing | `#[test]`，使用 fixture JSON | 得到正确的 `BssidObservation` 值 |
+| Unit: synthetic BSSID | `#[test]`，bssid 输入为 nil | 稳定的 `sha256(ssid:channel)[:12]` |
+| Unit: helper not found | `#[test]`，传入错误路径 | `WifiScanError::ProcessError` |
+| Integration: real scan | 在 Mac Mini 上 `cargo test` | 来自 CoreWLAN 的实时观测 |
 
-### 5.3 End-to-End
+### 5.3 端到端
 
-| Step | Command | Verify |
+| 步骤 | 命令 | 验证 |
 |------|---------|--------|
-| 1 | `cargo build --release` (Mac Mini) | Clean build, no warnings |
-| 2 | `cargo test --workspace` | All existing tests pass + new macOS tests |
-| 3 | `./target/release/sensing-server --source wifi` | Server starts, logs `source: wifi (macOS CoreWLAN)` |
-| 4 | `curl http://localhost:8080/api/v1/sensing/latest` | `source: "wifi:<SSID>"`, real RSSI values |
-| 5 | `curl http://localhost:8080/api/v1/vital-signs` | Motion detection responds to physical movement |
-| 6 | Open UI at `http://localhost:8080` | Signal field updates with real RSSI variation |
-| 7 | `--source auto` | Auto-detects macOS WiFi, does not fall back to simulated |
+| 1 | `cargo build --release`（Mac Mini） | 构建干净，无告警 |
+| 2 | `cargo test --workspace` | 既有测试全过，新增 macOS 测试通过 |
+| 3 | `./target/release/sensing-server --source wifi` | 服务启动，日志出现 `source: wifi (macOS CoreWLAN)` |
+| 4 | `curl http://localhost:8080/api/v1/sensing/latest` | `source: "wifi:<SSID>"`，RSSI 为真实值 |
+| 5 | `curl http://localhost:8080/api/v1/vital-signs` | 运动检测能响应实际身体移动 |
+| 6 | 打开 `http://localhost:8080` 的 UI | 信号字段随真实 RSSI 波动更新 |
+| 7 | `--source auto` | 自动识别 macOS WiFi，不回退到模拟模式 |
 
-### 5.4 Cross-Platform Regression
+### 5.4 跨平台回归
 
-| Platform | Build | Expected |
+| 平台 | 构建 | 预期 |
 |----------|-------|----------|
-| macOS (Mac Mini) | `cargo build --release` | macOS adapter compiled, works |
-| Windows | `cargo build --release` | macOS adapter skipped (`#[cfg]`), Windows path unchanged |
-| Linux | `cargo build --release` | macOS adapter skipped, ESP32/simulated paths unchanged |
+| macOS（Mac Mini） | `cargo build --release` | macOS adapter 被编译且可用 |
+| Windows | `cargo build --release` | macOS adapter 被跳过（`#[cfg]`），Windows 路径不变 |
+| Linux | `cargo build --release` | macOS adapter 被跳过，ESP32/模拟路径不变 |
 
 ---
 
-## 6. Limitations
+## 6. 限制
 
-| Limitation | Impact | Mitigation |
+| 限制 | 影响 | 缓解措施 |
 |------------|--------|-----------|
-| **BSSID redaction** | Same-SSID same-channel APs collapse to one observation | Use `sha256(ssid:channel)` as pseudo-BSSID; document edge case. Rare in practice (mesh networks). |
-| **Slow scan rate** (~0.3 Hz) | Breathing extraction unreliable (below Nyquist) | Motion/presence still work. Breathing marked low-confidence. Future: cache + connected AP fast-poll hybrid. |
-| **Requires Swift helper in PATH** | Extra build step for source builds | `build.sh` provided. Docker image pre-bundles it. Clear error message when missing. |
-| **Location Services for BSSID** | Full BSSID requires user permission prompt | System degrades gracefully to SSID:channel pseudo-BSSID without permission. |
-| **No CSI** | Cannot match ESP32 pose estimation accuracy | Expected — this is RSSI-tier sensing (presence + motion). Same limitation as Windows. |
+| **BSSID 被屏蔽** | 同 SSID、同信道的 AP 合并成一条观测 | 用 `sha256(ssid:channel)` 作为伪 BSSID，并记录该边界情况。实践中少见（主要出现在 mesh 网络）。 |
+| **扫描速率慢**（约 0.3 Hz） | 呼吸提取不可靠（低于奈奎斯特频率） | 运动/存在检测仍可用；呼吸结果标记为低置信度。后续可做缓存 + 已连接 AP 快速轮询的混合方案。 |
+| **Swift helper 必须在 PATH 中** | 源码构建多一步 | 已提供 `build.sh`；Docker 镜像预置该二进制；缺失时给出明确报错。 |
+| **BSSID 需要定位服务** | 完整 BSSID 需要用户授权弹窗 | 未授权时系统优雅降级到 SSID:channel 伪 BSSID。 |
+| **没有 CSI** | 无法达到 ESP32 的姿态估计精度 | 符合预期——这是 RSSI 级感知（存在 + 运动），与 Windows 的限制相同。 |
 
 ---
 
-## 7. Future Work
+## 7. 后续工作
 
-| Enhancement | Description | Depends On |
+| 增强项 | 说明 | 依赖 |
 |-------------|-------------|-----------|
-| **Fast-poll connected AP** | Poll connected AP's RSSI at ~10 Hz via `CWInterface.rssiValue()` (no full scan needed) | CoreWLAN `rssiValue()` performance testing |
-| **Linux `iw` adapter** | Same subprocess pattern with `iw dev wlan0 scan` output | Linux machine for testing |
-| **Unified `RssiPipeline` rename** | Rename `WindowsWifiPipeline` → `RssiPipeline` to reflect multi-platform use | ADR-022 update |
-| **802.11bf sensing** | Apple may expose CSI via 802.11bf in future macOS | Apple framework availability |
-| **Docker macOS image** | Pre-built macOS Docker image with Swift helper bundled | Docker multi-arch build |
+| **快速轮询已连接 AP** | 通过 `CWInterface.rssiValue()` 以约 10 Hz 轮询已连接 AP 的 RSSI（无需完整扫描） | CoreWLAN `rssiValue()` 性能测试 |
+| **Linux `iw` adapter** | 同一子进程模式，改用 `iw dev wlan0 scan` 输出 | 用于测试的 Linux 机器 |
+| **统一重命名为 `RssiPipeline`** | 把 `WindowsWifiPipeline` → `RssiPipeline`，体现多平台用途 | 更新 ADR-022 |
+| **802.11bf 感知** | Apple 未来可能在 macOS 中通过 802.11bf 开放 CSI | Apple framework 是否可用 |
+| **Docker macOS 镜像** | 预构建、内置 Swift helper 的 macOS Docker 镜像 | Docker 多架构构建 |
 
 ---
 
-## 8. References
+## 8. 参考资料
 
 - [Apple CoreWLAN Documentation](https://developer.apple.com/documentation/corewlan)
-- [CWWiFiClient](https://developer.apple.com/documentation/corewlan/cwwificlient) — Primary WiFi interface API
-- [CWNetwork](https://developer.apple.com/documentation/corewlan/cwnetwork) — Scan result type (SSID, RSSI, channel, noise)
-- [macOS 15 airport removal](https://developer.apple.com/forums/thread/732431) — Apple Developer Forums
-- ADR-022: Windows WiFi Enhanced Fidelity (analogous platform adapter)
-- ADR-013: Feature-Level Sensing from Commodity Gear
-- Issue [#56](https://github.com/ruvnet/wifi-densepose/issues/56): macOS support request
+- [CWWiFiClient](https://developer.apple.com/documentation/corewlan/cwwificlient) — 主要的 WiFi 接口 API
+- [CWNetwork](https://developer.apple.com/documentation/corewlan/cwnetwork) — 扫描结果类型（SSID、RSSI、信道、噪声）
+- [macOS 15 airport removal](https://developer.apple.com/forums/thread/732431) — Apple 开发者论坛
+- ADR-022：Windows WiFi 保真度增强（同类平台适配器）
+- ADR-013：在通用商用设备上做特征级感知
+- Issue [#56](https://github.com/ruvnet/wifi-densepose/issues/56)：macOS 支持需求
 
 ---
 
-## Amendment 1 (2026-10-01): SSID is also redacted; keep the connected link
+## 修订 1（2026-10-01）：SSID 也被屏蔽；保留已连接链路
 
-**Observed on macOS 27 (M-series Mac, CoreWLAN, unsigned CLI helper).** Without Location Services, `mac_wifi --scan-once` returns `"ssid":""` and `"bssid":"00:00:00:00:00:00"`, while `rssi`, `noise`, `channel` and `tx_rate` are real. The §1 assumption that "SSID + RSSI + channel" survive no longer holds. An unsigned CLI helper never calls `CLLocationManager`, so it never appears in Location Services and cannot be granted access.
+**在 macOS 27（M 系列 Mac、CoreWLAN、未签名的 CLI helper）上观察到。** 没有定位服务时，`mac_wifi --scan-once` 返回 `"ssid":""` 与 `"bssid":"00:00:00:00:00:00"`，而 `rssi`、`noise`、`channel`、`tx_rate` 都是真实值。§1 中「SSID + RSSI + channel 会保留」的假设不再成立。未签名的 CLI helper 从不调用 `CLLocationManager`，因此不会出现在定位服务列表里，也就无法被授权。
 
-Before this amendment, `resolve_bssid` abstained when both identities were blank (to avoid merging unrelated networks), so every macOS scan was dropped and `--source wifi` produced nothing, with no error.
+在这次修订之前，`resolve_bssid` 在两个身份字段都为空时会放弃解析（以免把无关网络合并），于是每次 macOS 扫描都被丢弃，`--source wifi` 什么都不产出，而且没有任何报错。
 
-**Change.**
-1. `--scan-once` marks its single sample `"connected": true`. It is always the one connected link, so it cannot collide with another network.
-2. A redacted sample marked `connected` gets a stable, locally administered synthetic BSSID derived from a reserved key plus the channel. The SSID stays empty; none is invented. Unmarked redacted lines still abstain.
-3. `--source auto` that resolves to host WiFi now also binds the UDP receiver, and `wifi_task` yields while the source is a live `esp32`. ESP32 nodes that start after the 2 s boot probe still promote the source, matching the #1004 rule for the simulator.
-4. A missing helper logs one clear error with the build command instead of a warning on every tick.
+**变更。**
+1. `--scan-once` 给它那唯一一条样本打上 `"connected": true`。它始终对应已连接的那条链路，因此不可能与其他网络冲突。
+2. 标记为 `connected` 的被屏蔽样本，会由一段保留关键字加上信道推导出稳定的、本地管理的合成 BSSID。SSID 保持为空，不会凭空编造。未标记的被屏蔽行仍然放弃解析。
+3. 解析到宿主机 WiFi 的 `--source auto` 现在也会绑定 UDP 接收器，且当 source 是活跃的 `esp32` 时 `wifi_task` 会让出。在 2 秒启动探测之后才上线的 ESP32 节点仍能把 source 提升上来，与模拟器的 #1004 规则一致。
+4. helper 缺失时只记录一条带构建命令的清晰错误，而不是每个 tick 都刷一条告警。
 
-**Measured (2026-10-01, this change):** `--source wifi` → source `wifi:unnamed`, sensing ticks advance. `--source auto` on a quiet port → `wifi` with `udp_receiver=true`; relaying real ADR-018 frames promoted the source to `esp32`, with all 5 nodes listed.
+**实测（2026-10-01，本次改动）：** `--source wifi` → source 为 `wifi:unnamed`，感知 tick 持续推进。安静端口上的 `--source auto` → `wifi` 且 `udp_receiver=true`；转发真实的 ADR-018 帧后 source 提升为 `esp32`，5 个节点全部列出。
 
-**Still open:** real BSSID/SSID would need a signed `.app` helper with `NSLocationWhenInUseUsageDescription` that requests authorization. The helper still lives under `archive/v1` with no build step.
+**仍未解决：** 要拿到真实 BSSID/SSID，需要一个带 `NSLocationWhenInUseUsageDescription`、会主动请求授权的已签名 `.app` helper。该 helper 仍留在 `archive/v1` 下，没有构建步骤。
 
