@@ -1,113 +1,116 @@
-# WiFi-Mat User Guide
+# WiFi-Mat 用户指南
 
-## Mass Casualty Assessment Tool for Disaster Response
+## 面向灾害响应的大规模伤员评估工具
 
-WiFi-Mat (Mass Assessment Tool) is a modular extension of WiFi-DensePose designed specifically for search and rescue operations. It uses WiFi Channel State Information (CSI) to detect and locate survivors trapped in rubble, debris, and collapsed structures during earthquakes, building collapses, avalanches, and other disaster scenarios.
-
----
-
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Key Features](#key-features)
-3. [Installation](#installation)
-4. [Quick Start](#quick-start)
-5. [Architecture](#architecture)
-6. [Configuration](#configuration)
-7. [Detection Capabilities](#detection-capabilities)
-8. [Localization System](#localization-system)
-9. [Triage Classification](#triage-classification)
-10. [Alert System](#alert-system)
-11. [API Reference](#api-reference)
-12. [Hardware Setup](#hardware-setup)
-13. [Field Deployment Guide](#field-deployment-guide)
-14. [Troubleshooting](#troubleshooting)
-15. [Best Practices](#best-practices)
-16. [Safety Considerations](#safety-considerations)
+WiFi-Mat（大规模评估工具）是 WiFi-DensePose 的模块化扩展，专为搜索与救援行动设计。它利用 WiFi 信道状态信息（CSI），在地震、建筑倒塌、雪崩等灾害场景中探测并定位被困在瓦砾、碎石与坍塌结构下的幸存者。
 
 ---
 
-## Overview
+## 目录
 
-### What is WiFi-Mat?
+1. [概览](#overview)
+2. [主要功能](#key-features)
+3. [安装](#installation)
+4. [快速上手](#quick-start)
+5. [架构](#architecture)
+6. [配置](#configuration)
+7. [检测能力](#detection-capabilities)
+8. [定位系统](#localization-system)
+9. [分诊分级](#triage-classification)
+10. [告警系统](#alert-system)
+11. [API 参考](#api-reference)
+12. [硬件配置](#hardware-setup)
+13. [现场部署指南](#field-deployment-guide)
+14. [排障](#troubleshooting)
+15. [最佳实践](#best-practices)
+16. [安全须知](#safety-considerations)
 
-WiFi-Mat leverages the same WiFi-based sensing technology as WiFi-DensePose but optimizes it for the unique challenges of disaster response:
+---
 
-- **Through-wall detection**: Detect life signs through debris, rubble, and collapsed structures
-- **Non-invasive**: No need to disturb unstable structures during initial assessment
-- **Rapid deployment**: Portable sensor arrays can be set up in minutes
-- **Multi-victim triage**: Automatically prioritize rescue efforts using START protocol
-- **3D localization**: Estimate survivor position including depth through debris
+<a id="overview"></a>
+## 概览
 
-### Use Cases
+### 什么是 WiFi-Mat？
 
-| Disaster Type | Detection Range | Typical Depth | Success Rate |
+WiFi-Mat 沿用与 WiFi-DensePose 相同的 WiFi 感知技术，但针对灾害响应的特殊难点做了优化：
+
+- **穿墙探测**：透过碎石、瓦砾与坍塌结构探测生命迹象
+- **非侵入**：初评阶段无需扰动不稳定的结构
+- **快速部署**：便携传感器阵列几分钟内即可架设完成
+- **多伤员分诊**：按 START 规程自动排定救援优先级
+- **三维定位**：估算幸存者位置，包括其在废墟下的埋深
+
+### 适用场景
+
+| 灾害类型 | 探测范围 | 典型埋深 | 成功率 |
 |--------------|-----------------|---------------|--------------|
-| Earthquake rubble | 15-30m radius | Up to 5m | 85-92% |
-| Building collapse | 20-40m radius | Up to 8m | 80-88% |
-| Avalanche | 10-20m radius | Up to 3m snow | 75-85% |
-| Mine collapse | 15-25m radius | Up to 10m | 70-82% |
-| Flood debris | 10-15m radius | Up to 2m | 88-95% |
+| 地震瓦砾 | 半径 15-30m | 最深 5m | 85-92% |
+| 建筑倒塌 | 半径 20-40m | 最深 8m | 80-88% |
+| 雪崩 | 半径 10-20m | 积雪最深 3m | 75-85% |
+| 矿井塌方 | 半径 15-25m | 最深 10m | 70-82% |
+| 洪灾堆积物 | 半径 10-15m | 最深 2m | 88-95% |
 
 ---
 
-## Key Features
+<a id="key-features"></a>
+## 主要功能
 
-### 1. Vital Signs Detection
-- **Breathing detection**: 0.1-0.5 Hz (4-60 breaths/minute)
-- **Heartbeat detection**: 0.8-3.3 Hz (30-200 BPM) via micro-Doppler
-- **Movement classification**: Gross, fine, tremor, and periodic movements
+### 1. 生命体征检测
+- **呼吸检测**：0.1-0.5 Hz（每分钟 4-60 次）
+- **心跳检测**：0.8-3.3 Hz（30-200 BPM），基于微多普勒
+- **运动分类**：大幅、精细、颤抖与周期性运动
 
-### 2. Survivor Localization
-- **2D position**: ±0.5m accuracy with 3+ sensors
-- **Depth estimation**: ±0.3m through debris up to 5m
-- **Confidence scoring**: Real-time uncertainty quantification
+### 2. 幸存者定位
+- **二维位置**：3 个以上传感器时精度 ±0.5m
+- **埋深估计**：穿过最深 5m 的废墟，精度 ±0.3m
+- **置信度评分**：实时量化不确定性
 
-### 3. Triage Classification
-- **START protocol**: Immediate/Delayed/Minor/Deceased
-- **Automatic prioritization**: Based on vital signs and accessibility
-- **Dynamic updates**: Re-triage as conditions change
+### 3. 分诊分级
+- **START 规程**：立即救治 / 延迟救治 / 轻伤 / 死亡
+- **自动排序**：依据生命体征与可接近程度
+- **动态更新**：情况变化时重新分诊
 
-### 4. Alert System
-- **Priority-based**: Critical/High/Medium/Low alerts
-- **Multi-channel**: Audio, visual, mobile push, radio integration
-- **Escalation**: Automatic escalation for deteriorating survivors
+### 4. 告警系统
+- **按优先级**：紧急 / 高 / 中 / 低 四级告警
+- **多渠道**：声音、视觉、移动推送、电台集成
+- **自动升级**：幸存者状况恶化时自动提升级别
 
 ---
 
-## Installation
+<a id="installation"></a>
+## 安装
 
-### Prerequisites
+### 前置条件
 
 ```bash
-# Rust toolchain (1.70+)
+# Rust 工具链（1.70+）
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Required system dependencies (Ubuntu/Debian)
+# 必需的系统依赖（Ubuntu/Debian）
 sudo apt-get install -y build-essential pkg-config libssl-dev
 ```
 
-### Building from Source
+### 从源码构建
 
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone https://github.com/ruvnet/wifi-densepose.git
 cd wifi-densepose/v2
 
-# Build the wifi-mat crate
+# 构建 wifi-mat crate
 cargo build --release --package wifi-densepose-mat
 
-# Run tests
+# 运行测试
 cargo test --package wifi-densepose-mat
 
-# Build with all features
+# 启用全部特性构建
 cargo build --release --package wifi-densepose-mat --all-features
 ```
 
-### Feature Flags
+### 特性开关
 
 ```toml
-# Cargo.toml features
+# Cargo.toml 特性开关
 [features]
 default = ["std"]
 std = []
@@ -120,9 +123,10 @@ full = ["serde", "async", "hardware", "neural"]
 
 ---
 
-## Quick Start
+<a id="quick-start"></a>
+## 快速上手
 
-### Basic Example
+### 基础示例
 
 ```rust
 use wifi_densepose_mat::{
@@ -132,7 +136,7 @@ use wifi_densepose_mat::{
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Configure for earthquake response
+    // 按地震救援场景配置
     let config = DisasterConfig::builder()
         .disaster_type(DisasterType::Earthquake)
         .sensitivity(0.85)
@@ -141,14 +145,14 @@ async fn main() -> anyhow::Result<()> {
         .continuous_monitoring(true)
         .build();
 
-    // Initialize the response system
+    // 初始化响应系统
     let mut response = DisasterResponse::new(config);
 
-    // Initialize the disaster event
-    let location = geo::Point::new(-122.4194, 37.7749); // San Francisco
+    // 初始化灾害事件
+    let location = geo::Point::new(-122.4194, 37.7749); // 旧金山
     response.initialize_event(location, "Building collapse - Market Street")?;
 
-    // Define scan zones
+    // 定义扫描区域
     let zone_a = ScanZone::new(
         "North Wing - Ground Floor",
         ZoneBounds::rectangle(0.0, 0.0, 30.0, 20.0),
@@ -161,15 +165,15 @@ async fn main() -> anyhow::Result<()> {
     );
     response.add_zone(zone_b)?;
 
-    // Start scanning
+    // 开始扫描
     println!("Starting survivor detection scan...");
     response.start_scanning().await?;
 
-    // Get detected survivors
+    // 获取检出的幸存者
     let survivors = response.survivors();
     println!("Detected {} potential survivors", survivors.len());
 
-    // Get immediate priority survivors
+    // 获取需立即救治的幸存者
     let immediate = response.survivors_by_triage(TriageStatus::Immediate);
     println!("{} survivors require immediate rescue", immediate.len());
 
@@ -177,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-### Minimal Detection Example
+### 最小检测示例
 
 ```rust
 use wifi_densepose_mat::detection::{
@@ -202,9 +206,10 @@ fn detect_breathing(csi_amplitudes: &[f64], sample_rate: f64) {
 
 ---
 
-## Architecture
+<a id="architecture"></a>
+## 架构
 
-### System Overview
+### 系统总览
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -243,7 +248,7 @@ fn detect_breathing(csi_amplitudes: &[f64], sample_rate: f64) {
     └───────────────────┘ └───────────┘ └───────────────────┘
 ```
 
-### Domain Model
+### 领域模型
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -277,32 +282,33 @@ fn detect_breathing(csi_amplitudes: &[f64], sample_rate: f64) {
 
 ---
 
-## Configuration
+<a id="configuration"></a>
+## 配置
 
-### DisasterConfig Options
+### DisasterConfig 选项
 
 ```rust
 let config = DisasterConfig {
-    // Type of disaster (affects detection algorithms)
+    // 灾害类型（影响检测算法）
     disaster_type: DisasterType::Earthquake,
 
-    // Detection sensitivity (0.0-1.0)
-    // Higher = more false positives, fewer missed detections
+    // 检测灵敏度（0.0-1.0）
+    // 越高则误报越多、漏检越少
     sensitivity: 0.8,
 
-    // Minimum confidence to report a detection
+    // 上报一次检测所需的最低置信度
     confidence_threshold: 0.5,
 
-    // Maximum depth to attempt detection (meters)
+    // 尝试探测的最大埋深（米）
     max_depth: 5.0,
 
-    // Scan interval in milliseconds
+    // 扫描间隔（毫秒）
     scan_interval_ms: 500,
 
-    // Keep scanning continuously
+    // 持续不断扫描
     continuous_monitoring: true,
 
-    // Alert configuration
+    // 告警配置
     alert_config: AlertConfig {
         enable_audio: true,
         enable_push: true,
@@ -312,35 +318,35 @@ let config = DisasterConfig {
 };
 ```
 
-### Disaster Types
+### 灾害类型
 
-| Type | Optimizations | Best For |
+| 类型 | 优化方向 | 最适用于 |
 |------|--------------|----------|
-| `Earthquake` | Enhanced micro-movement detection | Building collapses |
-| `BuildingCollapse` | Deep penetration, noise filtering | Urban SAR |
-| `Avalanche` | Cold body compensation, snow penetration | Mountain rescue |
-| `Flood` | Water interference compensation | Flood rescue |
-| `MineCollapse` | Rock penetration, gas detection | Mining accidents |
-| `Explosion` | Blast trauma patterns | Industrial accidents |
-| `Unknown` | Balanced defaults | General use |
+| `Earthquake` | 强化微动检测 | 建筑倒塌 |
+| `BuildingCollapse` | 深层穿透、噪声过滤 | 城市搜救 |
+| `Avalanche` | 低温体征补偿、积雪穿透 | 山地救援 |
+| `Flood` | 水体干扰补偿 | 洪灾救援 |
+| `MineCollapse` | 岩层穿透、气体检测 | 矿难 |
+| `Explosion` | 爆震伤情模式 | 工业事故 |
+| `Unknown` | 均衡默认配置 | 通用场景 |
 
-### ScanParameters
+### ScanParameters 参数
 
 ```rust
 let params = ScanParameters {
-    // Detection sensitivity for this zone
+    // 本区域的检测灵敏度
     sensitivity: 0.85,
 
-    // Maximum scan depth (meters)
+    // 最大扫描埋深（米）
     max_depth: 5.0,
 
-    // Resolution level
+    // 分辨率级别
     resolution: ScanResolution::High,
 
-    // Enable enhanced breathing detection
+    // 启用增强呼吸检测
     enhanced_breathing: true,
 
-    // Enable heartbeat detection (slower but more accurate)
+    // 启用心跳检测（更慢但更准）
     heartbeat_detection: true,
 };
 
@@ -349,27 +355,28 @@ let zone = ScanZone::with_parameters("Zone A", bounds, params);
 
 ---
 
-## Detection Capabilities
+<a id="detection-capabilities"></a>
+## 检测能力
 
-### Breathing Detection
+### 呼吸检测
 
-WiFi-Mat detects breathing through periodic chest wall movements that modulate WiFi signals.
+WiFi-Mat 通过胸壁的周期性起伏对 WiFi 信号产生的调制来检测呼吸。
 
 ```rust
 use wifi_densepose_mat::detection::{BreathingDetector, BreathingDetectorConfig};
 
 let config = BreathingDetectorConfig {
-    // Breathing frequency range (Hz)
+    // 呼吸频率范围（Hz）
     min_frequency: 0.1,  // 6 BPM
     max_frequency: 0.5,  // 30 BPM
 
-    // Analysis window
+    // 分析窗口
     window_seconds: 10.0,
 
-    // Detection threshold
+    // 检测阈值
     confidence_threshold: 0.3,
 
-    // Enable pattern classification
+    // 启用模式分类
     classify_patterns: true,
 };
 
@@ -377,29 +384,29 @@ let detector = BreathingDetector::new(config);
 let result = detector.detect(&amplitudes, sample_rate);
 ```
 
-**Detectable Patterns:**
-- Normal breathing
-- Shallow/rapid breathing
-- Deep/slow breathing
-- Irregular breathing
-- Agonal breathing (critical)
+**可识别的呼吸模式：**
+- 正常呼吸
+- 浅快呼吸
+- 深慢呼吸
+- 不规则呼吸
+- 濒死喘息（危重）
 
-### Heartbeat Detection
+### 心跳检测
 
-Uses micro-Doppler analysis to detect subtle body movements from heartbeat.
+通过微多普勒分析，检测心跳引起的细微身体运动。
 
 ```rust
 use wifi_densepose_mat::detection::{HeartbeatDetector, HeartbeatDetectorConfig};
 
 let config = HeartbeatDetectorConfig {
-    // Heart rate range (Hz)
+    // 心率范围（Hz）
     min_frequency: 0.8,  // 48 BPM
     max_frequency: 3.0,  // 180 BPM
 
-    // Require breathing detection first (reduces false positives)
+    // 要求先检出呼吸（减少误报）
     require_breathing: true,
 
-    // Higher threshold due to subtle signal
+    // 信号微弱，故阈值更高
     confidence_threshold: 0.4,
 };
 
@@ -407,7 +414,7 @@ let detector = HeartbeatDetector::new(config);
 let result = detector.detect(&phases, sample_rate, Some(breathing_rate));
 ```
 
-### Movement Classification
+### 运动分类
 
 ```rust
 use wifi_densepose_mat::detection::{MovementClassifier, MovementClassifierConfig};
@@ -426,39 +433,40 @@ match movement.movement_type {
 
 ---
 
-## Localization System
+<a id="localization-system"></a>
+## 定位系统
 
-### Triangulation
+### 三角定位
 
-Uses Time-of-Flight and signal strength from multiple sensors.
+利用多个传感器的飞行时间与信号强度。
 
 ```rust
 use wifi_densepose_mat::localization::{Triangulator, TriangulationConfig};
 
 let config = TriangulationConfig {
-    // Minimum sensors for 2D localization
+    // 二维定位所需的最少传感器数
     min_sensors: 3,
 
-    // Use RSSI in addition to CSI
+    // 在 CSI 之外同时使用 RSSI
     use_rssi: true,
 
-    // Maximum iterations for optimization
+    // 优化过程的最大迭代次数
     max_iterations: 100,
 
-    // Convergence threshold
+    // 收敛阈值
     convergence_threshold: 0.01,
 };
 
 let triangulator = Triangulator::new(config);
 
-// Sensor positions
+// 传感器位置
 let sensors = vec![
     SensorPosition { x: 0.0, y: 0.0, z: 1.5, .. },
     SensorPosition { x: 10.0, y: 0.0, z: 1.5, .. },
     SensorPosition { x: 5.0, y: 10.0, z: 1.5, .. },
 ];
 
-// RSSI measurements from each sensor
+// 各传感器测得的 RSSI
 let measurements = vec![-45.0, -52.0, -48.0];
 
 let position = triangulator.estimate(&sensors, &measurements)?;
@@ -466,21 +474,21 @@ println!("Estimated position: ({:.2}, {:.2})", position.x, position.y);
 println!("Uncertainty: ±{:.2}m", position.uncertainty);
 ```
 
-### Depth Estimation
+### 埋深估计
 
-Estimates depth through debris using signal attenuation analysis.
+通过信号衰减分析估算幸存者在废墟下的埋深。
 
 ```rust
 use wifi_densepose_mat::localization::{DepthEstimator, DepthEstimatorConfig};
 
 let config = DepthEstimatorConfig {
-    // Material attenuation coefficients
+    // 材质衰减系数
     material_model: MaterialModel::MixedDebris,
 
-    // Reference signal strength (clear line of sight)
+    // 参考信号强度（无遮挡视距）
     reference_rssi: -30.0,
 
-    // Maximum detectable depth
+    // 可探测的最大埋深
     max_depth: 8.0,
 };
 
@@ -492,16 +500,16 @@ println!("Confidence: {:.2}", depth.confidence);
 println!("Material: {:?}", depth.estimated_material);
 ```
 
-### Position Fusion
+### 位置融合
 
-Combines multiple estimation methods using Kalman filtering.
+用卡尔曼滤波把多种估计方法的结果合并。
 
 ```rust
 use wifi_densepose_mat::localization::{PositionFuser, LocalizationService};
 
 let service = LocalizationService::new();
 
-// Estimate full 3D position
+// 估计完整三维位置
 let position = service.estimate_position(&vital_signs, &zone)?;
 
 println!("3D Position:");
@@ -513,27 +521,28 @@ println!("  Total confidence: {:.2}", position.confidence);
 
 ---
 
-## Triage Classification
+<a id="triage-classification"></a>
+## 分诊分级
 
-### START Protocol
+### START 规程
 
-WiFi-Mat implements the Simple Triage and Rapid Treatment (START) protocol:
+WiFi-Mat 实现了「简单分诊与快速救治」（START）规程：
 
-| Status | Criteria | Action |
+| 状态 | 判定依据 | 处置 |
 |--------|----------|--------|
-| **Immediate (Red)** | Breathing 10-29/min, no radial pulse, follows commands | Rescue first |
-| **Delayed (Yellow)** | Breathing normal, has pulse, injuries non-life-threatening | Rescue second |
-| **Minor (Green)** | Walking wounded, minor injuries | Can wait |
-| **Deceased (Black)** | No breathing after airway cleared | Do not rescue |
+| **立即救治（红）** | 呼吸 10-29 次/分、无桡动脉搏动、能听从指令 | 优先救援 |
+| **延迟救治（黄）** | 呼吸正常、有脉搏、伤情不危及生命 | 次优救援 |
+| **轻伤（绿）** | 可行走、轻度受伤 | 可暂缓 |
+| **死亡（黑）** | 开放气道后仍无呼吸 | 不实施救援 |
 
-### Automatic Triage
+### 自动分诊
 
 ```rust
 use wifi_densepose_mat::domain::triage::{TriageCalculator, TriageStatus};
 
 let calculator = TriageCalculator::new();
 
-// Calculate triage based on vital signs
+// 依据生命体征计算分诊等级
 let vital_signs = VitalSignsReading {
     breathing: Some(BreathingPattern {
         rate_bpm: 24.0,
@@ -562,10 +571,10 @@ match triage {
 }
 ```
 
-### Triage Factors
+### 分诊依据
 
 ```rust
-// Access detailed triage reasoning
+// 查看分诊判定的详细依据
 let factors = calculator.calculate_with_factors(&vital_signs);
 
 println!("Triage: {:?}", factors.status);
@@ -578,22 +587,23 @@ println!("Confidence: {:.2}", factors.confidence);
 
 ---
 
-## Alert System
+<a id="alert-system"></a>
+## 告警系统
 
-### Alert Generation
+### 告警生成
 
 ```rust
 use wifi_densepose_mat::alerting::{AlertGenerator, AlertConfig};
 
 let config = AlertConfig {
-    // Minimum priority to generate alerts
+    // 生成告警的最低优先级
     priority_threshold: Priority::Medium,
 
-    // Escalation settings
+    // 升级设置
     escalation_enabled: true,
     escalation_timeout: Duration::from_secs(300),
 
-    // Notification channels
+    // 通知渠道
     channels: vec![
         AlertChannel::Audio,
         AlertChannel::Visual,
@@ -604,7 +614,7 @@ let config = AlertConfig {
 
 let generator = AlertGenerator::new(config);
 
-// Generate alert for a survivor
+// 为某位幸存者生成告警
 let alert = generator.generate(&survivor)?;
 
 println!("Alert generated:");
@@ -613,40 +623,41 @@ println!("  Priority: {:?}", alert.priority());
 println!("  Message: {}", alert.message());
 ```
 
-### Alert Priorities
+### 告警优先级
 
-| Priority | Criteria | Response Time |
+| 优先级 | 判定依据 | 响应时限 |
 |----------|----------|---------------|
-| **Critical** | Immediate triage, deteriorating | < 5 minutes |
-| **High** | Immediate triage, stable | < 15 minutes |
-| **Medium** | Delayed triage | < 1 hour |
-| **Low** | Minor triage | As available |
+| **紧急** | 立即救治级，状况恶化 | 5 分钟内 |
+| **高** | 立即救治级，状况稳定 | 15 分钟内 |
+| **中** | 延迟救治级 | 1 小时内 |
+| **低** | 轻伤级 | 有余力时处理 |
 
-### Alert Dispatch
+### 告警分发
 
 ```rust
 use wifi_densepose_mat::alerting::AlertDispatcher;
 
 let dispatcher = AlertDispatcher::new(config);
 
-// Dispatch to all configured channels
+// 分发到所有已配置渠道
 dispatcher.dispatch(alert).await?;
 
-// Dispatch to specific channel
+// 分发到指定渠道
 dispatcher.dispatch_to(alert, AlertChannel::Radio).await?;
 
-// Bulk dispatch for multiple survivors
+// 为多名幸存者批量分发
 dispatcher.dispatch_batch(&alerts).await?;
 ```
 
 ---
 
-## API Reference
+<a id="api-reference"></a>
+## API 参考
 
-### Core Types
+### 核心类型
 
 ```rust
-// Main entry point
+// 主入口
 pub struct DisasterResponse {
     pub fn new(config: DisasterConfig) -> Self;
     pub fn initialize_event(&mut self, location: Point, desc: &str) -> Result<&DisasterEvent>;
@@ -657,7 +668,7 @@ pub struct DisasterResponse {
     pub fn survivors_by_triage(&self, status: TriageStatus) -> Vec<&Survivor>;
 }
 
-// Configuration
+// 配置
 pub struct DisasterConfig {
     pub disaster_type: DisasterType,
     pub sensitivity: f64,
@@ -668,41 +679,41 @@ pub struct DisasterConfig {
     pub alert_config: AlertConfig,
 }
 
-// Domain entities
+// 领域实体
 pub struct Survivor { /* ... */ }
 pub struct ScanZone { /* ... */ }
 pub struct DisasterEvent { /* ... */ }
 pub struct Alert { /* ... */ }
 
-// Value objects
+// 值对象
 pub struct VitalSignsReading { /* ... */ }
 pub struct BreathingPattern { /* ... */ }
 pub struct HeartbeatSignature { /* ... */ }
 pub struct Coordinates3D { /* ... */ }
 ```
 
-### Detection API
+### 检测 API
 
 ```rust
-// Breathing
+// 呼吸
 pub struct BreathingDetector {
     pub fn new(config: BreathingDetectorConfig) -> Self;
     pub fn detect(&self, amplitudes: &[f64], sample_rate: f64) -> Option<BreathingPattern>;
 }
 
-// Heartbeat
+// 心跳
 pub struct HeartbeatDetector {
     pub fn new(config: HeartbeatDetectorConfig) -> Self;
     pub fn detect(&self, phases: &[f64], sample_rate: f64, breathing_rate: Option<f64>) -> Option<HeartbeatSignature>;
 }
 
-// Movement
+// 运动
 pub struct MovementClassifier {
     pub fn new(config: MovementClassifierConfig) -> Self;
     pub fn classify(&self, amplitudes: &[f64], sample_rate: f64) -> MovementProfile;
 }
 
-// Pipeline
+// 流水线
 pub struct DetectionPipeline {
     pub fn new(config: DetectionConfig) -> Self;
     pub async fn process_zone(&self, zone: &ScanZone) -> Result<Option<VitalSignsReading>>;
@@ -710,7 +721,7 @@ pub struct DetectionPipeline {
 }
 ```
 
-### Localization API
+### 定位 API
 
 ```rust
 pub struct Triangulator {
@@ -731,19 +742,20 @@ pub struct LocalizationService {
 
 ---
 
-## Hardware Setup
+<a id="hardware-setup"></a>
+## 硬件配置
 
-### Sensor Requirements
+### 传感器要求
 
-| Component | Minimum | Recommended |
+| 部件 | 最低要求 | 推荐配置 |
 |-----------|---------|-------------|
-| WiFi Transceivers | 3 | 6-8 |
-| Sample Rate | 100 Hz | 1000 Hz |
-| Frequency Band | 2.4 GHz | 5 GHz |
-| Antenna Type | Omni | Directional |
-| Power | Battery | AC + Battery |
+| WiFi 收发器 | 3 个 | 6-8 个 |
+| 采样率 | 100 Hz | 1000 Hz |
+| 频段 | 2.4 GHz | 5 GHz |
+| 天线类型 | 全向 | 定向 |
+| 供电 | 电池 | 市电 + 电池 |
 
-### Portable Sensor Array
+### 便携传感器阵列
 
 ```
     [Sensor 1]              [Sensor 2]
@@ -758,10 +770,10 @@ pub struct LocalizationService {
               [Display]
 ```
 
-### Sensor Placement
+### 传感器布设
 
 ```rust
-// Example sensor configuration for a 30x20m zone
+// 30x20m 区域的传感器配置示例
 let sensors = vec![
     SensorPosition {
         id: "S1".into(),
@@ -792,29 +804,30 @@ let sensors = vec![
 
 ---
 
-## Field Deployment Guide
+<a id="field-deployment-guide"></a>
+## 现场部署指南
 
-### Pre-Deployment Checklist
+### 部署前检查清单
 
-- [ ] Verify all sensors are charged (>80%)
-- [ ] Test sensor connectivity
-- [ ] Calibrate for local conditions
-- [ ] Establish communication with command center
-- [ ] Brief rescue teams on system capabilities
+- [ ] 确认所有传感器电量充足（>80%）
+- [ ] 测试传感器连通性
+- [ ] 按现场条件完成校准
+- [ ] 与指挥中心建立通信
+- [ ] 向救援队说明系统能力边界
 
-### Deployment Steps
+### 部署步骤
 
-1. **Site Assessment** (5 min)
-   - Identify safe sensor placement locations
-   - Note structural hazards
-   - Estimate debris composition
+1. **现场评估**（5 分钟）
+   - 找出可安全布设传感器的位置
+   - 记录结构安全隐患
+   - 判断废墟材质构成
 
-2. **Sensor Deployment** (10 min)
-   - Place sensors around perimeter of search area
-   - Ensure minimum 3 sensors with line-of-sight to each other
-   - Connect to controller
+2. **布设传感器**（10 分钟）
+   - 沿搜索区域外缘布设传感器
+   - 确保至少 3 个传感器彼此可视
+   - 接入控制器
 
-3. **System Initialization** (2 min)
+3. **系统初始化**（2 分钟）
    ```rust
    let mut response = DisasterResponse::new(config);
    response.initialize_event(location, description)?;
@@ -824,16 +837,16 @@ let sensors = vec![
    }
    ```
 
-4. **Calibration** (5 min)
-   - Run background noise calibration
-   - Adjust sensitivity based on environment
+4. **校准**（5 分钟）
+   - 执行背景噪声校准
+   - 按环境调整灵敏度
 
-5. **Begin Scanning** (continuous)
+5. **开始扫描**（持续进行）
    ```rust
    response.start_scanning().await?;
    ```
 
-### Interpreting Results
+### 结果解读
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -869,94 +882,97 @@ let sensors = vec![
 
 ---
 
-## Troubleshooting
+<a id="troubleshooting"></a>
+## 排障
 
-### Common Issues
+### 常见问题
 
-| Issue | Possible Cause | Solution |
+| 现象 | 可能原因 | 处理办法 |
 |-------|---------------|----------|
-| No detections | Sensitivity too low | Increase `sensitivity` to 0.9+ |
-| Too many false positives | Sensitivity too high | Decrease `sensitivity` to 0.6-0.7 |
-| Poor localization | Insufficient sensors | Add more sensors (minimum 3) |
-| Intermittent detections | Signal interference | Check for electromagnetic sources |
-| Depth estimation fails | Dense material | Adjust `material_model` |
+| 检测不到目标 | 灵敏度过低 | 把 `sensitivity` 提到 0.9 以上 |
+| 误报过多 | 灵敏度过高 | 把 `sensitivity` 降到 0.6-0.7 |
+| 定位不准 | 传感器数量不足 | 增加传感器（至少 3 个） |
+| 检测时有时无 | 信号干扰 | 排查电磁干扰源 |
+| 埋深估计失败 | 介质过于致密 | 调整 `material_model` |
 
-### Diagnostic Commands
+### 诊断命令
 
 ```rust
-// Check system health
+// 检查系统健康状态
 let health = response.hardware_health();
 println!("Sensors: {}/{} operational", health.connected, health.total);
 
-// View detection statistics
+// 查看检测统计
 let stats = response.detection_stats();
 println!("Detection rate: {:.1}%", stats.detection_rate * 100.0);
 println!("False positive rate: {:.1}%", stats.false_positive_rate * 100.0);
 
-// Export diagnostic data
+// 导出诊断数据
 response.export_diagnostics("/path/to/diagnostics.json")?;
 ```
 
 ---
 
-## Best Practices
+<a id="best-practices"></a>
+## 最佳实践
 
-### Detection Optimization
+### 检测优化
 
-1. **Start with high sensitivity**, reduce if too many false positives
-2. **Enable heartbeat detection** only when breathing is confirmed
-3. **Use appropriate disaster type** for optimized algorithms
-4. **Increase scan duration** for weak signals (up to 30s windows)
+1. **先用高灵敏度起步**，误报太多再下调
+2. **确认检测到呼吸后**才启用心跳检测
+3. **选对灾害类型**，以启用对应的优化算法
+4. 信号弱时**延长扫描时长**（窗口最长 30 秒）
 
-### Localization Optimization
+### 定位优化
 
-1. **Use 4+ sensors** for reliable 2D positioning
-2. **Spread sensors** to cover entire search area
-3. **Mount at consistent height** (1.5-2.0m recommended)
-4. **Account for sensor failures** with redundancy
+1. **用 4 个以上传感器**保证二维定位可靠
+2. **分散布设**，覆盖整个搜索区域
+3. **安装高度保持一致**（建议 1.5-2.0m）
+4. 用冗余配置**应对传感器失效**
 
-### Operational Tips
+### 操作要点
 
-1. **Scan in phases**: Quick scan first, then focused detailed scans
-2. **Mark confirmed positives**: Reduce redundant alerts
-3. **Update zones dynamically**: Remove cleared areas
-4. **Communicate confidence levels**: Not all detections are certain
-
----
-
-## Safety Considerations
-
-### Limitations
-
-- **Not 100% reliable**: Always verify with secondary methods
-- **Environmental factors**: Metal, water, thick concrete reduce effectiveness
-- **Living movement only**: Cannot detect unconscious/deceased without breathing
-- **Depth limits**: Accuracy decreases beyond 5m depth
-
-### Integration with Other Methods
-
-WiFi-Mat should be used alongside:
-- Acoustic detection (listening devices)
-- Canine search teams
-- Thermal imaging
-- Physical probing
-
-### False Negative Risk
-
-A **negative result does not guarantee absence of survivors**. Always:
-- Re-scan after debris removal
-- Use multiple scanning methods
-- Continue manual search procedures
+1. **分阶段扫描**：先快速扫一遍，再对重点区域细扫
+2. **标记已确认的目标**：减少重复告警
+3. **动态更新区域**：移除已排查完毕的区域
+4. **同步置信度**：并非所有检测结果都确定
 
 ---
 
-## Support
+<a id="safety-considerations"></a>
+## 安全须知
 
-- **Documentation**: [ADR-001](/docs/adr/ADR-001-wifi-mat-disaster-detection.md)
-- **Domain Model**: [DDD Specification](/docs/ddd/wifi-mat-domain-model.md)
-- **Issues**: [GitHub Issues](https://github.com/ruvnet/wifi-densepose/issues)
-- **API Docs**: Run `cargo doc --package wifi-densepose-mat --open`
+### 局限性
+
+- **并非 100% 可靠**：务必用其他手段复核
+- **环境因素影响**：金属、水体、厚混凝土会降低效果
+- **仅能探测有生命的活动**：无呼吸的昏迷者或遇难者无法检出
+- **埋深限制**：超过 5m 后精度下降
+
+### 与其他手段配合
+
+WiFi-Mat 应与以下手段配合使用：
+- 声波探测（听音设备）
+- 搜救犬队伍
+- 热成像
+- 人工探查
+
+### 漏检风险
+
+**阴性结果不等于确认没有幸存者**。务必做到：
+- 清理废墟后重新扫描
+- 采用多种探测手段
+- 继续按人工搜救流程作业
 
 ---
 
-*WiFi-Mat is designed to assist search and rescue operations. It is a tool to augment, not replace, trained rescue personnel and established SAR protocols.*
+## 支持
+
+- **文档**：[ADR-001](/docs/adr/ADR-001-wifi-mat-disaster-detection.md)
+- **领域模型**：[DDD 规格说明](/docs/ddd/wifi-mat-domain-model.md)
+- **问题反馈**：[GitHub Issues](https://github.com/ruvnet/wifi-densepose/issues)
+- **API 文档**：执行 `cargo doc --package wifi-densepose-mat --open`
+
+---
+
+*WiFi-Mat 用于辅助搜索与救援行动。它是增强手段，不能替代受训救援人员与既定的搜救规程。*
