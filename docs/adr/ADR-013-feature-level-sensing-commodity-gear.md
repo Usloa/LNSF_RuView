@@ -1,55 +1,55 @@
-# ADR-013: Feature-Level Sensing on Commodity Gear (Option 3)
+# ADR-013：在通用商用设备上做特征级感知（方案 3）
 
-## Status
-Accepted — Implemented (36/36 unit tests pass, see `archive/v1/src/sensing/` and `archive/v1/tests/unit/test_sensing.py`)
+## 状态
+Accepted — 已实现（36/36 单元测试通过，见 `archive/v1/src/sensing/` 与 `archive/v1/tests/unit/test_sensing.py`）
 
-## Date
+## 日期
 2026-02-28
 
-## Context
+## 背景
 
-### Not Everyone Can Deploy Custom Hardware
+### 并非所有人都能部署定制硬件
 
-ADR-012 specifies an ESP32 CSI mesh that provides real CSI data. However, it requires:
-- Purchasing ESP32 boards
-- Flashing custom firmware
-- ESP-IDF toolchain installation
-- Physical placement of nodes
+ADR-012 给出了能提供真实 CSI 数据的 ESP32 CSI 传感网，但它要求：
+- 购买 ESP32 开发板
+- 烧录定制固件
+- 安装 ESP-IDF 工具链
+- 实地摆放节点
 
-For many users - especially those evaluating WiFi-DensePose or deploying in managed environments - modifying hardware is not an option. We need a sensing path that works with **existing, unmodified consumer WiFi gear**.
+对许多用户 —— 尤其是评估 WiFi-DensePose 或在托管环境中部署的人 —— 改动硬件并不可行。我们需要一条能跑在**现有、未经改动的消费级 WiFi 设备**上的感知路径。
 
-### What Commodity Hardware Exposes
+### 商用硬件能暴露哪些信号
 
-Standard WiFi drivers and tools expose several metrics without custom firmware:
+标准 WiFi 驱动与工具无需定制固件就能提供若干指标：
 
-| Signal | Source | Availability | Sampling Rate |
+| 信号 | 来源 | 可获得性 | 采样率 |
 |--------|--------|-------------|---------------|
-| RSSI (Received Signal Strength) | `iwconfig`, `iw`, NetworkManager | Universal | 1-10 Hz |
-| Noise floor | `iw dev wlan0 survey dump` | Most Linux drivers | ~1 Hz |
-| Link quality | `/proc/net/wireless` | Linux | 1-10 Hz |
-| MCS index / PHY rate | `iw dev wlan0 link` | Most drivers | Per-packet |
-| TX/RX bytes | `/sys/class/net/wlan0/statistics/` | Universal | Continuous |
-| Retry count | `iw dev wlan0 station dump` | Most drivers | ~1 Hz |
-| Beacon interval timing | `iw dev wlan0 scan dump` | Universal | Per-scan |
-| Channel utilization | `iw dev wlan0 survey dump` | Most drivers | ~1 Hz |
+| RSSI（接收信号强度） | `iwconfig`、`iw`、NetworkManager | 通用 | 1-10 Hz |
+| 噪声底 | `iw dev wlan0 survey dump` | 多数 Linux 驱动 | ~1 Hz |
+| 链路质量 | `/proc/net/wireless` | Linux | 1-10 Hz |
+| MCS 索引 / PHY 速率 | `iw dev wlan0 link` | 多数驱动 | 逐包 |
+| TX/RX 字节数 | `/sys/class/net/wlan0/statistics/` | 通用 | 连续 |
+| 重传次数 | `iw dev wlan0 station dump` | 多数驱动 | ~1 Hz |
+| 信标间隔时序 | `iw dev wlan0 scan dump` | 通用 | 逐次扫描 |
+| 信道利用率 | `iw dev wlan0 survey dump` | 多数驱动 | ~1 Hz |
 
-**RSSI is the primary signal**. It varies when humans move through the propagation path between any transmitter-receiver pair. Research confirms RSSI-based sensing for:
-- Presence detection (single receiver, threshold on variance)
-- Device-free motion detection (RSSI variance increases with movement)
-- Coarse room-level localization (multi-receiver RSSI fingerprinting)
-- Breathing detection (specialized setups, marginal quality)
+**RSSI 是主要信号**。当人穿过任意一对收发设备之间的传播路径时，它就会变化。已有研究证实 RSSI 可用于：
+- 存在检测（单接收机，对方差设阈值）
+- 无设备运动检测（运动会使 RSSI 方差增大）
+- 粗粒度房间级定位（多接收机 RSSI 指纹）
+- 呼吸检测（需专门布置，效果勉强）
 
-### Research Support
+### 研究依据
 
-- **RSSI-based presence**: Youssef et al. (2007) demonstrated device-free passive detection using RSSI from multiple receivers with >90% accuracy.
-- **RSSI breathing**: Abdelnasser et al. (2015) showed respiration detection via RSSI variance in controlled settings with ~85% accuracy using 4+ receivers.
-- **Device-free tracking**: Multiple receivers with RSSI fingerprinting achieve room-level (3-5m) accuracy.
+- **基于 RSSI 的存在检测**：Youssef 等（2007）用多个接收机的 RSSI 演示了无设备被动检测，准确率 >90%。
+- **基于 RSSI 的呼吸检测**：Abdelnasser 等（2015）在受控条件下用 4 个以上接收机、通过 RSSI 方差实现呼吸检测，准确率约 85%。
+- **无设备跟踪**：多接收机配合 RSSI 指纹可达到房间级（3-5m）精度。
 
-## Decision
+## 决策
 
-We will implement a Feature-Level Sensing module that extracts motion, presence, and coarse activity information from standard WiFi metrics available on any Linux machine without hardware modification.
+我们将实现一个特征级感知模块，从任意 Linux 机器都能取得的标准 WiFi 指标中提取运动、存在和粗粒度活动信息，无需改动硬件。
 
-### Architecture
+### 架构
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -99,7 +99,7 @@ We will implement a Feature-Level Sensing module that extracts motion, presence,
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Feature Extraction Specification
+### 特征提取规格
 
 ```python
 class RssiFeatureExtractor:
@@ -119,7 +119,7 @@ class RssiFeatureExtractor:
         rssi_array = np.array(self.rssi_buffer)
 
         return FeatureVector(
-            # Time-domain statistics
+            # 时域统计量
             rssi_mean=np.mean(rssi_array),
             rssi_variance=np.var(rssi_array),
             rssi_skewness=scipy.stats.skew(rssi_array),
@@ -127,17 +127,17 @@ class RssiFeatureExtractor:
             rssi_range=np.ptp(rssi_array),
             rssi_iqr=np.subtract(*np.percentile(rssi_array, [75, 25])),
 
-            # Spectral features (FFT of RSSI time series)
+            # 频谱特征（对 RSSI 时序做 FFT）
             spectral_energy=self._spectral_energy(rssi_array),
             dominant_frequency=self._dominant_freq(rssi_array),
             breathing_band_power=self._band_power(rssi_array, 0.1, 0.5),  # Hz
             motion_band_power=self._band_power(rssi_array, 0.5, 3.0),    # Hz
 
-            # Change-point features
+            # 变点特征
             num_change_points=self._cusum_changes(rssi_array),
             max_step_magnitude=self._max_step(rssi_array),
 
-            # Noise floor features (environment stability)
+            # 噪声底特征（环境稳定性）
             noise_mean=np.mean(np.array(self.noise_buffer)),
             snr_estimate=np.mean(rssi_array) - np.mean(np.array(self.noise_buffer)),
         )
@@ -177,7 +177,7 @@ class RssiFeatureExtractor:
         return changes
 ```
 
-### Data Collection (No Root Required)
+### 数据采集（无需 root）
 
 ```python
 class LinuxWifiCollector:
@@ -193,14 +193,14 @@ class LinuxWifiCollector:
 
     def get_rssi(self) -> float:
         """Get current RSSI from connected AP."""
-        # Method 1: /proc/net/wireless (no root)
+        # 方法 1：/proc/net/wireless（无需 root）
         with open("/proc/net/wireless") as f:
             for line in f:
                 if self.interface in line:
                     parts = line.split()
                     return float(parts[3].rstrip('.'))
 
-        # Method 2: iw (no root for own station)
+        # 方法 2：iw（读取本机站点信息无需 root）
         result = subprocess.run(
             ["iw", "dev", self.interface, "link"],
             capture_output=True, text=True
@@ -241,7 +241,7 @@ class LinuxWifiCollector:
         return stats
 ```
 
-### Classification Rules
+### 分类规则
 
 ```python
 class PresenceClassifier:
@@ -260,10 +260,10 @@ class PresenceClassifier:
     def classify(self, features: FeatureVector,
                  multi_receiver: list[FeatureVector] = None) -> SensingResult:
 
-        # Presence: RSSI variance exceeds empty-room baseline
+        # 存在判定：RSSI 方差超过空房间基线
         presence = features.rssi_variance > self.variance_threshold
 
-        # Motion level
+        # 运动等级
         if features.rssi_variance > self.motion_threshold:
             motion = MotionLevel.ACTIVE
         elif features.rssi_variance > self.variance_threshold:
@@ -271,7 +271,7 @@ class PresenceClassifier:
         else:
             motion = MotionLevel.ABSENT
 
-        # Confidence from spectral energy and receiver agreement
+        # 由频谱能量与接收机一致性得出置信度
         spectral_conf = min(1.0, features.spectral_energy / self.spectral_threshold)
         if multi_receiver:
             agreeing = sum(1 for f in multi_receiver
@@ -291,36 +291,36 @@ class PresenceClassifier:
         )
 ```
 
-### Capability Matrix (Honest Assessment)
+### 能力矩阵（如实评估）
 
-| Capability | Single Receiver | 3 Receivers | 6 Receivers | Accuracy |
+| 能力 | 单接收机 | 3 个接收机 | 6 个接收机 | 准确率 |
 |-----------|----------------|-------------|-------------|----------|
-| Binary presence | Yes | Yes | Yes | 90-95% |
-| Coarse motion (still/moving) | Yes | Yes | Yes | 85-90% |
-| Room-level location | No | Marginal | Yes | 70-80% |
-| Person count | No | Marginal | Marginal | 50-70% |
-| Activity class (walk/sit/stand) | Marginal | Marginal | Yes | 60-75% |
-| Respiration detection | No | Marginal | Marginal | 40-60% |
-| Heartbeat | No | No | No | N/A |
-| Body pose | No | No | No | N/A |
+| 二值存在检测 | 是 | 是 | 是 | 90-95% |
+| 粗粒度运动（静止/移动） | 是 | 是 | 是 | 85-90% |
+| 房间级定位 | 否 | 勉强 | 是 | 70-80% |
+| 人数统计 | 否 | 勉强 | 勉强 | 50-70% |
+| 活动类别（走/坐/站） | 勉强 | 勉强 | 是 | 60-75% |
+| 呼吸检测 | 否 | 勉强 | 勉强 | 40-60% |
+| 心跳 | 否 | 否 | 否 | N/A |
+| 人体姿态 | 否 | 否 | 否 | N/A |
 
-**Bottom line**: Feature-level sensing on commodity gear does presence and motion well. It does NOT do pose estimation, heartbeat, or reliable respiration. Any claim otherwise would be dishonest.
+**结论**：在商用设备上做特征级感知，存在检测与运动检测表现良好，但**做不了**姿态估计、心跳或可靠的呼吸检测。任何相反的说法都不诚实。
 
-### Decision Matrix: Option 2 (ESP32) vs Option 3 (Commodity)
+### 决策矩阵：方案 2（ESP32）对比方案 3（商用设备）
 
-| Factor | ESP32 CSI (ADR-012) | Commodity (ADR-013) |
+| 因素 | ESP32 CSI（ADR-012） | 商用设备（ADR-013） |
 |--------|---------------------|---------------------|
-| Headline capability | Respiration + motion | Presence + coarse motion |
-| Hardware cost | $54 (3-node kit) | $0 (existing gear) |
-| Setup time | 2-4 hours | 15 minutes |
-| Technical barrier | Medium (firmware flash) | Low (pip install) |
-| Data quality | Real CSI (amplitude + phase) | RSSI only |
-| Multi-person | Marginal | Poor |
-| Pose estimation | Marginal | No |
-| Reproducibility | High (controlled hardware) | Medium (varies by hardware) |
-| Public credibility | High (real CSI artifact) | Medium (RSSI is "obvious") |
+| 主打能力 | 呼吸 + 运动 | 存在 + 粗粒度运动 |
+| 硬件成本 | $54（3 节点套件） | $0（现有设备） |
+| 部署时间 | 2-4 小时 | 15 分钟 |
+| 技术门槛 | 中（烧录固件） | 低（pip install） |
+| 数据质量 | 真实 CSI（幅度 + 相位） | 仅 RSSI |
+| 多人 | 勉强 | 差 |
+| 姿态估计 | 勉强 | 否 |
+| 可复现性 | 高（硬件可控） | 中（因硬件而异） |
+| 公众可信度 | 高（有真实 CSI 证明物） | 中（RSSI 太「常识」） |
 
-### Proof Bundle for Commodity Sensing
+### 商用感知的证明包
 
 ```
 archive/v1/data/proof/commodity/
@@ -333,9 +333,9 @@ archive/v1/data/proof/commodity/
 └── verify_commodity.py             # One-command verification
 ```
 
-### Integration with WiFi-DensePose Pipeline
+### 与 WiFi-DensePose 流水线的集成
 
-The commodity sensing module outputs the same `SensingResult` type as the CSI pipeline, allowing graceful degradation:
+商用感知模块输出与 CSI 流水线相同的 `SensingResult` 类型，因此可以优雅降级：
 
 ```python
 class SensingBackend(Protocol):
@@ -356,46 +356,46 @@ class CommodityBackend(SensingBackend):
         return {Capability.PRESENCE, Capability.MOTION}
 ```
 
-## Consequences
+## 影响
 
-### Positive
-- **Zero-cost entry**: Works with existing WiFi hardware
-- **15-minute setup**: `pip install wifi-densepose && wdp sense --interface wlan0`
-- **Broad adoption**: Any Linux laptop, Pi, or phone can participate
-- **Honest capability reporting**: `get_capabilities()` tells users exactly what works
-- **Complements ESP32**: Users start with commodity, upgrade to ESP32 for more capability
-- **No mock data**: Real RSSI from real hardware, deterministic pipeline
+### 正面影响
+- **零成本入门**：直接用现有 WiFi 硬件
+- **15 分钟搭好**：`pip install wifi-densepose && wdp sense --interface wlan0`
+- **普及面广**：任何 Linux 笔记本、树莓派或手机都能参与
+- **能力如实上报**：`get_capabilities()` 明确告诉用户哪些功能可用
+- **与 ESP32 互补**：用户先用商用设备入门，需要更强能力时再升级到 ESP32
+- **没有模拟数据**：来自真实硬件的真实 RSSI，流水线确定可复现
 
-### Negative
-- **Limited capability**: No pose, no heartbeat, marginal respiration
-- **Hardware variability**: RSSI calibration differs across chipsets
-- **Environmental sensitivity**: Commodity RSSI is more affected by interference than CSI
-- **Not a "pose estimation" demo**: This module honestly cannot do what the project name implies
-- **Lower credibility ceiling**: RSSI sensing is well-known; less impressive than CSI
+### 负面影响
+- **能力有限**：没有姿态、没有心跳，呼吸检测也很勉强
+- **硬件差异**：不同芯片组的 RSSI 标定不一致
+- **环境敏感**：商用 RSSI 比 CSI 更易受干扰影响
+- **不是「姿态估计」演示**：本模块确实做不到项目名字暗示的那件事
+- **可信度上限较低**：RSSI 感知是众所周知的技术，不如 CSI 有冲击力
 
-### Implementation Status
+### 实现状态
 
-The full commodity sensing pipeline is implemented in `archive/v1/src/sensing/`:
+完整的商用感知流水线已实现在 `archive/v1/src/sensing/`：
 
-| Module | File | Description |
+| 模块 | 文件 | 说明 |
 |--------|------|-------------|
-| RSSI Collector | `rssi_collector.py` | `LinuxWifiCollector` (live hardware) + `SimulatedCollector` (deterministic testing) with ring buffer |
-| Feature Extractor | `feature_extractor.py` | `RssiFeatureExtractor` with Hann-windowed FFT, band power (breathing 0.1-0.5 Hz, motion 0.5-3 Hz), CUSUM change-point detection |
-| Classifier | `classifier.py` | `PresenceClassifier` with ABSENT/PRESENT_STILL/ACTIVE levels, confidence scoring |
-| Backend | `backend.py` | `CommodityBackend` wiring collector → extractor → classifier, reports PRESENCE + MOTION capabilities |
+| RSSI 采集器 | `rssi_collector.py` | `LinuxWifiCollector`（实时硬件）+ `SimulatedCollector`（确定性测试），带环形缓冲 |
+| 特征提取器 | `feature_extractor.py` | `RssiFeatureExtractor`，含 Hann 窗 FFT、频段能量（呼吸 0.1-0.5 Hz、运动 0.5-3 Hz）、CUSUM 变点检测 |
+| 分类器 | `classifier.py` | `PresenceClassifier`，含 ABSENT/PRESENT_STILL/ACTIVE 三级与置信度评分 |
+| 后端 | `backend.py` | `CommodityBackend` 串起采集器 → 提取器 → 分类器，上报 PRESENCE + MOTION 能力 |
 
-**Test coverage**: 36 tests in `archive/v1/tests/unit/test_sensing.py` — all passing:
-- `TestRingBuffer` (4), `TestSimulatedCollector` (5), `TestFeatureExtractor` (8), `TestCusum` (4), `TestPresenceClassifier` (7), `TestCommodityBackend` (6), `TestBandPower` (2)
+**测试覆盖**：`archive/v1/tests/unit/test_sensing.py` 中 36 个测试全部通过：
+- 测试类：`TestRingBuffer`（4）、`TestSimulatedCollector`（5）、`TestFeatureExtractor`（8）、`TestCusum`（4）、`TestPresenceClassifier`（7）、`TestCommodityBackend`（6）、`TestBandPower`（2）
 
-**Dependencies**: `numpy`, `scipy` (for FFT and spectral analysis)
+**依赖**：`numpy`、`scipy`（用于 FFT 与频谱分析）
 
-**Note**: `LinuxWifiCollector` requires a connected Linux WiFi interface (`/proc/net/wireless` or `iw`). On Windows or disconnected interfaces, use `SimulatedCollector` for development and testing.
+**注意**：`LinuxWifiCollector` 需要已连接的 Linux WiFi 接口（`/proc/net/wireless` 或 `iw`）。在 Windows 或接口未连接时，开发与测试请改用 `SimulatedCollector`。
 
-## References
+## 参考资料
 
 - [Youssef et al. - Challenges in Device-Free Passive Localization](https://doi.org/10.1145/1287853.1287880)
 - [Device-Free WiFi Sensing Survey](https://arxiv.org/abs/1901.09683)
 - [RSSI-based Breathing Detection](https://ieeexplore.ieee.org/document/7127688)
 - [Linux Wireless Tools](https://wireless.wiki.kernel.org/en/users/documentation/iw)
-- ADR-011: Python Proof-of-Reality and Mock Elimination
-- ADR-012: ESP32 CSI Sensor Mesh
+- ADR-011：Python 真实性验证与消除模拟代码
+- ADR-012：面向分布式感知的 ESP32 CSI 传感网

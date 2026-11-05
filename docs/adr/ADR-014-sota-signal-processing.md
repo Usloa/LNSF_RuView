@@ -1,160 +1,160 @@
-# ADR-014: SOTA Signal Processing Algorithms for WiFi Sensing
+# ADR-014：面向 WiFi 感知的 SOTA 信号处理算法
 
-## Status
+## 状态
 Accepted
 
-## Context
+## 背景
 
-The existing signal processing pipeline (ADR-002) provides foundational CSI processing:
-phase unwrapping, FFT-based feature extraction, and variance-based motion detection.
-However, the academic state-of-the-art in WiFi sensing (2020-2025) has advanced
-significantly beyond these basics. To achieve research-grade accuracy, we need
-algorithms grounded in the physics of WiFi signal propagation and human body interaction.
+现有信号处理流水线（ADR-002）提供了 CSI 处理的基础能力：
+相位解缠、基于 FFT 的特征提取，以及基于方差的运动检测。
+但 2020-2025 年间，WiFi 感知领域的学术前沿已显著
+超出这些基础方法。要达到研究级精度，我们需要
+建立在 WiFi 信号传播与人体相互作用物理机制之上的算法。
 
-### Current Gaps vs SOTA
+### 现状与 SOTA 的差距
 
-| Capability | Current | SOTA Reference |
+| 能力 | 现状 | SOTA 参考方案 |
 |-----------|---------|----------------|
-| Phase cleaning | Z-score outlier + unwrapping | Conjugate multiplication (SpotFi 2015, IndoTrack 2017) |
-| Outlier detection | Z-score | Hampel filter (robust median-based) |
-| Breathing detection | Zero-crossing frequency | Fresnel zone model (FarSense 2019, Wi-Sleep 2021) |
-| Signal representation | Raw amplitude/phase | CSI spectrogram (time-frequency 2D matrix) |
-| Subcarrier usage | All subcarriers equally | Sensitivity-based selection (variance ratio) |
-| Motion profiling | Single motion score | Body Velocity Profile / BVP (Widar 3.0 2019) |
+| 相位清洗 | Z-score 离群点 + 解缠 | 共轭相乘（SpotFi 2015、IndoTrack 2017） |
+| 离群点检测 | Z-score | Hampel 滤波器（基于中位数的稳健方法） |
+| 呼吸检测 | 过零频率 | 菲涅尔区模型（FarSense 2019、Wi-Sleep 2021） |
+| 信号表示 | 原始幅度/相位 | CSI 频谱图（时频二维矩阵） |
+| 子载波使用 | 所有子载波等权 | 基于灵敏度的筛选（方差比） |
+| 运动刻画 | 单一运动得分 | 人体速度剖面 / BVP（Widar 3.0 2019） |
 
-## Decision
+## 决策
 
-Implement six SOTA algorithms in the `wifi-densepose-signal` crate as new modules,
-each with deterministic tests and no mock data.
+在 `wifi-densepose-signal` crate 中以新模块形式实现六种 SOTA 算法，
+每种都带确定性测试，且不使用模拟数据。
 
-### 1. Conjugate Multiplication (CSI Ratio Model)
+### 1. 共轭相乘（CSI 比值模型）
 
-**What:** Multiply CSI from antenna pair (i,j) as `H_i * conj(H_j)` to cancel
-carrier frequency offset (CFO), sampling frequency offset (SFO), and packet
-detection delay — all of which corrupt raw phase measurements.
+**做法：** 把天线对 (i,j) 的 CSI 相乘为 `H_i * conj(H_j)`，以消除
+载波频偏（CFO）、采样频偏（SFO）与包检测时延
+—— 这几项都会破坏原始相位测量。
 
-**Why:** Raw CSI phase from commodity hardware (ESP32, Intel 5300) includes
-random offsets that change per packet. Conjugate multiplication preserves only
-the phase difference caused by the environment (human motion), not the hardware.
+**原因：** 商用硬件（ESP32、Intel 5300）给出的原始 CSI 相位带有
+逐包变化的随机偏移。共轭相乘只保留由环境（人体运动）
+引起的相位差，而不含硬件引入的部分。
 
-**Math:** `CSI_ratio[k] = H_1[k] * conj(H_2[k])` where k is subcarrier index.
-The resulting phase `angle(CSI_ratio[k])` reflects only path differences between
-the two antenna elements.
+**数学表达：** `CSI_ratio[k] = H_1[k] * conj(H_2[k])`，其中 k 为子载波索引。
+所得相位 `angle(CSI_ratio[k])` 只反映两个
+天线阵元之间的路径差。
 
-**Reference:** SpotFi (SIGCOMM 2015), IndoTrack (MobiCom 2017)
+**参考：** SpotFi（SIGCOMM 2015）、IndoTrack（MobiCom 2017）
 
-### 2. Hampel Filter
+### 2. Hampel 滤波器
 
-**What:** Replace outliers using running median ± scaled MAD (Median Absolute
-Deviation), which is robust to the outliers themselves (unlike mean/std Z-score).
+**做法：** 用滑动中位数 ± 缩放后的 MAD（中位绝对偏差）替换离群点，
+它对离群点本身稳健（不像基于均值/标准差的 Z-score）。
 
-**Why:** WiFi CSI has burst interference, multipath spikes, and hardware glitches
-that create outliers. Z-score outlier detection uses mean/std, which are themselves
-corrupted by the outliers (masking effect). Hampel filter uses median/MAD, which
-resist up to 50% contamination.
+**原因：** WiFi CSI 中存在突发干扰、多径尖峰和硬件毛刺，
+都会产生离群点。Z-score 离群检测依赖均值/标准差，而它们
+本身会被离群点污染（掩蔽效应）。Hampel 滤波器使用中位数/MAD，
+可抵抗高达 50% 的污染。
 
-**Math:** For window around sample i: `median = med(x[i-w..i+w])`,
-`MAD = med(|x[j] - median|)`, `σ_est = 1.4826 * MAD`.
-If `|x[i] - median| > t * σ_est`, replace x[i] with median.
+**数学表达：** 对样本 i 周围的窗口：`median = med(x[i-w..i+w])`，
+`MAD = med(|x[j] - median|)`，`σ_est = 1.4826 * MAD`。
+若 `|x[i] - median| > t * σ_est`，则用中位数替换 x[i]。
 
-**Reference:** Standard DSP technique, used in WiGest (2015), WiDance (2017)
+**参考：** 标准 DSP 技术，已用于 WiGest（2015）、WiDance（2017）
 
-### 3. Fresnel Zone Breathing Model
+### 3. 菲涅尔区呼吸模型
 
-**What:** Model WiFi signal variation as a function of human chest displacement
-crossing Fresnel zone boundaries. The chest moves ~5-10mm during breathing,
-which at 5 GHz (λ=60mm) is a significant fraction of the Fresnel zone width.
+**做法：** 把 WiFi 信号变化建模为人体胸腔位移穿越菲涅尔区边界的函数。
+呼吸时胸腔移动约 5-10mm，在 5 GHz（λ=60mm）下
+这占菲涅尔区宽度的相当一部分。
 
-**Why:** Zero-crossing counting works for strong signals but fails in multipath-rich
-environments. The Fresnel model predicts *where* in the signal cycle a breathing
-motion should appear based on the TX-RX-body geometry, enabling detection even
-with weak signals.
+**原因：** 过零计数在强信号下有效，但在多径丰富的环境中会失效。
+菲涅尔模型能根据 TX-RX-人体的几何关系，预测呼吸
+动作应出现在信号周期的*哪个位置*，从而
+在弱信号下也能检测。
 
-**Math:** Fresnel zone radius at point P: `F_n = sqrt(n * λ * d1 * d2 / (d1 + d2))`.
-Signal variation: `ΔΦ = 2π * 2Δd / λ` where Δd is chest displacement.
-Expected breathing amplitude: `A = |sin(ΔΦ/2)|`.
+**数学表达：** 点 P 处的菲涅尔区半径：`F_n = sqrt(n * λ * d1 * d2 / (d1 + d2))`。
+信号变化：`ΔΦ = 2π * 2Δd / λ`，其中 Δd 为胸腔位移。
+预期呼吸幅度：`A = |sin(ΔΦ/2)|`。
 
-**Reference:** FarSense (MobiCom 2019), Wi-Sleep (UbiComp 2021)
+**参考：** FarSense（MobiCom 2019）、Wi-Sleep（UbiComp 2021）
 
-### 4. CSI Spectrogram
+### 4. CSI 频谱图
 
-**What:** Construct a 2D time-frequency matrix by applying sliding-window FFT
-(STFT) to the temporal CSI amplitude stream per subcarrier. This reveals how
-the frequency content of body motion changes over time.
+**做法：** 对每个子载波的 CSI 幅度时序做滑动窗口 FFT
+（STFT），构造二维时频矩阵。它能揭示
+人体运动的频率成分随时间的变化。
 
-**Why:** Spectrograms are the standard input to CNN-based activity recognition.
-A breathing person shows a ~0.2-0.4 Hz band, walking shows 1-2 Hz, and
-stationary environment shows only noise. The 2D structure allows spatial
-pattern recognition that 1D features miss.
+**原因：** 频谱图是基于 CNN 的活动识别的标准输入。
+呼吸的人呈现约 0.2-0.4 Hz 频带，行走呈现 1-2 Hz，
+静止环境只有噪声。二维结构支持一维特征
+无法做到的空间模式识别。
 
-**Math:** `S[t,f] = |Σ_n x[n] * w[n-t] * exp(-j2πfn)|²`
+**数学表达：** `S[t,f] = |Σ_n x[n] * w[n-t] * exp(-j2πfn)|²`
 
-**Reference:** Used in virtually all CNN-based WiFi sensing papers since 2018
+**参考：** 2018 年以来几乎所有基于 CNN 的 WiFi 感知论文都采用
 
-### 5. Subcarrier Sensitivity Selection
+### 5. 子载波灵敏度筛选
 
-**What:** Rank subcarriers by their sensitivity to human motion (variance ratio
-between motion and static periods) and select only the top-K for further processing.
+**做法：** 按对人体运动的灵敏度（运动期与静止期的方差比）
+给子载波排序，只选前 K 个做后续处理。
 
-**Why:** Not all subcarriers respond equally to body motion. Some are in
-multipath nulls, some carry mainly noise. Using all subcarriers dilutes the signal.
-Selecting the 10-20 most sensitive subcarriers improves SNR by 6-10 dB.
+**原因：** 各子载波对人体运动的响应并不相同。有的落在
+多径零点，有的主要是噪声。全用会稀释信号。
+只选最灵敏的 10-20 个子载波可把 SNR 提升 6-10 dB。
 
-**Math:** `sensitivity[k] = var_motion(amp[k]) / (var_static(amp[k]) + ε)`.
-Select top-K subcarriers by sensitivity score.
+**数学表达：** `sensitivity[k] = var_motion(amp[k]) / (var_static(amp[k]) + ε)`。
+按灵敏度得分选出前 K 个子载波。
 
-**Reference:** WiDance (MobiCom 2017), WiGest (SenSys 2015)
+**参考：** WiDance（MobiCom 2017）、WiGest（SenSys 2015）
 
-### 6. Body Velocity Profile (BVP)
+### 6. 人体速度剖面（BVP）
 
-**What:** Extract velocity distribution of body parts from Doppler shifts across
-subcarriers. BVP is a 2D representation (velocity × time) that encodes how
-different body parts move at different speeds.
+**做法：** 从各子载波的多普勒频移中提取身体各部分的速度分布。
+BVP 是二维表示（速度 × 时间），刻画了
+不同身体部位以不同速度运动的情况。
 
-**Why:** BVP is domain-independent — the same velocity profile appears regardless
-of room layout, furniture, or AP placement. This makes it the basis for
-cross-environment gesture and activity recognition.
+**原因：** BVP 与具体环境无关 —— 无论房间布局、家具还是 AP 摆放如何，
+都会出现相同的速度剖面。这使其成为
+跨环境手势与活动识别的基础。
 
-**Math:** Apply DFT across time for each subcarrier, then aggregate across
-subcarriers: `BVP[v,t] = Σ_k |STFT_k[v,t]|` where v maps to velocity via
-`v = f_doppler * λ / 2`.
+**数学表达：** 对每个子载波沿时间维做 DFT，再跨子载波聚合：
+`BVP[v,t] = Σ_k |STFT_k[v,t]|`，其中 v 通过
+`v = f_doppler * λ / 2` 映射为速度。
 
-**Reference:** Widar 3.0 (MobiSys 2019), WiDar (MobiSys 2017)
+**参考：** Widar 3.0（MobiSys 2019）、WiDar（MobiSys 2017）
 
-## Implementation
+## 实现
 
-All algorithms implemented in `wifi-densepose-signal/src/` as new modules:
-- `csi_ratio.rs` — Conjugate multiplication
-- `hampel.rs` — Hampel filter
-- `fresnel.rs` — Fresnel zone breathing model
-- `spectrogram.rs` — CSI spectrogram generation
-- `subcarrier_selection.rs` — Sensitivity-based selection
-- `bvp.rs` — Body Velocity Profile extraction
+所有算法都以新模块实现在 `wifi-densepose-signal/src/`：
+- `csi_ratio.rs` — 共轭相乘
+- `hampel.rs` — Hampel 滤波器
+- `fresnel.rs` — 菲涅尔区呼吸模型
+- `spectrogram.rs` — CSI 频谱图生成
+- `subcarrier_selection.rs` — 基于灵敏度的筛选
+- `bvp.rs` — 人体速度剖面提取
 
-Each module has:
-- Deterministic unit tests with known input/output
-- No random data, no mocks
-- Documentation with references to source papers
-- Integration with existing `CsiData` types
+每个模块都包含：
+- 输入/输出已知的确定性单元测试
+- 无随机数据、无模拟代码
+- 注明原始论文出处的文档
+- 与现有 `CsiData` 类型集成
 
-## Consequences
+## 影响
 
-### Positive
-- Research-grade signal processing matching 2019-2023 publications
-- Physics-grounded algorithms (Fresnel zones, Doppler) not just heuristics
-- Cross-environment robustness via BVP and CSI ratio
-- CNN-ready features via spectrograms
-- Improved SNR via subcarrier selection
+### 正面影响
+- 达到 2019-2023 年论文水平的研究级信号处理
+- 建立在物理机制上的算法（菲涅尔区、多普勒），不只是启发式规则
+- 借 BVP 与 CSI 比值获得跨环境鲁棒性
+- 频谱图提供可直接喂给 CNN 的特征
+- 子载波筛选提升 SNR
 
-### Negative
-- Increased computational cost (STFT, complex multiplication per frame)
-- Fresnel model requires TX-RX distance estimate (geometry input)
-- BVP requires sufficient temporal history (>1 second at 100+ Hz sampling)
+### 负面影响
+- 计算成本上升（每帧都要 STFT 与复数乘法）
+- 菲涅尔模型需要 TX-RX 距离估计（几何输入）
+- BVP 需要足够长的时序历史（100+ Hz 采样下需 >1 秒）
 
-## References
-- SpotFi: Decimeter Level Localization Using WiFi (SIGCOMM 2015)
-- IndoTrack: Device-Free Indoor Human Tracking (MobiCom 2017)
-- FarSense: Pushing the Range Limit of WiFi-based Respiration Sensing (MobiCom 2019)
-- Widar 3.0: Zero-Effort Cross-Domain Gesture Recognition (MobiSys 2019)
-- Wi-Sleep: Contactless Sleep Staging (UbiComp 2021)
-- DensePose from WiFi (arXiv 2022, CMU)
+## 参考资料
+- SpotFi：基于 WiFi 的分米级定位（SIGCOMM 2015）
+- IndoTrack：无设备室内人体跟踪（MobiCom 2017）
+- FarSense：突破 WiFi 呼吸感知的距离极限（MobiCom 2019）
+- Widar 3.0：零代价跨域手势识别（MobiSys 2019）
+- Wi-Sleep：非接触睡眠分期（UbiComp 2021）
+- 《DensePose from WiFi》论文（arXiv 2022，CMU）

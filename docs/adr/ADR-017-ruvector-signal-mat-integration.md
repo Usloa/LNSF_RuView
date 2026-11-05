@@ -1,54 +1,54 @@
-# ADR-017: RuVector Integration for Signal Processing and MAT Crates
+# ADR-017：信号处理与 MAT crate 的 RuVector 集成
 
-## Status
+## 状态
 
 Accepted
 
-## Date
+## 日期
 
 2026-02-28
 
-## Context
+## 背景
 
-ADR-016 integrated all five published ruvector v2.0.4 crates into the
-`wifi-densepose-train` crate (model.rs, dataset.rs, subcarrier.rs, metrics.rs).
-Two production crates that pre-date ADR-016 remain without ruvector integration
-despite having concrete, high-value integration points:
+ADR-016 已把五个已发布的 ruvector v2.0.4 crate 接入
+`wifi-densepose-train` crate（model.rs、dataset.rs、subcarrier.rs、metrics.rs）。
+另有两个早于 ADR-016 的生产 crate 尚未集成 ruvector，
+尽管它们存在具体且高价值的集成点：
 
-1. **`wifi-densepose-signal`** — SOTA signal processing algorithms (ADR-014):
-   conjugate multiplication, Hampel filter, Fresnel zone breathing model, CSI
-   spectrogram, subcarrier sensitivity selection, Body Velocity Profile (BVP).
-   These algorithms perform independent element-wise operations or brute-force
-   exhaustive search without subpolynomial optimization.
+1. **`wifi-densepose-signal`** —— SOTA 信号处理算法（ADR-014）：
+   共轭相乘、Hampel 滤波器、菲涅尔区呼吸模型、CSI
+   频谱图、子载波灵敏度筛选、人体速度剖面（BVP）。
+   这些算法做的是逐元素独立运算或暴力穷举搜索，
+   没有用上次多项式优化。
 
-2. **`wifi-densepose-mat`** — Disaster detection (ADR-001): multi-AP
-   triangulation, breathing/heartbeat waveform detection, triage classification.
-   Time-series data is uncompressed and localization uses closed-form geometry
-   without iterative system solving.
+2. **`wifi-densepose-mat`** —— 灾害检测（ADR-001）：多 AP
+   三角定位、呼吸/心跳波形检测、分诊分类。
+   时序数据未压缩，定位用闭式几何解，
+   没有迭代求解方程组。
 
-Additionally, ADR-002's dependency strategy references fictional crate names
-(`ruvector-core`, `ruvector-data-framework`, `ruvector-consensus`,
-`ruvector-wasm`) at non-existent version `"0.1"`. ADR-016 confirmed the actual
-published crates at v2.0.4 and these must be used instead.
+此外，ADR-002 的依赖策略引用了虚构的 crate 名
+（`ruvector-core`、`ruvector-data-framework`、`ruvector-consensus`、
+`ruvector-wasm`），版本 `"0.1"` 也并不存在。ADR-016 已核实
+实际发布的 crate 为 v2.0.4，必须改用这些。
 
-### Verified Published Crates (v2.0.4)
+### 已核实的已发布 crate（v2.0.4）
 
-From source inspection of github.com/ruvnet/ruvector and crates.io:
+依据 github.com/ruvnet/ruvector 源码与 crates.io 核查：
 
-| Crate | Key API | Algorithmic Advantage |
+| Crate | 关键 API | 算法优势 |
 |---|---|---|
-| `ruvector-mincut` | `DynamicMinCut`, `MinCutBuilder` | O(n^1.5 log n) dynamic graph partitioning |
-| `ruvector-attn-mincut` | `attn_mincut(q,k,v,d,seq,λ,τ,ε)` | Attention + mincut gating in one pass |
-| `ruvector-temporal-tensor` | `TemporalTensorCompressor`, `segment::decode` | Tiered quantization: 50–75% memory reduction |
-| `ruvector-solver` | `NeumannSolver::new(tol,max_iter).solve(&CsrMatrix,&[f32])` | O(√n) Neumann series convergence |
-| `ruvector-attention` | `ScaledDotProductAttention::new(d).compute(q,ks,vs)` | Sublinear attention for small d |
+| `ruvector-mincut` | `DynamicMinCut`、`MinCutBuilder` | O(n^1.5 log n) 动态图划分 |
+| `ruvector-attn-mincut` | `attn_mincut(q,k,v,d,seq,λ,τ,ε)` | 一趟计算内完成注意力 + 最小割门控 |
+| `ruvector-temporal-tensor` | `TemporalTensorCompressor`、`segment::decode` | 分层量化：内存降低 50–75% |
+| `ruvector-solver` | `NeumannSolver::new(tol,max_iter).solve(&CsrMatrix,&[f32])` | O(√n) 诺依曼级数收敛 |
+| `ruvector-attention` | `ScaledDotProductAttention::new(d).compute(q,ks,vs)` | 小 d 下的亚线性注意力 |
 
-## Decision
+## 决策
 
-Integrate the five ruvector v2.0.4 crates across `wifi-densepose-signal` and
-`wifi-densepose-mat` through seven targeted integration points.
+通过七个定向集成点，把五个 ruvector v2.0.4 crate 接入
+`wifi-densepose-signal` 与 `wifi-densepose-mat`。
 
-### Integration Map
+### 集成映射
 
 ```
 wifi-densepose-signal/
@@ -67,31 +67,31 @@ wifi-densepose-mat/
 
 ---
 
-### Integration 1: Subcarrier Sensitivity Selection via DynamicMinCut
+### 集成 1：用 DynamicMinCut 做子载波灵敏度筛选
 
-**File:** `wifi-densepose-signal/src/subcarrier_selection.rs`
-**Crate:** `ruvector-mincut`
+**文件：** `wifi-densepose-signal/src/subcarrier_selection.rs`
+**所用 Crate：** `ruvector-mincut`
 
-**Current approach:** Rank all subcarriers by `variance_motion / variance_static`
-ratio, take top-K by sorting. O(n log n) sort, static partition.
+**当前做法：** 按 `variance_motion / variance_static`
+比值给所有子载波排序，取排序后的前 K 个。O(n log n) 排序，静态划分。
 
-**ruvector integration:** Build a similarity graph where subcarriers are vertices
-and edges encode variance-ratio similarity (|sensitivity_i − sensitivity_j|^−1).
-`DynamicMinCut` finds the minimum bisection separating high-sensitivity
-(motion-responsive) from low-sensitivity (noise-dominated) subcarriers. As new
-static/motion measurements arrive, `insert_edge`/`delete_edge` incrementally
-update the partition in O(n^1.5 log n) amortized — no full re-sort needed.
+**ruvector 集成：** 构建相似度图，子载波为顶点，
+边权表示方差比相似度的倒数（|sensitivity_i − sensitivity_j|^−1）。
+`DynamicMinCut` 求出最小二分，把高灵敏度
+（对运动有响应）与低灵敏度（噪声主导）的子载波分开。随着新的
+静态/运动测量到来，`insert_edge`/`delete_edge` 以 O(n^1.5 log n)
+摊还复杂度增量更新划分 —— 无需整体重排。
 
 ```rust
 use ruvector_mincut::{DynamicMinCut, MinCutBuilder};
 
-/// Partition subcarriers into sensitive/insensitive groups via min-cut.
-/// Returns (sensitive_indices, insensitive_indices).
+/// 用最小割把子载波划分为灵敏/不灵敏两组。
+/// 返回 (sensitive_indices, insensitive_indices)。
 pub fn mincut_subcarrier_partition(
     sensitivity: &[f32],
 ) -> (Vec<usize>, Vec<usize>) {
     let n = sensitivity.len();
-    // Build fully-connected similarity graph (prune edges < threshold)
+    // 构建全连接相似度图（剪掉低于阈值的边）
     let threshold = 0.1_f64;
     let mut edges = Vec::new();
     for i in 0..n {
@@ -105,7 +105,7 @@ pub fn mincut_subcarrier_partition(
     }
     let mc = MinCutBuilder::new().exact().with_edges(edges).build();
     let (side_a, side_b) = mc.partition();
-    // side with higher mean sensitivity = sensitive
+    // 平均灵敏度更高的一侧即为灵敏组
     let mean_a: f32 = side_a.iter().map(|&i| sensitivity[i as usize]).sum::<f32>()
         / side_a.len() as f32;
     let mean_b: f32 = side_b.iter().map(|&i| sensitivity[i as usize]).sum::<f32>()
@@ -120,37 +120,37 @@ pub fn mincut_subcarrier_partition(
 }
 ```
 
-**Advantage:** Incremental updates as the environment changes (furniture moved,
-new occupant) do not require re-ranking all subcarriers. Dynamic partition tracks
-changing sensitivity in O(n^1.5 log n) vs O(n^2) re-scan.
+**优势：** 环境变化（搬动家具、新增人员）时增量更新即可，
+不必重新给所有子载波排序。动态划分以 O(n^1.5 log n)
+追踪灵敏度变化，对比 O(n²) 的全量重扫。
 
 ---
 
-### Integration 2: Attention-Gated CSI Spectrogram
+### 集成 2：注意力门控的 CSI 频谱图
 
-**File:** `wifi-densepose-signal/src/spectrogram.rs`
-**Crate:** `ruvector-attn-mincut`
+**文件：** `wifi-densepose-signal/src/spectrogram.rs`
+**所用 Crate：** `ruvector-attn-mincut`
 
-**Current approach:** Compute STFT per subcarrier independently, stack into 2D
-matrix [freq_bins × time_frames]. All bins weighted equally for downstream CNN.
+**当前做法：** 对每个子载波独立计算 STFT，堆叠成二维
+矩阵 [freq_bins × time_frames]。下游 CNN 对所有单元等权处理。
 
-**ruvector integration:** After STFT, treat each time frame as a sequence token
-(d = n_freq_bins, seq_len = n_time_frames). Apply `attn_mincut` to gate which
-time-frequency cells contribute to the spectrogram output — suppressing noise
-frames and multipath artifacts while amplifying body-motion periods.
+**ruvector 集成：** STFT 之后，把每个时间帧当作序列 token
+（d = n_freq_bins，seq_len = n_time_frames）。用 `attn_mincut` 门控哪些
+时频单元可进入频谱图输出 —— 抑制噪声帧与多径伪影，
+同时放大人体运动时段。
 
 ```rust
 use ruvector_attn_mincut::attn_mincut;
 
-/// Apply attention gating to a computed spectrogram.
-/// spectrogram: [n_freq_bins × n_time_frames] row-major f32
+/// 对已算好的频谱图做注意力门控。
+/// spectrogram：[n_freq_bins × n_time_frames]，行优先 f32。
 pub fn gate_spectrogram(
     spectrogram: &[f32],
     n_freq: usize,
     n_time: usize,
     lambda: f32,   // 0.1 = mild gating, 0.5 = aggressive
 ) -> Vec<f32> {
-    // Q = K = V = spectrogram (self-attention over time frames)
+    // Q = K = V = spectrogram（在时间帧上做自注意力）
     let out = attn_mincut(
         spectrogram, spectrogram, spectrogram,
         n_freq,      // d = feature dimension (freq bins)
@@ -163,34 +163,34 @@ pub fn gate_spectrogram(
 }
 ```
 
-**Advantage:** Self-attention + mincut identifies coherent temporal segments
-(body motion intervals) and gates out uncorrelated frames (ambient noise, transient
-interference). Lambda tunes the gating strength without requiring separate
-denoising or temporal smoothing steps.
+**优势：** 自注意力 + 最小割能识别出连贯的时间段
+（人体运动区间），并门控掉不相关的帧（环境噪声、瞬态
+干扰）。lambda 调节门控强度，无需额外的
+去噪或时序平滑步骤。
 
 ---
 
-### Integration 3: Cross-Subcarrier BVP Attention
+### 集成 3：跨子载波 BVP 注意力
 
-**File:** `wifi-densepose-signal/src/bvp.rs`
-**Crate:** `ruvector-attention`
+**文件：** `wifi-densepose-signal/src/bvp.rs`
+**所用 Crate：** `ruvector-attention`
 
-**Current approach:** Aggregate Body Velocity Profile by summing STFT magnitudes
-uniformly across all subcarriers: `BVP[v,t] = Σ_k |STFT_k[v,t]|`. Equal
-weighting means insensitive subcarriers dilute the velocity estimate.
+**当前做法：** 把所有子载波的 STFT 幅度等权求和得到人体速度剖面：
+`BVP[v,t] = Σ_k |STFT_k[v,t]|`。等权意味着
+不灵敏的子载波会稀释速度估计。
 
-**ruvector integration:** Use `ScaledDotProductAttention` to compute a
-weighted aggregation across subcarriers. Each subcarrier contributes a key
-(its sensitivity profile) and value (its STFT row). The query is the current
-velocity bin. Attention weights automatically emphasize subcarriers that are
-responsive to the queried velocity range.
+**ruvector 集成：** 用 `ScaledDotProductAttention` 计算
+跨子载波的加权聚合。每个子载波提供一个 key
+（其灵敏度剖面）和一个 value（其 STFT 行）。query 是当前
+速度分箱。注意力权重会自动强调对所查询速度区间
+有响应的子载波。
 
 ```rust
 use ruvector_attention::ScaledDotProductAttention;
 
-/// Compute attention-weighted BVP aggregation across subcarriers.
-/// stft_rows: Vec of n_subcarriers rows, each [n_velocity_bins] f32
-/// sensitivity: sensitivity score per subcarrier [n_subcarriers] f32
+/// 计算跨子载波的注意力加权 BVP 聚合。
+/// stft_rows：n_subcarriers 行，每行 [n_velocity_bins] 个 f32。
+/// sensitivity：每个子载波的灵敏度得分 [n_subcarriers] f32。
 pub fn attention_weighted_bvp(
     stft_rows: &[Vec<f32>],
     sensitivity: &[f32],
@@ -199,7 +199,7 @@ pub fn attention_weighted_bvp(
     let d = n_velocity_bins;
     let attn = ScaledDotProductAttention::new(d);
 
-    // Mean sensitivity row as query (overall body motion profile)
+    // 以平均灵敏度行作为 query（整体人体运动剖面）
     let query: Vec<f32> = (0..d).map(|v| {
         stft_rows.iter().zip(sensitivity.iter())
             .map(|(row, &s)| row[v] * s)
@@ -207,8 +207,8 @@ pub fn attention_weighted_bvp(
             / sensitivity.iter().sum::<f32>()
     }).collect();
 
-    // Keys = STFT rows (each subcarrier's velocity profile)
-    // Values = STFT rows (same, weighted by attention)
+    // Keys = STFT 行（每个子载波的速度剖面）
+    // Values = STFT 行（同上，按注意力加权）
     let keys: Vec<&[f32]> = stft_rows.iter().map(|r| r.as_slice()).collect();
     let values: Vec<&[f32]> = stft_rows.iter().map(|r| r.as_slice()).collect();
 
@@ -217,34 +217,34 @@ pub fn attention_weighted_bvp(
 }
 ```
 
-**Advantage:** Replaces uniform sum with sensitivity-aware weighting. Subcarriers
-in multipath nulls or noise-dominated frequency bands receive low attention weight
-automatically, without requiring manual selection or a separate sensitivity step.
+**优势：** 用灵敏度感知的加权取代等权求和。落在
+多径零点或噪声主导频段的子载波会自动获得较低权重，
+无需手工筛选，也不必单独做灵敏度步骤。
 
 ---
 
-### Integration 4: Fresnel Zone Geometry System via NeumannSolver
+### 集成 4：用 NeumannSolver 求解菲涅尔区几何系统
 
-**File:** `wifi-densepose-signal/src/fresnel.rs`
-**Crate:** `ruvector-solver`
+**文件：** `wifi-densepose-signal/src/fresnel.rs`
+**所用 Crate：** `ruvector-solver`
 
-**Current approach:** Closed-form Fresnel zone radius formula assuming known
-TX-RX-body geometry. In practice, exact distances d1 (TX→body) and d2
-(body→RX) are unknown — only the TX-RX straight-line distance D is known from
+**当前做法：** 采用闭式菲涅尔区半径公式，假定 TX-RX-人体几何已知。
+实际上精确距离 d1（TX→人体）与 d2
+（人体→RX）都未知 —— 由 AP 摆放只能知道 TX-RX 直线距离 D。
 AP placement.
 
-**ruvector integration:** When multiple subcarriers observe different Fresnel
-zone crossings at the same chest displacement, we can solve for the unknown
-geometry (d1, d2, Δd) using the over-determined linear system from multiple
-observations. `NeumannSolver` handles the sparse normal equations efficiently.
+**ruvector 集成：** 当多个子载波在相同胸腔位移下观测到不同的菲涅尔区
+穿越时，可用多次观测构成的超定线性系统解出未知几何
+(d1, d2, Δd)。`NeumannSolver` 负责高效求解该系统
+对应的稀疏正规方程。
 
 ```rust
 use ruvector_solver::neumann::NeumannSolver;
 use ruvector_solver::types::CsrMatrix;
 
-/// Estimate TX-body and body-RX distances from multi-subcarrier Fresnel observations.
-/// observations: Vec of (wavelength_m, observed_amplitude_variation)
-/// Returns (d1_estimate_m, d2_estimate_m)
+/// 由多个子载波的菲涅尔观测估计 TX-人体与人体-RX 距离。
+/// observations：(wavelength_m, observed_amplitude_variation) 的 Vec。
+/// 返回 (d1_estimate_m, d2_estimate_m)。
 pub fn solve_fresnel_geometry(
     observations: &[(f32, f32)],
     d_total: f32,  // Known TX-RX straight-line distance in metres
@@ -252,22 +252,22 @@ pub fn solve_fresnel_geometry(
     let n = observations.len();
     if n < 3 { return None; }
 
-    // System: A·[d1, d2]^T = b
-    // From Fresnel: A_k = |sin(2π·2·Δd / λ_k)|, observed ~ A_k
-    // Linearize: use log-magnitude ratios as rows
-    // Normal equations: (A^T A + λI) x = A^T b
+    // 方程组：A·[d1, d2]^T = b
+    // 由菲涅尔模型：A_k = |sin(2π·2·Δd / λ_k)|，观测值 ~ A_k
+    // 线性化：用对数幅度比作为各行
+    // 正规方程：(A^T A + λI) x = A^T b
     let lambda_reg = 0.05_f32;
     let mut coo = Vec::new();
     let mut rhs = vec![0.0_f32; 2];
 
     for (k, &(wavelength, amplitude)) in observations.iter().enumerate() {
-        // Row k: [1/wavelength, -1/wavelength] · [d1; d2] ≈ log(amplitude + 1)
+        // 第 k 行：[1/wavelength, -1/wavelength] · [d1; d2] ≈ log(amplitude + 1)
         let coeff = 1.0 / wavelength;
         coo.push((k, 0, coeff));
         coo.push((k, 1, -coeff));
         let _ = amplitude; // used implicitly via b vector
     }
-    // Build normal equations
+    // 构建正规方程
     let ata_csr = CsrMatrix::<f32>::from_coo(2, 2, vec![
         (0, 0, lambda_reg + observations.iter().map(|(w, _)| 1.0 / (w * w)).sum::<f32>()),
         (1, 1, lambda_reg + observations.iter().map(|(w, _)| 1.0 / (w * w)).sum::<f32>()),
@@ -289,35 +289,35 @@ pub fn solve_fresnel_geometry(
 }
 ```
 
-**Advantage:** Converts the Fresnel model from a single fixed-geometry formula
-into a data-driven geometry estimator. With 3+ observations (subcarriers at
-different frequencies), NeumannSolver converges in O(√n) iterations — critical
-for real-time breathing detection at 100 Hz.
+**优势：** 把菲涅尔模型从固定几何的单一公式
+变成数据驱动的几何估计器。有 3 次以上观测（不同频率的子载波）时，
+NeumannSolver 以 O(√n) 次迭代收敛 —— 对 100 Hz 的
+实时呼吸检测至关重要。
 
 ---
 
-### Integration 5: Multi-AP Triangulation via NeumannSolver
+### 集成 5：用 NeumannSolver 做多 AP 三角定位
 
-**File:** `wifi-densepose-mat/src/localization/triangulation.rs`
-**Crate:** `ruvector-solver`
+**文件：** `wifi-densepose-mat/src/localization/triangulation.rs`
+**所用 Crate：** `ruvector-solver`
 
-**Current approach:** Multi-AP localization uses pairwise TDoA (Time Difference
-of Arrival) converted to hyperbolic equations. Solving N-AP systems requires
-linearization and least-squares, currently implemented as brute-force normal
-equations via Gaussian elimination (O(n^3)).
+**当前做法：** 多 AP 定位使用成对 TDoA（到达时间差）
+转换成的双曲方程。求解 N 个 AP 的方程组需要线性化与最小二乘，
+目前以暴力法直接解正规方程，通过高斯消元
+完成求解（O(n^3)）。
 
-**ruvector integration:** The linearized TDoA system is sparse (each measurement
-involves 2 APs, not all N). `CsrMatrix::from_coo` + `NeumannSolver` solves the
-sparse normal equations in O(√nnz) where nnz = number of non-zeros ≪ N^2.
+**ruvector 集成：** 线性化后的 TDoA 系统是稀疏的（每次测量只涉及
+2 个 AP，而非全部 N）。`CsrMatrix::from_coo` + `NeumannSolver` 以
+O(√nnz) 求解稀疏正规方程，nnz 为非零元数，远小于 N^2。
 
 ```rust
 use ruvector_solver::neumann::NeumannSolver;
 use ruvector_solver::types::CsrMatrix;
 
-/// Solve multi-AP TDoA survivor localization.
-/// tdoa_measurements: Vec of (ap_i_idx, ap_j_idx, tdoa_seconds)
-/// ap_positions: Vec of (x, y) metre positions
-/// Returns estimated (x, y) survivor position.
+/// 求解多 AP TDoA 的幸存者定位。
+/// tdoa_measurements：(ap_i_idx, ap_j_idx, tdoa_seconds) 的 Vec。
+/// ap_positions：(x, y) 米制坐标的 Vec。
+/// 返回估计的 (x, y) 幸存者位置。
 pub fn solve_triangulation(
     tdoa_measurements: &[(usize, usize, f32)],
     ap_positions: &[(f32, f32)],
@@ -329,12 +329,12 @@ pub fn solve_triangulation(
     let mut coo = Vec::new();
     let mut b = vec![0.0_f32; n_meas];
 
-    // Linearize: subtract reference AP from each TDoA equation
+    // 线性化：每条 TDoA 方程减去参考 AP
     let (x_ref, y_ref) = ap_positions[0];
     for (row, &(i, j, tdoa)) in tdoa_measurements.iter().enumerate() {
         let (xi, yi) = ap_positions[i];
         let (xj, yj) = ap_positions[j];
-        // (xi - xj)·x + (yi - yj)·y ≈ (d_ref_i - d_ref_j + C·tdoa) / 2
+        // 线性化方程：(xi - xj)·x + (yi - yj)·y ≈ (d_ref_i - d_ref_j + C·tdoa) / 2
         coo.push((row, 0, xi - xj));
         coo.push((row, 1, yi - yj));
         b[row] = C * tdoa / 2.0
@@ -342,7 +342,7 @@ pub fn solve_triangulation(
             - x_ref * (xi - xj) - y_ref * (yi - yj);
     }
 
-    // Normal equations: (A^T A + λI) x = A^T b
+    // 正规方程：(A^T A + λI) x = A^T b
     let lambda = 0.01_f32;
     let ata = CsrMatrix::<f32>::from_coo(2, 2, vec![
         (0, 0, lambda + coo.iter().filter(|e| e.1 == 0).map(|e| e.2 * e.2).sum::<f32>()),
@@ -362,26 +362,26 @@ pub fn solve_triangulation(
 }
 ```
 
-**Advantage:** For a disaster site with 5–20 APs, the TDoA system has N×(N-1)/2
-= 10–190 measurements but only 2 unknowns (x, y). The normal equations are 2×2
-regardless of N. NeumannSolver converges in O(1) iterations for well-conditioned
-2×2 systems — eliminating Gaussian elimination overhead.
+**优势：** 灾害现场有 5–20 个 AP 时，TDoA 系统有 N×(N-1)/2
+= 10–190 次测量，但未知量只有 2 个（x, y）。正规方程
+始终是 2×2，与 N 无关。对条件良好的 2×2 系统，
+NeumannSolver 以 O(1) 次迭代收敛 —— 省去高斯消元开销。
 
 ---
 
-### Integration 6: Breathing Waveform Compression
+### 集成 6：呼吸波形压缩
 
-**File:** `wifi-densepose-mat/src/detection/breathing.rs`
-**Crate:** `ruvector-temporal-tensor`
+**文件：** `wifi-densepose-mat/src/detection/breathing.rs`
+**所用 Crate：** `ruvector-temporal-tensor`
 
-**Current approach:** Breathing detector maintains an in-memory ring buffer of
-recent CSI amplitude samples across subcarriers × time. For a 60-second window
-at 100 Hz with 56 subcarriers: 60 × 100 × 56 × 4 bytes = **13.4 MB per zone**.
-With 16 concurrent zones: **214 MB just for breathing buffers**.
+**当前做法：** 呼吸检测器在内存中维护近期 CSI 幅度样本的环形缓冲，
+维度为子载波 × 时间。60 秒窗口、100 Hz、56 个子载波时：
+60 × 100 × 56 × 4 字节 = **每区域 13.4 MB**。
+16 个并发区域：**仅呼吸缓冲就占 214 MB**。
 
-**ruvector integration:** `TemporalTensorCompressor` with tiered quantization
-(8-bit hot / 5-7-bit warm / 3-bit cold) compresses the breathing waveform buffer
-by 50–75%:
+**ruvector 集成：** `TemporalTensorCompressor` 的分层量化
+（热 8-bit / 温 5-7-bit / 冷 3-bit）把呼吸波形缓冲
+压缩 50–75%：
 
 ```rust
 use ruvector_temporal_tensor::{TemporalTensorCompressor, TierPolicy};
@@ -417,46 +417,46 @@ impl CompressedBreathingBuffer {
         self.compressor.flush(&mut self.encoded);
     }
 
-    /// Decode all frames for frequency analysis.
+    /// 解码全部帧用于频率分析。
     pub fn to_vec(&self) -> Vec<f32> {
         let mut out = Vec::new();
         segment::decode(&self.encoded, &mut out);
         out
     }
 
-    /// Get single frame for real-time display.
+    /// 取单帧用于实时显示。
     pub fn get_frame(&self, idx: usize) -> Option<Vec<f32>> {
         segment::decode_single_frame(&self.encoded, idx)
     }
 }
 ```
 
-**Memory reduction:** 13.4 MB/zone → 3.4–6.7 MB/zone. 16 zones: 54–107 MB
-instead of 214 MB. Disaster response hardware (Raspberry Pi 4: 4–8 GB) can
-handle 2–4× more concurrent zones.
+**内存下降：** 每区域 13.4 MB → 3.4–6.7 MB。16 个区域由 214 MB
+降至 54–107 MB。灾害响应硬件（树莓派 4：4–8 GB）
+因此可支撑 2–4 倍的并发区域数。
 
 ---
 
-### Integration 7: Heartbeat Micro-Doppler Compression
+### 集成 7：心跳微多普勒压缩
 
-**File:** `wifi-densepose-mat/src/detection/heartbeat.rs`
-**Crate:** `ruvector-temporal-tensor`
+**文件：** `wifi-densepose-mat/src/detection/heartbeat.rs`
+**所用 Crate：** `ruvector-temporal-tensor`
 
-**Current approach:** Heartbeat detection uses micro-Doppler spectrograms:
-sliding STFT of CSI amplitude time-series. Each zone stores a spectrogram of
-shape [n_freq_bins=128, n_time=600] (60 seconds at 10 Hz output rate):
-128 × 600 × 4 bytes = **307 KB per zone**. With 16 zones: 4.9 MB — acceptable,
-but heartbeat spectrograms are the most access-intensive (queried at every triage
+**当前做法：** 心跳检测使用微多普勒频谱图：
+对 CSI 幅度时序做滑动 STFT。每个区域保存形状为
+[n_freq_bins=128, n_time=600] 的频谱图（60 秒，10 Hz 输出率）：
+128 × 600 × 4 字节 = **每区域 307 KB**。16 个区域共 4.9 MB —— 尚可接受，
+但心跳频谱图是访问最密集的（每次分诊更新都要查询）。
 update).
 
-**ruvector integration:** `TemporalTensorCompressor` stores the spectrogram rows
-as temporal frames (each row = one frequency bin's time-evolution). Hot tier
-(recent 10 seconds) at 8-bit, warm (10–30 sec) at 5-bit, cold (>30 sec) at 3-bit.
-Recent heartbeat cycles remain high-fidelity; historical data is compressed 5x:
+**ruvector 集成：** `TemporalTensorCompressor` 把频谱图各行
+存为时序帧（每行 = 一个频率 bin 的时间演化）。热层
+（最近 10 秒）8-bit，温层（10–30 秒）5-bit，冷层（>30 秒）3-bit。
+近期心跳周期保持高保真；历史数据压缩 5 倍：
 
 ```rust
 pub struct CompressedHeartbeatSpectrogram {
-    /// One compressor per frequency bin
+    /// 每个频率 bin 配一个压缩器
     bin_buffers: Vec<TemporalTensorCompressor>,
     encoded: Vec<Vec<u8>>,
     n_freq_bins: usize,
@@ -472,7 +472,7 @@ impl CompressedHeartbeatSpectrogram {
         Self { bin_buffers, encoded, n_freq_bins, frame_count: 0 }
     }
 
-    /// Push one column of the spectrogram (one time step, all frequency bins).
+    /// 推入频谱图的一列（一个时间步，含所有频率 bin）。
     pub fn push_column(&mut self, column: &[f32]) {
         for (i, (&val, buf)) in column.iter().zip(self.bin_buffers.iter_mut()).enumerate() {
             buf.push_frame(&[val], self.frame_count, &mut self.encoded[i]);
@@ -480,7 +480,7 @@ impl CompressedHeartbeatSpectrogram {
         self.frame_count += 1;
     }
 
-    /// Extract heartbeat frequency band power (0.8–1.5 Hz) from recent frames.
+    /// 从近期帧中提取心跳频段能量（0.8–1.5 Hz）。
     pub fn heartbeat_band_power(&self, low_bin: usize, high_bin: usize) -> f32 {
         (low_bin..=high_bin.min(self.n_freq_bins - 1))
             .map(|b| {
@@ -496,21 +496,21 @@ impl CompressedHeartbeatSpectrogram {
 
 ---
 
-## Performance Summary
+## 性能汇总
 
-| Integration Point | File | Crate | Before | After |
+| 集成点 | 文件 | Crate | 集成前 | 集成后 |
 |---|---|---|---|---|
-| Subcarrier selection | `subcarrier_selection.rs` | ruvector-mincut | O(n log n) static sort | O(n^1.5 log n) dynamic partition |
-| Spectrogram gating | `spectrogram.rs` | ruvector-attn-mincut | Uniform STFT bins | Attention-gated noise suppression |
-| BVP aggregation | `bvp.rs` | ruvector-attention | Uniform subcarrier sum | Sensitivity-weighted attention |
-| Fresnel geometry | `fresnel.rs` | ruvector-solver | Fixed geometry formula | Data-driven multi-obs system |
-| Multi-AP triangulation | `triangulation.rs` (MAT) | ruvector-solver | O(N^3) dense Gaussian | O(1) 2×2 Neumann system |
-| Breathing buffer | `breathing.rs` (MAT) | ruvector-temporal-tensor | 13.4 MB/zone | 3.4–6.7 MB/zone (50–75% less) |
-| Heartbeat spectrogram | `heartbeat.rs` (MAT) | ruvector-temporal-tensor | 307 KB/zone uniform | Tiered hot/warm/cold |
+| 子载波筛选 | `subcarrier_selection.rs` | ruvector-mincut | O(n log n) 静态排序 | O(n^1.5 log n) 动态划分 |
+| 频谱图门控 | `spectrogram.rs` | ruvector-attn-mincut | STFT 单元等权 | 注意力门控抑制噪声 |
+| BVP 聚合 | `bvp.rs` | ruvector-attention | 子载波等权求和 | 灵敏度加权注意力 |
+| 菲涅尔几何 | `fresnel.rs` | ruvector-solver | 固定几何公式 | 数据驱动的多观测系统 |
+| 多 AP 三角定位 | `triangulation.rs`（MAT） | ruvector-solver | O(N^3) 稠密高斯消元 | O(1) 的 2×2 诺依曼系统 |
+| 呼吸缓冲 | `breathing.rs`（MAT） | ruvector-temporal-tensor | 每区域 13.4 MB | 每区域 3.4–6.7 MB（降低 50–75%） |
+| 心跳频谱图 | `heartbeat.rs`（MAT） | ruvector-temporal-tensor | 每区域 307 KB，无分层 | 热/温/冷分层 |
 
-## Dependency Changes Required
+## 需要改动的依赖
 
-Add to `v2/Cargo.toml` workspace (already present from ADR-016):
+加入 `v2/Cargo.toml` workspace（ADR-016 中已存在）：
 ```toml
 ruvector-mincut = "2.0.4"          # already present
 ruvector-attn-mincut = "2.0.4"    # already present
@@ -519,7 +519,7 @@ ruvector-solver = "2.0.4"          # already present
 ruvector-attention = "2.0.4"       # already present
 ```
 
-Add to `wifi-densepose-signal/Cargo.toml` and `wifi-densepose-mat/Cargo.toml`:
+加入 `wifi-densepose-signal/Cargo.toml` 与 `wifi-densepose-mat/Cargo.toml`：
 ```toml
 [dependencies]
 ruvector-mincut = { workspace = true }
@@ -529,20 +529,20 @@ ruvector-solver = { workspace = true }
 ruvector-attention = { workspace = true }
 ```
 
-## Correction to ADR-002 Dependency Strategy
+## 对 ADR-002 依赖策略的更正
 
-ADR-002's dependency strategy section specifies non-existent crates:
+ADR-002 的依赖策略一节指定了并不存在的 crate：
 ```toml
-# WRONG (ADR-002 original — these crates do not exist at crates.io)
+# 错误（ADR-002 原文 —— 这些 crate 在 crates.io 上并不存在）
 ruvector-core = { version = "0.1", features = ["hnsw", "sona", "gnn"] }
 ruvector-data-framework = { version = "0.1", features = ["rvf", "witness", "crypto"] }
 ruvector-consensus = { version = "0.1", features = ["raft"] }
 ruvector-wasm = { version = "0.1", features = ["edge-runtime"] }
 ```
 
-The correct published crates (verified at crates.io, source at github.com/ruvnet/ruvector):
+正确的已发布 crate（已在 crates.io 核实，源码见 github.com/ruvnet/ruvector）：
 ```toml
-# CORRECT (as of 2026-02-28, all at v2.0.4)
+# 正确（截至 2026-02-28，均为 v2.0.4）
 ruvector-mincut = "2.0.4"          # Dynamic min-cut, O(n^1.5 log n) updates
 ruvector-attn-mincut = "2.0.4"    # Attention + mincut gating
 ruvector-temporal-tensor = "2.0.4" # Tiered temporal compression
@@ -550,54 +550,54 @@ ruvector-solver = "2.0.4"          # NeumannSolver, sublinear convergence
 ruvector-attention = "2.0.4"       # ScaledDotProductAttention
 ```
 
-The RVF cognitive container format (ADR-003), HNSW search (ADR-004), SONA
-self-learning (ADR-005), GNN patterns (ADR-006), post-quantum crypto (ADR-007),
-Raft consensus (ADR-008), and WASM edge runtime (ADR-009) described in ADR-002
-are architectural capabilities internal to ruvector but not exposed as separate
-published crates at v2.0.4. Those ADRs remain as forward-looking architectural
-guidance; their implementation paths will use the five published crates as
-building blocks where applicable.
+ADR-002 中描述的 RVF 认知容器格式（ADR-003）、HNSW 检索（ADR-004）、SONA
+自学习（ADR-005）、GNN 模式（ADR-006）、后量子密码（ADR-007）、
+Raft 共识（ADR-008）与 WASM 边缘运行时（ADR-009），
+都是 ruvector 内部的架构能力，在 v2.0.4 并未作为独立
+crate 发布。这些 ADR 仍作为前瞻性架构指引保留；其实现路径
+将视情况采用这五个已发布的 crate
+作为基础构件。
 
-## Implementation Priority
+## 实施优先级
 
-| Priority | Integration | Rationale |
+| 优先级 | 集成项 | 理由 |
 |---|---|---|
-| P1 | Breathing + heartbeat compression (MAT) | Memory-critical for 16-zone disaster deployments |
-| P1 | Multi-AP triangulation (MAT) | Safety-critical accuracy improvement |
-| P2 | Subcarrier selection via DynamicMinCut | Enables dynamic environment adaptation |
-| P2 | BVP attention aggregation | Direct accuracy improvement for activity classification |
-| P3 | Spectrogram attention gating | Reduces CNN input noise; requires CNN retraining |
-| P3 | Fresnel geometry system | Improves breathing detection in unknown geometries |
+| P1 | 呼吸 + 心跳压缩（MAT） | 16 区域灾害部署的内存瓶颈 |
+| P1 | 多 AP 三角定位（MAT） | 安全攸关的精度提升 |
+| P2 | 用 DynamicMinCut 做子载波筛选 | 支持动态适应环境变化 |
+| P2 | BVP 注意力聚合 | 直接提升活动分类准确率 |
+| P3 | 频谱图注意力门控 | 降低 CNN 输入噪声；需重新训练 CNN |
+| P3 | 菲涅尔几何系统 | 在未知几何下改善呼吸检测 |
 
-## Consequences
+## 影响
 
-### Positive
-- Consistent ruvector integration across all production crates (train, signal, MAT)
-- 50–75% memory reduction in disaster detection enables 2–4× more concurrent zones
-- Dynamic subcarrier partitioning adapts to environment changes without manual tuning
-- Attention-weighted BVP reduces velocity estimation error from insensitive subcarriers
-- NeumannSolver triangulation is O(1) in AP count (always solves 2×2 system)
+### 正面影响
+- 所有生产 crate（train、signal、MAT）的 ruvector 集成方式一致
+- 灾害检测内存降低 50–75%，可支撑 2–4 倍并发区域
+- 动态子载波划分无需人工调参即可适应环境变化
+- 注意力加权 BVP 降低不灵敏子载波带来的速度估计误差
+- NeumannSolver 三角定位对 AP 数量是 O(1)（始终解 2×2 系统）
 
-### Negative
-- ruvector crates operate on `&[f32]` CPU slices; MAT and signal crates must
-  bridge from their native types (ndarray, complex numbers)
-- `ruvector-temporal-tensor` compression is lossy; heartbeat amplitude values
-  may lose fine-grained detail in warm/cold tiers (mitigated by hot-tier recency)
-- Subcarrier selection via DynamicMinCut assumes a bipartite-like partition;
-  environments with 3+ distinct subcarrier groups may need multi-way cut extension
+### 负面影响
+- ruvector crate 操作 `&[f32]` CPU 切片；MAT 与 signal crate 必须
+  从其原生类型（ndarray、复数）做桥接
+- `ruvector-temporal-tensor` 压缩是有损的；温/冷层中的心跳幅度值
+  可能丢失细粒度细节（由热层的近期数据缓解）
+- 基于 DynamicMinCut 的子载波筛选假定近似二分的划分；
+  存在 3 组以上不同子载波群的环境可能需要多路割扩展
 
-## Related ADRs
+## 相关 ADR
 
-- ADR-001: WiFi-Mat Disaster Detection (target: MAT integrations 5–7)
-- ADR-002: RuVector RVF Integration Strategy (corrected crate names above)
-- ADR-014: SOTA Signal Processing Algorithms (target: signal integrations 1–4)
-- ADR-015: Public Dataset Training Strategy (preceding implementation in ADR-016)
-- ADR-016: RuVector Integration for Training Pipeline (completed reference implementation)
+- ADR-001：WiFi-Mat 灾害检测（目标：MAT 集成 5–7）
+- ADR-002：RuVector RVF 集成策略（crate 名已在上面更正）
+- ADR-014：面向 WiFi 感知的 SOTA 信号处理算法（目标：signal 集成 1–4）
+- ADR-015：用公开数据集训练姿态估计模型（ADR-016 之前的实现）
+- ADR-016：训练流水线的 RuVector 集成（已完成的参考实现）
 
-## References
+## 参考资料
 
 - [ruvector source](https://github.com/ruvnet/ruvector)
 - [DynamicMinCut API](https://docs.rs/ruvector-mincut/2.0.4)
 - [NeumannSolver convergence](https://en.wikipedia.org/wiki/Neumann_series)
 - [Tiered quantization](https://arxiv.org/abs/2103.13630)
-- SpotFi (SIGCOMM 2015), Widar 3.0 (MobiSys 2019), FarSense (MobiCom 2019)
+- 参考论文：SpotFi (SIGCOMM 2015)、Widar 3.0 (MobiSys 2019)、FarSense (MobiCom 2019)
