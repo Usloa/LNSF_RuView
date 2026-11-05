@@ -1,57 +1,57 @@
-# ADR-034: Expo React Native Mobile Application
+# ADR-034：Expo React Native 移动应用
 
-| Field | Value |
+| 字段 | 值 |
 |-------|-------|
-| **Status** | Accepted |
-| **Date** | 2026-03-02 |
-| **Deciders** | MaTriXy, rUv |
-| **Codename** | **FieldView** -- Mobile Companion for WiFi-DensePose Field Deployment |
-| **Relates to** | ADR-019 (Sensing-Only UI Mode), ADR-021 (Vital Sign Detection), ADR-026 (Survivor Track Lifecycle), ADR-029 (RuvSense Multistatic), ADR-031 (RuView Sensing-First RF), ADR-032 (Mesh Security) |
+| **状态** | Accepted |
+| **日期** | 2026-03-02 |
+| **决策者** | MaTriXy, rUv |
+| **代号** | **FieldView** -- 面向 WiFi-DensePose 现场部署的移动伴侣 |
+| **关联文档** | ADR-019（仅感知 UI 模式）、ADR-021（生命体征检测）、ADR-026（幸存者轨迹生命周期）、ADR-029（RuvSense 多基地）、ADR-031（RuView 感知优先 RF）、ADR-032（网格安全） |
 
 ---
 
-## 1. Context
+## 1. 背景
 
-### 1.1 Need for a Mobile Companion
+### 1.1 对移动伴侣应用的需求
 
-WiFi-DensePose is a WiFi-based human pose estimation system using Channel State Information (CSI) from ESP32 mesh nodes. The existing web UI (`ui/`) serves desktop browsers but is not optimized for mobile form factors. Three deployment scenarios demand a purpose-built mobile application:
+WiFi-DensePose 是一套基于 WiFi 的人体姿态估计系统，使用 ESP32 网格节点的信道状态信息（CSI）。现有 Web UI（`ui/`）面向桌面浏览器，未针对移动端形态优化。有三类部署场景要求专门的移动应用：
 
-1. **Disaster response (WiFi-MAT)**: First responders deploying ESP32 mesh nodes in collapsed structures need a portable device to visualize survivor detections, breathing/heart rate vitals, and zone maps in real time. A laptop is impractical in rubble fields.
-2. **Building security**: Security operators patrolling a facility need a handheld display showing occupancy by zone, movement alerts, and historical patterns. The phone in their pocket is the natural form factor.
-3. **Healthcare monitoring**: Clinical staff monitoring patients via CSI-based contactless vitals need a tablet view at the bedside or nurse station, with gauges for breathing rate and heart rate that update in real time.
+1. **灾害响应（WiFi-MAT）**：在坍塌建筑中部署 ESP32 网格节点的首批响应人员，需要便携设备实时查看幸存者检测、呼吸/心率生命体征与区域地图。在瓦砾现场使用笔记本电脑并不现实。
+2. **楼宇安防**：在设施内巡逻的安保人员需要手持显示设备，查看各区域占用情况、移动告警与历史模式。口袋里的手机是最自然的形态。
+3. **医疗监护**：通过基于 CSI 的非接触式生命体征监测病人的临床人员，需要在床边或护士站使用平板视图，配实时更新的呼吸率与心率仪表盘。
 
-In all three scenarios, the mobile device does not communicate with ESP32 nodes directly. Instead, a Rust sensing server (`wifi-densepose-sensing-server`, ADR-031) aggregates ESP32 UDP streams and exposes a WebSocket API. The mobile app connects to this server over local WiFi.
+在这三类场景中，移动设备都不与 ESP32 节点直接通信。取而代之的是由 Rust 感知服务器（`wifi-densepose-sensing-server`，ADR-031）聚合 ESP32 的 UDP 流并暴露 WebSocket API，移动应用通过本地 WiFi 连接该服务器。
 
-### 1.2 Technology Selection Rationale
+### 1.2 技术选型依据
 
-| Requirement | Decision | Rationale |
+| 需求 | 决策 | 理由 |
 |-------------|----------|-----------|
-| Cross-platform (iOS + Android + Web) | Expo SDK 55 + React Native 0.83 | Single codebase, managed workflow, OTA updates |
-| Real-time streaming | WebSocket (ws://host:3001/ws/sensing) | Sub-100ms latency from CSI capture to mobile display |
-| 3D visualization | Three.js Gaussian splat via WebView | Reuses existing `ui/` Three.js splat renderer; avoids native OpenGL binding |
-| State management | Zustand | Minimal boilerplate, React-concurrent safe, selector-based re-renders |
-| Persistence | AsyncStorage | Built into Expo, sufficient for settings and small cached state |
-| Navigation | react-navigation v7 (bottom tabs) | Standard React Native navigation; 5-tab layout fits mobile ergonomics |
-| WiFi RSSI scanning | Platform-specific (Android: react-native-wifi-reborn, iOS: CoreWLAN stub, Web: synthetic) | No cross-platform WiFi scanning API exists; platform modules are required |
-| E2E testing | Maestro YAML specs | Declarative, no Detox native build dependency, runs on CI |
-| Design system | Dark theme (#0D1117 bg, #32B8C6 accent) | Matches existing `ui/` sensing dashboard aesthetic; reduces eye strain in field conditions |
+| 跨平台（iOS + Android + Web） | Expo SDK 55 + React Native 0.83 | 单一代码库、托管工作流、OTA 更新 |
+| 实时流传输 | WebSocket（ws://host:3001/ws/sensing） | 从 CSI 采集到移动显示的时延低于 100 ms |
+| 三维可视化 | 通过 WebView 使用 Three.js 高斯泼溅 | 复用现有 `ui/` 的 Three.js 泼溅渲染器；避免原生 OpenGL 绑定 |
+| 状态管理 | Zustand | 样板代码少、React 并发安全、基于 selector 的重渲染 |
+| 持久化 | AsyncStorage | Expo 内置，足以保存设置与少量缓存状态 |
+| 导航 | react-navigation v7（底部标签页） | 标准 React Native 导航；5 标签布局契合移动端人机工学 |
+| WiFi RSSI 扫描 | 平台相关（Android：react-native-wifi-reborn，iOS：CoreWLAN stub，Web：synthetic） | 不存在跨平台的 WiFi 扫描 API；必须使用平台模块 |
+| E2E 测试 | Maestro YAML 规格 | 声明式、无需 Detox 原生构建依赖、可在 CI 运行 |
+| 设计系统 | 深色主题（#0D1117 背景，#32B8C6 强调色） | 与现有 `ui/` 感知仪表盘风格一致；减轻现场条件下的视觉疲劳 |
 
-### 1.3 Relationship to Existing UI
+### 1.3 与现有 UI 的关系
 
-The desktop web UI (`ui/`) and the mobile app share no code at the component level, but they consume the same backend APIs:
+桌面 Web UI（`ui/`）与移动应用在组件层面不共享代码，但消费相同的后端 API：
 
-- **WebSocket**: `ws://host:3001/ws/sensing` -- streaming SensingFrame JSON
-- **REST**: `http://host:3000/api/v1/...` -- configuration, history, health
+- **WebSocket**：`ws://host:3001/ws/sensing` -- 流式传输 SensingFrame JSON
+- **REST**：`http://host:3000/api/v1/...` -- 配置、历史、健康检查
 
-The mobile app's Three.js Gaussian splat viewer (LiveScreen) loads the same splat HTML bundle used by the desktop UI, rendered inside a WebView (native) or iframe (web).
+移动应用的 Three.js 高斯泼溅查看器（LiveScreen）加载桌面 UI 使用的同一份泼溅 HTML 包，在 WebView（原生端）或 iframe（Web 端）中渲染。
 
 ---
 
-## 2. Decision
+## 2. 决策
 
-Build an Expo React Native mobile application at `ui/mobile/` that provides five primary screens for field operators, connected to the Rust sensing server via WebSocket streaming. The app automatically falls back to simulated data when the sensing server is unreachable, enabling demos and offline testing.
+在 `ui/mobile/` 构建一套 Expo React Native 移动应用，为现场作业人员提供五个主屏幕，并通过 WebSocket 流连接到 Rust 感知服务器。当感知服务器不可达时，应用自动回退到模拟数据，以支持演示与离线测试。
 
-### 2.1 Screen Architecture
+### 2.1 屏幕架构
 
 ```
 +---------------------------------------------------------------+
@@ -69,19 +69,19 @@ Build an Expo React Native mobile application at `ui/mobile/` that provides five
 +---------------------------------------------------------------+
 ```
 
-**Screen responsibilities:**
+**各屏幕职责：**
 
-| Screen | Primary View | Data Source | Key Components |
+| 屏幕 | 主视图 | 数据源 | 关键组件 |
 |--------|-------------|-------------|----------------|
-| **Live** | 3D Gaussian splat with 17 COCO keypoints + HUD overlay | `poseStore.latestFrame` | `GaussianSplatWebView`, `LiveHUD`, `HudOverlay` |
-| **Vitals** | Breathing BPM gauge, heart rate BPM gauge, sparkline history | `poseStore.latestFrame.vital_signs` | `BreathingGauge`, `HeartRateGauge`, `MetricCard`, `SparklineChart` |
-| **Zones** | Floor plan SVG with occupancy heat overlay, zone legend | `poseStore.latestFrame.persons` | `FloorPlanSvg`, `OccupancyGrid`, `ZoneLegend` |
-| **MAT** | Survivor counter, zone map WebView, alert list | `matStore.survivors`, `matStore.alerts` | `SurvivorCounter`, `MatWebView`, `AlertList`, `AlertCard` |
-| **Settings** | Server URL input, theme picker, RSSI toggle | `settingsStore` | `ServerUrlInput`, `ThemePicker`, `RssiToggle` |
+| **Live** | 三维高斯泼溅，含 17 个 COCO 关键点 + HUD 叠层 | `poseStore.latestFrame` | `GaussianSplatWebView`、`LiveHUD`、`HudOverlay` |
+| **Vitals** | 呼吸 BPM 仪表、心率 BPM 仪表、迷你趋势图历史 | `poseStore.latestFrame.vital_signs` | `BreathingGauge`、`HeartRateGauge`、`MetricCard`、`SparklineChart` |
+| **Zones** | 楼层平面 SVG，带占用热力叠层与区域图例 | `poseStore.latestFrame.persons` | `FloorPlanSvg`、`OccupancyGrid`、`ZoneLegend` |
+| **MAT** | 幸存者计数、区域地图 WebView、告警列表 | `matStore.survivors`、`matStore.alerts` | `SurvivorCounter`、`MatWebView`、`AlertList`、`AlertCard` |
+| **Settings** | 服务器 URL 输入、主题选择、RSSI 开关 | `settingsStore` | `ServerUrlInput`、`ThemePicker`、`RssiToggle` |
 
-### 2.2 State Architecture
+### 2.2 状态架构
 
-Three Zustand stores separate concerns and prevent unnecessary re-renders:
+三个 Zustand store 分离关注点，避免不必要的重渲染：
 
 ```
 +------------------------------------------------------------+
@@ -118,27 +118,27 @@ Three Zustand stores separate concerns and prevent unnecessary re-renders:
 +------------------------------------------------------------+
 ```
 
-### 2.3 Service Layer
+### 2.3 服务层
 
-Four services encapsulate external communication and data generation:
+四个服务封装外部通信与数据生成：
 
-| Service | File | Responsibility |
+| 服务 | 文件 | 职责 |
 |---------|------|----------------|
-| `ws.service` | `src/services/ws.service.ts` | WebSocket connection lifecycle, reconnection with exponential backoff, SensingFrame parsing, dispatches to `poseStore` |
-| `api.service` | `src/services/api.service.ts` | REST calls to sensing server (health check, configuration, history endpoints) |
-| `rssi.service` | `src/services/rssi.service.ts` (+ platform variants) | Platform-specific WiFi RSSI scanning. Android uses `react-native-wifi-reborn`, iOS provides a CoreWLAN stub, Web generates synthetic RSSI values |
-| `simulation.service` | `src/services/simulation.service.ts` | Generates synthetic SensingFrame data when the real server is unreachable. Produces realistic amplitude, phase, vital signs, and person data on a configurable tick interval |
+| `ws.service` | `src/services/ws.service.ts` | WebSocket 连接生命周期、指数退避重连、SensingFrame 解析、分发到 `poseStore` |
+| `api.service` | `src/services/api.service.ts` | 对感知服务器的 REST 调用（健康检查、配置、历史端点） |
+| `rssi.service` | `src/services/rssi.service.ts`（含平台变体） | 平台相关的 WiFi RSSI 扫描。Android 使用 `react-native-wifi-reborn`，iOS 提供 CoreWLAN stub，Web 生成合成 RSSI 值 |
+| `simulation.service` | `src/services/simulation.service.ts` | 真实服务器不可达时生成合成的 SensingFrame 数据。按可配置的节拍间隔产出逼真的幅度、相位、生命体征与人员数据 |
 
-**Platform-specific RSSI service files:**
+**平台相关的 RSSI 服务文件：**
 
-| File | Platform | Implementation |
+| 文件 | 平台 | 实现 |
 |------|----------|----------------|
-| `rssi.service.android.ts` | Android | `react-native-wifi-reborn` native module, requires `ACCESS_FINE_LOCATION` permission |
-| `rssi.service.ios.ts` | iOS | CoreWLAN stub (returns empty scan results; Apple restricts WiFi scanning to system apps) |
-| `rssi.service.web.ts` | Web | Synthetic RSSI values generated from noise model |
-| `rssi.service.ts` | Default | Re-exports platform-appropriate module via React Native file resolution |
+| `rssi.service.android.ts` | Android | `react-native-wifi-reborn` 原生模块，需要 `ACCESS_FINE_LOCATION` 权限 |
+| `rssi.service.ios.ts` | iOS | CoreWLAN stub（返回空扫描结果；Apple 把 WiFi 扫描限制在系统应用内） |
+| `rssi.service.web.ts` | Web | 由噪声模型生成合成 RSSI 值 |
+| `rssi.service.ts` | 默认 | 通过 React Native 文件解析机制重新导出对应平台的模块 |
 
-### 2.4 Data Flow
+### 2.4 数据流
 
 ```
 ESP32 Mesh Nodes
@@ -172,20 +172,20 @@ ESP32 Mesh Nodes
 +---------------------------+
 ```
 
-**Connection lifecycle:**
+**连接生命周期：**
 
-1. App boots. `settingsStore` loads persisted server URL from AsyncStorage.
-2. `ws.service` opens WebSocket to `wsUrl/ws/sensing`.
-3. On each message, `ws.service` parses the `SensingFrame` JSON and dispatches to `poseStore`.
-4. If the WebSocket fails, `ws.service` retries with exponential backoff (1s, 2s, 4s, 8s, 16s max).
-5. After `MAX_RECONNECT_ATTEMPTS` (5) consecutive failures, `ws.service` switches to `simulation.service`, which generates synthetic frames at 10 Hz.
-6. `poseStore.connectionStatus` transitions: `connected` -> `error` -> `simulated`.
-7. `ConnectionBanner` component reflects the current status on all screens.
-8. If the server becomes reachable again, `ws.service` reconnects and resumes live data.
+1. 应用启动，`settingsStore` 从 AsyncStorage 加载已持久化的服务器 URL。
+2. `ws.service` 向 `wsUrl/ws/sensing` 打开 WebSocket。
+3. 每收到一条消息，`ws.service` 解析 `SensingFrame` JSON 并分发到 `poseStore`。
+4. 若 WebSocket 失败，`ws.service` 以指数退避重试（1s、2s、4s、8s，最大 16s）。
+5. 在 `MAX_RECONNECT_ATTEMPTS`（5）次连续失败后，`ws.service` 切换到 `simulation.service`，后者以 10 Hz 生成合成帧。
+6. `poseStore.connectionStatus` 的状态迁移：`connected` -> `error` -> `simulated`。
+7. `ConnectionBanner` 组件在所有屏幕上反映当前状态。
+8. 若服务器重新可达，`ws.service` 会重连并恢复实时数据。
 
-### 2.5 SensingFrame JSON Schema
+### 2.5 SensingFrame JSON 模式
 
-The WebSocket stream delivers JSON frames matching the Rust `SensingFrame` struct:
+WebSocket 流交付的 JSON 帧与 Rust `SensingFrame` 结构一致：
 
 ```typescript
 interface SensingFrame {
@@ -218,45 +218,45 @@ interface SensingFrame {
 }
 ```
 
-### 2.6 Three.js Gaussian Splat Rendering
+### 2.6 Three.js 高斯泼溅渲染
 
-The LiveScreen uses a WebView (native) or iframe (web) to render a Three.js Gaussian splat scene. This avoids native OpenGL bindings while reusing the existing splat renderer from the desktop UI.
+LiveScreen 使用 WebView（原生端）或 iframe（Web 端）渲染 Three.js 高斯泼溅场景。这样既避免了原生 OpenGL 绑定，又能复用桌面 UI 现有的泼溅渲染器。
 
-**Native path (iOS/Android):**
-- `GaussianSplatWebView.tsx` renders a `<WebView>` loading a bundled HTML page.
-- The HTML page initializes a Three.js scene with Gaussian splat shaders.
-- Communication between React Native and the WebView uses `postMessage` / `onMessage` bridge.
-- `useGaussianBridge.ts` hook manages the bridge, sending skeleton keypoint updates as JSON.
+**原生路径（iOS/Android）：**
+- `GaussianSplatWebView.tsx` 渲染 `<WebView>`，加载打包好的 HTML 页面。
+- 该 HTML 页面用高斯泼溅着色器初始化 Three.js 场景。
+- React Native 与 WebView 之间通过 `postMessage` / `onMessage` 桥接通信。
+- `useGaussianBridge.ts` hook 管理该桥接，以 JSON 发送骨架关键点更新。
 
-**Web path:**
-- `GaussianSplatWebView.web.tsx` (platform-specific file) renders an `<iframe>` with the same HTML bundle.
-- Communication uses `window.postMessage` with origin checks.
+**Web 路径：**
+- `GaussianSplatWebView.web.tsx`（平台专用文件）用同一份 HTML 包渲染 `<iframe>`。
+- 通信使用带来源校验的 `window.postMessage`。
 
-### 2.7 Design System
+### 2.7 设计系统
 
-| Token | Value | Usage |
+| 令牌 | 值 | 用途 |
 |-------|-------|-------|
-| `colors.background` | `#0D1117` | Primary background (dark theme) |
-| `colors.surface` | `#161B22` | Card/panel backgrounds |
-| `colors.border` | `#30363D` | Borders, dividers |
-| `colors.accent` | `#32B8C6` | Primary accent, active tab, gauge fill |
-| `colors.danger` | `#F85149` | Alerts, errors, critical vitals |
-| `colors.warning` | `#D29922` | Warnings, degraded state |
-| `colors.success` | `#3FB950` | Connected status, normal vitals |
-| `colors.text` | `#E6EDF3` | Primary text |
-| `colors.textSecondary` | `#8B949E` | Secondary/muted text |
-| `typography.mono` | `Courier New` | Monospace for data values, HUD |
-| `spacing.xs` | `4` | Tight spacing |
-| `spacing.sm` | `8` | Small spacing |
-| `spacing.md` | `16` | Medium spacing |
-| `spacing.lg` | `24` | Large spacing |
-| `spacing.xl` | `32` | Extra-large spacing |
+| `colors.background` | `#0D1117` | 主背景（深色主题） |
+| `colors.surface` | `#161B22` | 卡片/面板背景 |
+| `colors.border` | `#30363D` | 边框、分隔线 |
+| `colors.accent` | `#32B8C6` | 主强调色、活动标签、仪表填充 |
+| `colors.danger` | `#F85149` | 告警、错误、危急生命体征 |
+| `colors.warning` | `#D29922` | 警告、降级状态 |
+| `colors.success` | `#3FB950` | 已连接状态、正常生命体征 |
+| `colors.text` | `#E6EDF3` | 主文本 |
+| `colors.textSecondary` | `#8B949E` | 次要/弱化文本 |
+| `typography.mono` | `Courier New` | 数据值与 HUD 使用等宽字体 |
+| `spacing.xs` | `4` | 紧凑间距 |
+| `spacing.sm` | `8` | 小间距 |
+| `spacing.md` | `16` | 中等间距 |
+| `spacing.lg` | `24` | 大间距 |
+| `spacing.xl` | `32` | 超大间距 |
 
-The dark theme is the default and primary design target, optimized for field conditions (low ambient light, glare reduction). A light theme variant is available via the Settings screen.
+深色主题是默认且主要的设计目标，针对现场条件优化（低环境光、减少眩光）。浅色主题变体可通过 Settings 屏幕启用。
 
-### 2.8 ESP32 Integration Model
+### 2.8 ESP32 集成模型
 
-The mobile app does not communicate with ESP32 nodes directly. The architecture is:
+移动应用不与 ESP32 节点直接通信，架构如下：
 
 ```
 ESP32 Node A ---\
@@ -264,13 +264,13 @@ ESP32 Node B ----+---> Sensing Server (Raspberry Pi / Laptop) <---> Mobile App
 ESP32 Node C ---/         (local WiFi)                            (local WiFi)
 ```
 
-- **Field deployment**: The sensing server runs on a Raspberry Pi 4 or operator laptop. All devices (ESP32 nodes, server, mobile app) connect to the same local WiFi network or a portable router.
-- **Server URL**: Configurable in Settings screen. Default: `http://localhost:3000` (server) and `ws://localhost:3001/ws/sensing` (WebSocket). In field use, the operator sets this to the server's LAN IP (e.g., `http://192.168.1.100:3000`).
-- **No BLE/direct connection**: ESP32 nodes use UDP broadcast for CSI frames (ADR-029). The mobile app has no UDP listener; it consumes the server's processed output.
+- **现场部署**：感知服务器运行在 Raspberry Pi 4 或作业人员的笔记本电脑上。所有设备（ESP32 节点、服务器、移动应用）接入同一个本地 WiFi 网络或便携路由器。
+- **服务器 URL**：可在 Settings 屏幕配置。默认值：`http://localhost:3000`（服务器）与 `ws://localhost:3001/ws/sensing`（WebSocket）。现场使用时，作业人员把它设为服务器的局域网 IP（例如 `http://192.168.1.100:3000`）。
+- **无 BLE/直连**：ESP32 节点用 UDP 广播发送 CSI 帧（ADR-029）。移动应用没有 UDP 监听器，只消费服务器处理后的输出。
 
 ---
 
-## 3. Directory Structure
+## 3. 目录结构
 
 ```
 ui/mobile/
@@ -413,276 +413,276 @@ ui/mobile/
 |       |-- utils/                      # Utility unit tests (3 test files)
 ```
 
-**File count summary:**
+**文件数量汇总：**
 
-| Category | Files |
+| 类别 | 文件数 |
 |----------|-------|
-| Source (components, screens, services, stores, hooks, utils, types, theme, navigation) | 63 `.ts`/`.tsx` files |
-| Unit tests | 25 test files |
-| E2E tests (Maestro) | 6 YAML specs |
-| Config (babel, metro, jest, tsconfig, eas, app) | 7 config files |
-| Assets | 6 image files |
-| **Total** | **107 files** |
+| 源码（组件、屏幕、服务、store、hook、工具、类型、主题、导航） | 63 个 `.ts`/`.tsx` 文件 |
+| 单元测试 | 25 个测试文件 |
+| E2E 测试（Maestro） | 6 份 YAML 规格 |
+| 配置（babel、metro、jest、tsconfig、eas、app） | 7 个配置文件 |
+| 资源 | 6 个图片文件 |
+| **合计** | **107 files** |
 
 ---
 
-## 4. Implementation Plan (File-Level)
+## 4. 实施计划（文件级）
 
-### 4.1 Phase 1: Core Infrastructure
+### 4.1 阶段 1：核心基础设施
 
-| File | Purpose | Priority |
+| 文件 | 用途 | 优先级 |
 |------|---------|----------|
-| `App.tsx` | Root component with ThemeProvider and NavigationContainer | P0 |
-| `index.ts` | Expo entry point | P0 |
-| `app.config.ts` | Expo SDK 55 configuration | P0 |
-| `src/theme/colors.ts` | Dark and light color palettes | P0 |
-| `src/theme/spacing.ts` | Spacing scale | P0 |
-| `src/theme/typography.ts` | Font definitions | P0 |
-| `src/theme/ThemeContext.tsx` | React context provider for theme | P0 |
-| `src/navigation/MainTabs.tsx` | Bottom tab navigator with 5 tabs | P0 |
-| `src/navigation/RootNavigator.tsx` | Root stack navigator | P0 |
-| `src/types/sensing.ts` | SensingFrame, Person, VitalSigns type definitions | P0 |
+| `App.tsx` | 根组件，含 ThemeProvider 与 NavigationContainer | P0 |
+| `index.ts` | Expo 入口点 | P0 |
+| `app.config.ts` | Expo SDK 55 配置 | P0 |
+| `src/theme/colors.ts` | 深色与浅色调色板 | P0 |
+| `src/theme/spacing.ts` | 间距比例 | P0 |
+| `src/theme/typography.ts` | 字体定义 | P0 |
+| `src/theme/ThemeContext.tsx` | 主题的 React context provider | P0 |
+| `src/navigation/MainTabs.tsx` | 含 5 个标签的底部标签导航器 | P0 |
+| `src/navigation/RootNavigator.tsx` | 根 stack 导航器 | P0 |
+| `src/types/sensing.ts` | SensingFrame、Person、VitalSigns 类型定义 | P0 |
 
-### 4.2 Phase 2: State and Services
+### 4.2 阶段 2：状态与服务
 
-| File | Purpose | Priority |
+| 文件 | 用途 | 优先级 |
 |------|---------|----------|
-| `src/stores/poseStore.ts` | Zustand store for connection state, frames, persons | P0 |
-| `src/stores/matStore.ts` | Zustand store for MAT survivors, alerts, events | P0 |
-| `src/stores/settingsStore.ts` | Zustand store with AsyncStorage persistence | P0 |
-| `src/services/ws.service.ts` | WebSocket client with reconnection and dispatch | P0 |
-| `src/services/api.service.ts` | REST API client | P1 |
-| `src/services/simulation.service.ts` | Synthetic SensingFrame generator for fallback | P0 |
-| `src/services/rssi.service.ts` | Platform RSSI re-export | P1 |
-| `src/services/rssi.service.android.ts` | Android react-native-wifi-reborn integration | P1 |
-| `src/services/rssi.service.ios.ts` | iOS CoreWLAN stub | P2 |
-| `src/services/rssi.service.web.ts` | Web synthetic RSSI | P1 |
-| `src/utils/ringBuffer.ts` | Fixed-size ring buffer for frame history | P0 |
-| `src/utils/urlValidator.ts` | Server URL validation | P1 |
+| `src/stores/poseStore.ts` | 管理连接状态、帧、人员的 Zustand store | P0 |
+| `src/stores/matStore.ts` | 管理 MAT 幸存者、告警、事件的 Zustand store | P0 |
+| `src/stores/settingsStore.ts` | 带 AsyncStorage 持久化的 Zustand store | P0 |
+| `src/services/ws.service.ts` | 带重连与分发能力的 WebSocket 客户端 | P0 |
+| `src/services/api.service.ts` | REST API 客户端 | P1 |
+| `src/services/simulation.service.ts` | 用于回退的合成 SensingFrame 生成器 | P0 |
+| `src/services/rssi.service.ts` | 平台 RSSI 重新导出 | P1 |
+| `src/services/rssi.service.android.ts` | Android 侧 react-native-wifi-reborn 集成 | P1 |
+| `src/services/rssi.service.ios.ts` | iOS CoreWLAN 桩实现 | P2 |
+| `src/services/rssi.service.web.ts` | Web 端合成 RSSI | P1 |
+| `src/utils/ringBuffer.ts` | 用于帧历史的定长环形缓冲区 | P0 |
+| `src/utils/urlValidator.ts` | 服务器 URL 校验 | P1 |
 
-### 4.3 Phase 3: Shared Components
+### 4.3 阶段 3：共享组件
 
-| File | Purpose | Priority |
+| 文件 | 用途 | 优先级 |
 |------|---------|----------|
-| `src/components/ConnectionBanner.tsx` | Status banner across all screens | P0 |
-| `src/components/GaugeArc.tsx` | SVG arc gauge for vitals | P0 |
-| `src/components/SparklineChart.tsx` | Inline sparkline for history | P0 |
-| `src/components/OccupancyGrid.tsx` | Grid overlay for zones | P1 |
-| `src/components/StatusDot.tsx` | Colored status indicator | P1 |
-| `src/components/SignalBar.tsx` | WiFi signal strength display | P1 |
-| `src/components/ModeBadge.tsx` | Live/Sim mode badge | P1 |
-| `src/components/ErrorBoundary.tsx` | React error boundary | P0 |
-| `src/components/LoadingSpinner.tsx` | Loading state indicator | P1 |
-| `src/components/ThemedText.tsx` | Themed text component | P0 |
-| `src/components/ThemedView.tsx` | Themed view component | P0 |
-| `src/components/HudOverlay.tsx` | Translucent HUD for Live screen | P1 |
+| `src/components/ConnectionBanner.tsx` | 跨所有屏幕的状态横幅 | P0 |
+| `src/components/GaugeArc.tsx` | 生命体征用的 SVG 弧形仪表 | P0 |
+| `src/components/SparklineChart.tsx` | 历史数据的行内迷你趋势图 | P0 |
+| `src/components/OccupancyGrid.tsx` | 区域的网格叠层 | P1 |
+| `src/components/StatusDot.tsx` | 彩色状态指示点 | P1 |
+| `src/components/SignalBar.tsx` | WiFi 信号强度显示 | P1 |
+| `src/components/ModeBadge.tsx` | Live/Sim 模式徽标 | P1 |
+| `src/components/ErrorBoundary.tsx` | React 错误边界 | P0 |
+| `src/components/LoadingSpinner.tsx` | 加载状态指示器 | P1 |
+| `src/components/ThemedText.tsx` | 带主题支持的文本组件 | P0 |
+| `src/components/ThemedView.tsx` | 带主题支持的视图组件 | P0 |
+| `src/components/HudOverlay.tsx` | Live 屏幕的半透明 HUD 叠层 | P1 |
 
-### 4.4 Phase 4: Screens
+### 4.4 阶段 4：各屏幕
 
-| File | Purpose | Priority |
+| 文件 | 用途 | 优先级 |
 |------|---------|----------|
-| `src/screens/LiveScreen/index.tsx` | Live 3D splat + HUD | P0 |
-| `src/screens/LiveScreen/GaussianSplatWebView.tsx` | Native WebView for splat | P0 |
-| `src/screens/LiveScreen/GaussianSplatWebView.web.tsx` | Web iframe for splat | P1 |
-| `src/screens/LiveScreen/LiveHUD.tsx` | HUD overlay with metrics | P1 |
-| `src/screens/LiveScreen/useGaussianBridge.ts` | WebView bridge hook | P0 |
-| `src/screens/VitalsScreen/index.tsx` | Vitals gauges and sparklines | P0 |
-| `src/screens/VitalsScreen/BreathingGauge.tsx` | Breathing rate gauge | P0 |
-| `src/screens/VitalsScreen/HeartRateGauge.tsx` | Heart rate gauge | P0 |
-| `src/screens/VitalsScreen/MetricCard.tsx` | Vitals metric card | P1 |
-| `src/screens/ZonesScreen/index.tsx` | Floor plan with occupancy | P1 |
-| `src/screens/ZonesScreen/FloorPlanSvg.tsx` | SVG floor plan renderer | P1 |
-| `src/screens/ZonesScreen/useOccupancyGrid.ts` | Occupancy computation | P1 |
-| `src/screens/ZonesScreen/ZoneLegend.tsx` | Zone legend | P2 |
-| `src/screens/MATScreen/index.tsx` | MAT dashboard | P1 |
-| `src/screens/MATScreen/SurvivorCounter.tsx` | Survivor count display | P1 |
-| `src/screens/MATScreen/MatWebView.tsx` | MAT zone map WebView | P1 |
-| `src/screens/MATScreen/AlertList.tsx` | Alert list | P1 |
-| `src/screens/MATScreen/AlertCard.tsx` | Alert card | P2 |
-| `src/screens/MATScreen/useMatBridge.ts` | MAT WebView bridge | P1 |
-| `src/screens/SettingsScreen/index.tsx` | Settings form | P0 |
-| `src/screens/SettingsScreen/ServerUrlInput.tsx` | Server URL input | P0 |
-| `src/screens/SettingsScreen/ThemePicker.tsx` | Theme toggle | P2 |
-| `src/screens/SettingsScreen/RssiToggle.tsx` | RSSI toggle | P2 |
+| `src/screens/LiveScreen/index.tsx` | Live 三维泼溅 + HUD | P0 |
+| `src/screens/LiveScreen/GaussianSplatWebView.tsx` | 原生端泼溅 WebView | P0 |
+| `src/screens/LiveScreen/GaussianSplatWebView.web.tsx` | Web 端泼溅 iframe | P1 |
+| `src/screens/LiveScreen/LiveHUD.tsx` | 带指标显示的 HUD 叠层 | P1 |
+| `src/screens/LiveScreen/useGaussianBridge.ts` | 泼溅 WebView 的桥接 hook | P0 |
+| `src/screens/VitalsScreen/index.tsx` | 生命体征仪表与迷你趋势图 | P0 |
+| `src/screens/VitalsScreen/BreathingGauge.tsx` | 呼吸率仪表 | P0 |
+| `src/screens/VitalsScreen/HeartRateGauge.tsx` | 心率仪表 | P0 |
+| `src/screens/VitalsScreen/MetricCard.tsx` | 生命体征指标卡片 | P1 |
+| `src/screens/ZonesScreen/index.tsx` | 带占用信息的楼层平面 | P1 |
+| `src/screens/ZonesScreen/FloorPlanSvg.tsx` | SVG 楼层平面渲染器 | P1 |
+| `src/screens/ZonesScreen/useOccupancyGrid.ts` | 占用网格计算 | P1 |
+| `src/screens/ZonesScreen/ZoneLegend.tsx` | 区域图例 | P2 |
+| `src/screens/MATScreen/index.tsx` | MAT 仪表盘 | P1 |
+| `src/screens/MATScreen/SurvivorCounter.tsx` | 幸存者计数显示 | P1 |
+| `src/screens/MATScreen/MatWebView.tsx` | MAT 区域地图 WebView | P1 |
+| `src/screens/MATScreen/AlertList.tsx` | 告警列表 | P1 |
+| `src/screens/MATScreen/AlertCard.tsx` | 单条告警卡片 | P2 |
+| `src/screens/MATScreen/useMatBridge.ts` | MAT WebView 桥接 | P1 |
+| `src/screens/SettingsScreen/index.tsx` | 设置表单 | P0 |
+| `src/screens/SettingsScreen/ServerUrlInput.tsx` | 服务器 URL 输入 | P0 |
+| `src/screens/SettingsScreen/ThemePicker.tsx` | 主题切换 | P2 |
+| `src/screens/SettingsScreen/RssiToggle.tsx` | RSSI 开关 | P2 |
 
-### 4.5 Phase 5: Testing
+### 4.5 阶段 5：测试
 
-| File | Purpose | Priority |
+| 文件 | 用途 | 优先级 |
 |------|---------|----------|
-| `src/__tests__/stores/poseStore.test.ts` | Store state transitions, frame processing | P0 |
-| `src/__tests__/stores/matStore.test.ts` | MAT store state management | P1 |
-| `src/__tests__/stores/settingsStore.test.ts` | Persistence, defaults | P1 |
-| `src/__tests__/services/ws.service.test.ts` | WS connection, reconnection, fallback | P0 |
-| `src/__tests__/services/simulation.service.test.ts` | Synthetic frame generation | P1 |
-| `src/__tests__/services/api.service.test.ts` | REST client mocking | P1 |
-| `src/__tests__/services/rssi.service.test.ts` | Platform RSSI mocking | P2 |
-| `src/__tests__/components/*.test.tsx` | Component render tests (7 files) | P1 |
-| `src/__tests__/hooks/*.test.ts` | Hook behavior tests (3 files) | P1 |
-| `src/__tests__/screens/*.test.tsx` | Screen integration tests (5 files) | P1 |
-| `src/__tests__/utils/*.test.ts` | Utility function tests (3 files) | P1 |
-| `e2e/*.yaml` | Maestro E2E specs (6 files) | P2 |
+| `src/__tests__/stores/poseStore.test.ts` | store 状态迁移、帧处理 | P0 |
+| `src/__tests__/stores/matStore.test.ts` | MAT store 状态管理 | P1 |
+| `src/__tests__/stores/settingsStore.test.ts` | 持久化、默认值 | P1 |
+| `src/__tests__/services/ws.service.test.ts` | WS 连接、重连、回退 | P0 |
+| `src/__tests__/services/simulation.service.test.ts` | 合成帧生成 | P1 |
+| `src/__tests__/services/api.service.test.ts` | REST 客户端打桩 | P1 |
+| `src/__tests__/services/rssi.service.test.ts` | 平台 RSSI 打桩 | P2 |
+| `src/__tests__/components/*.test.tsx` | 组件渲染测试（7 个文件） | P1 |
+| `src/__tests__/hooks/*.test.ts` | hook 行为测试（3 个文件） | P1 |
+| `src/__tests__/screens/*.test.tsx` | 屏幕集成测试（5 个文件） | P1 |
+| `src/__tests__/utils/*.test.ts` | 工具函数测试（3 个文件） | P1 |
+| `e2e/*.yaml` | Maestro E2E 规格（6 个文件） | P2 |
 
 ---
 
-## 5. Acceptance Criteria
+## 5. 验收标准
 
-### 5.1 Build and Platform Support
+### 5.1 构建与平台支持
 
-| ID | Criterion | Test Method |
+| ID | 判据 | 测试方法 |
 |----|-----------|-------------|
-| B-1 | App builds successfully with `npx expo start` for iOS, Android, and Web | CI build matrix: `expo start --ios`, `--android`, `--web` |
-| B-2 | App runs on iOS Simulator (iPhone 15 Pro, iOS 17+) | Manual verification on Simulator |
-| B-3 | App runs on Android Emulator (API 34+) | Manual verification on Emulator |
-| B-4 | App runs in web browser (Chrome 120+, Safari 17+, Firefox 120+) | Manual verification in browsers |
-| B-5 | TypeScript compiles with zero errors in strict mode | `npx tsc --noEmit` in CI |
+| B-1 | 应用可通过 `npx expo start` 为 iOS、Android、Web 成功构建 | CI 构建矩阵：`expo start --ios`、`--android`、`--web` |
+| B-2 | 应用可在 iOS Simulator（iPhone 15 Pro、iOS 17+）运行 | 在 Simulator 上人工验证 |
+| B-3 | 应用可在 Android Emulator（API 34+）运行 | 在 Emulator 上人工验证 |
+| B-4 | 应用可在 Web 浏览器（Chrome 120+、Safari 17+、Firefox 120+）运行 | 在浏览器中人工验证 |
+| B-5 | TypeScript 在 strict 模式下零错误编译 | 在 CI 中执行 `npx tsc --noEmit` |
 
-### 5.2 WebSocket and Data Streaming
+### 5.2 WebSocket 与数据流
 
-| ID | Criterion | Test Method |
+| ID | 判据 | 测试方法 |
 |----|-----------|-------------|
-| W-1 | WebSocket connects to sensing server and receives SensingFrame JSON | Integration test: start server, verify `poseStore.connectionStatus === 'connected'` |
-| W-2 | `poseStore.latestFrame` updates within 100ms of WebSocket message receipt | Unit test: mock WS, measure dispatch latency |
-| W-3 | WebSocket reconnects with exponential backoff after connection loss | Unit test: simulate WS close, verify retry intervals (1s, 2s, 4s, 8s, 16s) |
-| W-4 | Automatic fallback to simulated data within 5 seconds of connection failure | Unit test: fail WS 5 times, verify `connectionStatus === 'simulated'` within 5s |
-| W-5 | App recovers gracefully from sensing server restart (reconnects without crash) | Integration test: kill server, restart, verify reconnection and `connectionStatus === 'connected'` |
+| W-1 | WebSocket 连上感知服务器并接收 SensingFrame JSON | 集成测试：启动服务器，验证 `poseStore.connectionStatus === 'connected'` |
+| W-2 | `poseStore.latestFrame` 在收到 WebSocket 消息后 100ms 内更新 | 单元测试：打桩 WS，测量分发时延 |
+| W-3 | 连接断开后 WebSocket 以指数退避重连 | 单元测试：模拟 WS 关闭，验证重试间隔（1s、2s、4s、8s、16s） |
+| W-4 | 连接失败后 5 秒内自动回退到模拟数据 | 单元测试：让 WS 失败 5 次，验证 5s 内 `connectionStatus === 'simulated'` |
+| W-5 | 感知服务器重启后应用优雅恢复（重连且不崩溃） | 集成测试：关闭并重启服务器，验证重连且 `connectionStatus === 'connected'` |
 
-### 5.3 Screen Rendering
+### 5.3 屏幕渲染
 
-| ID | Criterion | Test Method |
+| ID | 判据 | 测试方法 |
 |----|-----------|-------------|
-| S-1 | All 5 screens render correctly with live data from sensing server | Integration test: connect to server, navigate all tabs, verify content |
-| S-2 | All 5 screens render correctly with simulated data | Unit test: set `connectionStatus = 'simulated'`, verify all screens render |
-| S-3 | Vital signs gauges animate smoothly (breathing BPM, heart rate BPM) | Visual inspection: gauges update at frame rate without jank |
-| S-4 | 3D Gaussian splat viewer shows skeleton with 17 COCO keypoints | Integration test: verify WebView loads, bridge sends keypoints, splat renders |
-| S-5 | Floor plan SVG updates with occupancy data when persons are detected | Unit test: inject 3 persons into poseStore, verify 3 markers on FloorPlanSvg |
-| S-6 | MAT dashboard shows survivor count, zone map, and alert list | Unit test: inject matStore data, verify SurvivorCounter and AlertList render |
-| S-7 | Connection banner shows correct status text and color for all 3 states | Unit test: cycle through `connected`/`simulated`/`error`, verify banner text and color |
+| S-1 | 全部 5 个屏幕在感知服务器实时数据下正确渲染 | 集成测试：连接服务器、遍历所有标签、验证内容 |
+| S-2 | 全部 5 个屏幕在模拟数据下正确渲染 | 单元测试：设置 `connectionStatus = 'simulated'`，验证所有屏幕可渲染 |
+| S-3 | 生命体征仪表平滑动画（呼吸 BPM、心率 BPM） | 目视检查：仪表按帧率更新且无卡顿 |
+| S-4 | 三维高斯泼溅查看器显示含 17 个 COCO 关键点的骨架 | 集成测试：验证 WebView 加载、桥接发送关键点、泼溅渲染成功 |
+| S-5 | 检测到人员时楼层平面 SVG 随占用数据更新 | 单元测试：向 poseStore 注入 3 人，验证 FloorPlanSvg 上出现 3 个标记 |
+| S-6 | MAT 仪表盘显示幸存者计数、区域地图与告警列表 | 单元测试：注入 matStore 数据，验证 SurvivorCounter 与 AlertList 渲染 |
+| S-7 | 连接横幅对全部 3 种状态显示正确的文案与颜色 | 单元测试：依次切换 `connected`/`simulated`/`error`，验证横幅文案与颜色 |
 
-### 5.4 Persistence and Settings
+### 5.4 持久化与设置
 
-| ID | Criterion | Test Method |
+| ID | 判据 | 测试方法 |
 |----|-----------|-------------|
-| P-1 | Settings persist across app restarts (server URL, theme, RSSI toggle) | Integration test: set values, kill app, restart, verify values restored |
-| P-2 | Default server URL is `http://localhost:3000` when no persisted value exists | Unit test: clear AsyncStorage, verify default |
-| P-3 | Server URL input validates format before saving | Unit test: submit `not-a-url`, verify rejection; submit `http://192.168.1.1:3000`, verify acceptance |
+| P-1 | 设置跨应用重启保持（服务器 URL、主题、RSSI 开关） | 集成测试：设置取值、结束应用、重启，验证取值恢复 |
+| P-2 | 无持久化取值时默认服务器 URL 为 `http://localhost:3000` | 单元测试：清空 AsyncStorage，验证默认值 |
+| P-3 | 服务器 URL 输入框在保存前校验格式 | 单元测试：提交 `not-a-url` 验证被拒；提交 `http://192.168.1.1:3000` 验证通过 |
 
-### 5.5 Navigation and UX
+### 5.5 导航与用户体验
 
-| ID | Criterion | Test Method |
+| ID | 判据 | 测试方法 |
 |----|-----------|-------------|
-| N-1 | Bottom tab navigation works with correct icons for all 5 tabs | E2E: Maestro navigates all tabs, verifies active state |
-| N-2 | Dark theme renders correctly on all platforms (background #0D1117, accent #32B8C6) | Visual inspection on iOS, Android, Web |
-| N-3 | No infinite render loops or memory leaks in stores | Unit test: mount all screens, process 1000 frames, verify no memory growth beyond ring buffer size |
-| N-4 | ErrorBoundary catches and displays fallback UI for component errors | Unit test: throw in child component, verify fallback renders |
+| N-1 | 底部标签导航可用，全部 5 个标签图标正确 | E2E：Maestro 遍历所有标签并验证激活态 |
+| N-2 | 深色主题在所有平台正确渲染（背景 #0D1117、强调色 #32B8C6） | 在 iOS、Android、Web 上目视检查 |
+| N-3 | store 无无限渲染循环或内存泄漏 | 单元测试：挂载所有屏幕、处理 1000 帧，验证内存增长不超过环形缓冲区大小 |
+| N-4 | ErrorBoundary 捕获组件错误并显示回退 UI | 单元测试：在子组件中抛错，验证回退 UI 渲染 |
 
-### 5.6 Platform-Specific Features
+### 5.6 平台相关功能
 
-| ID | Criterion | Test Method |
+| ID | 判据 | 测试方法 |
 |----|-----------|-------------|
-| R-1 | RSSI scanning works on Android with react-native-wifi-reborn | Manual test on Android device with location permission granted |
-| R-2 | iOS RSSI service returns empty results without crashing | Unit test: call `scanNetworks()` on iOS, verify empty array returned |
-| R-3 | Web RSSI service generates synthetic RSSI values | Unit test: call `scanNetworks()` on web, verify synthetic data returned |
+| R-1 | RSSI 扫描在 Android 上通过 react-native-wifi-reborn 正常工作 | 在已授权定位权限的 Android 设备上人工测试 |
+| R-2 | iOS RSSI 服务返回空结果且不崩溃 | 单元测试：在 iOS 调用 `scanNetworks()`，验证返回空数组 |
+| R-3 | Web RSSI 服务生成合成 RSSI 值 | 单元测试：在 Web 调用 `scanNetworks()`，验证返回合成数据 |
 
-### 5.7 Testing
+### 5.7 测试
 
-| ID | Criterion | Test Method |
+| ID | 判据 | 测试方法 |
 |----|-----------|-------------|
-| T-1 | All unit tests pass (`npm test` exits 0) | CI: `cd ui/mobile && npm test` |
-| T-2 | E2E Maestro tests pass for all 5 screens | CI: `maestro test e2e/` |
-| T-3 | E2E offline fallback test passes (simulated mode activates on disconnect) | CI: `maestro test e2e/offline_fallback.yaml` |
-| T-4 | No TypeScript type errors | CI: `npx tsc --noEmit` |
+| T-1 | 全部单元测试通过（`npm test` 退出码 0） | CI：`cd ui/mobile && npm test` |
+| T-2 | 全部 5 个屏幕的 E2E Maestro 测试通过 | CI：`maestro test e2e/` |
+| T-3 | E2E 离线回退测试通过（断连时启用模拟模式） | CI：`maestro test e2e/offline_fallback.yaml` |
+| T-4 | 无 TypeScript 类型错误 | CI：`npx tsc --noEmit` |
 
 ---
 
-## 6. Consequences
+## 6. 影响
 
-### 6.1 Positive
+### 6.1 正面
 
-- **Single codebase for three platforms**: Expo SDK 55 with React Native 0.83 builds iOS, Android, and Web from the same TypeScript source, reducing development and maintenance cost by approximately 60% compared to separate native apps.
-- **Instant field deployment**: Operators can install the app via Expo Go (development) or EAS Build (production) and connect to a local sensing server within minutes. No server-side mobile infrastructure required.
-- **Sub-100ms display latency**: WebSocket streaming from the Rust sensing server to the mobile app introduces less than 100ms additional latency beyond the CSI processing pipeline, providing near-real-time visualization.
-- **Offline-capable demos**: The simulation service generates realistic synthetic SensingFrame data, enabling demonstrations to stakeholders and testing without ESP32 hardware or a running sensing server.
-- **Operator-friendly UX**: Five purpose-built screens cover the primary use cases (live view, vitals, zones, MAT, settings) with a bottom-tab navigation pattern familiar to mobile users.
-- **Testable architecture**: Zustand stores with selector-based subscriptions, service-layer abstraction, and Maestro E2E specs provide a comprehensive testing strategy from unit to integration to end-to-end.
-- **Reuses existing infrastructure**: The app consumes the same WebSocket and REST APIs as the desktop UI, requiring no backend changes. The Three.js splat renderer is reused via WebView.
+- **三平台共用一套代码库**：Expo SDK 55 配合 React Native 0.83，可由同一份 TypeScript 源码构建 iOS、Android 与 Web，相比分别开发原生应用，开发与维护成本约降低 60%。
+- **现场即时部署**：作业人员可通过 Expo Go（开发）或 EAS Build（生产）安装应用，几分钟内连上本地感知服务器，无需任何服务端移动基础设施。
+- **显示时延低于 100 ms**：从 Rust 感知服务器到移动应用的 WebSocket 流，在 CSI 处理流水线之外只引入不到 100ms 的额外时延，可提供近实时可视化。
+- **可离线演示**：仿真服务生成逼真的合成 SensingFrame 数据，可在没有 ESP32 硬件、也没有运行中的感知服务器时向相关方演示并开展测试。
+- **面向作业人员的易用体验**：五个专用屏幕覆盖主要使用场景（实时视图、生命体征、区域、MAT、设置），并采用移动用户熟悉的底部标签导航模式。
+- **可测试的架构**：基于 selector 订阅的 Zustand store、服务层抽象以及 Maestro E2E 规格，构成从单元、集成到端到端的完整测试策略。
+- **复用既有基础设施**：应用消费与桌面 UI 相同的 WebSocket 与 REST API，无需改动后端；Three.js 泼溅渲染器通过 WebView 复用。
 
-### 6.2 Negative
+### 6.2 负面
 
-- **WebView-based 3D rendering has lower performance than native OpenGL**: The Gaussian splat viewer runs inside a WebView (native) or iframe (web), adding a JavaScript-to-native bridge hop and limiting frame rate to approximately 30 FPS on mid-range devices. Native OpenGL or Metal/Vulkan rendering would achieve 60 FPS but requires platform-specific code.
-- **react-native-wifi-reborn requires native module linking for Android RSSI**: This breaks the pure Expo managed workflow for Android builds. EAS Build with a custom development client is required. iOS RSSI scanning is not possible at all due to Apple restrictions.
-- **Expo managed workflow limits some native module access**: Certain native APIs (background location, Bluetooth LE, raw WiFi frames) are not available without ejecting to a bare workflow. This constrains future features like Bluetooth mesh fallback.
-- **WebView bridge latency**: Communication between React Native and the Three.js WebView via `postMessage` adds 5-15ms per message, reducing effective update rate for the 3D splat view. This is acceptable for 10-20 Hz sensing frame rates but would become a bottleneck at higher rates.
-- **AsyncStorage has no encryption**: Settings (including server URL) are stored in plaintext AsyncStorage. For security-sensitive deployments, expo-secure-store should replace AsyncStorage for credential storage.
+- **基于 WebView 的三维渲染性能低于原生 OpenGL**：高斯泼溅查看器运行在 WebView（原生端）或 iframe（Web 端）中，增加了一次 JavaScript 到原生的桥接跳转，在中端设备上帧率上限约为 30 FPS。原生 OpenGL 或 Metal/Vulkan 渲染可达 60 FPS，但需要平台专用代码。
+- **react-native-wifi-reborn 在 Android RSSI 上需要链接原生模块**：这打破了 Android 构建的纯 Expo 托管工作流，必须使用带自定义开发客户端的 EAS Build。受 Apple 限制，iOS 完全无法进行 RSSI 扫描。
+- **Expo 托管工作流限制部分原生模块访问**：某些原生 API（后台定位、Bluetooth LE、原始 WiFi 帧）不退出到 bare workflow 就无法使用，这约束了蓝牙网格回退等未来特性。
+- **WebView 桥接时延**：React Native 与 Three.js WebView 之间通过 `postMessage` 通信，每条消息增加 5-15ms，降低了三维泼溅视图的有效更新率。对 10-20 Hz 的感知帧率尚可接受，但在更高帧率下会成为瓶颈。
+- **AsyncStorage 没有加密**：设置（含服务器 URL）以明文保存在 AsyncStorage 中。对于安全敏感部署，应改用 expo-secure-store 保存凭据。
 
-### 6.3 Risks
+### 6.3 风险
 
-| Risk | Probability | Impact | Mitigation |
+| 风险 | 概率 | 影响 | 缓解措施 |
 |------|-------------|--------|------------|
-| Expo SDK 55 breaking changes in future updates | Medium | Build failures, API deprecations | Pin SDK version in `app.config.ts`; test upgrades in preview branch |
-| WebView memory pressure on low-end Android devices | Medium | OOM crash during Three.js splat rendering | Implement splat LOD (level of detail) fallback; monitor WebView memory via `onContentProcessDidTerminate` |
-| react-native-wifi-reborn unmaintained or incompatible with RN 0.83 | Low | Android RSSI scanning broken | Fork and patch if needed; RSSI scanning is a secondary feature |
-| Sensing server WebSocket protocol changes | Medium | Frame parsing errors, broken display | Version the WebSocket protocol; add `protocol_version` field to SensingFrame |
-| Battery drain from continuous WebSocket connection on mobile | Medium | Poor user experience in extended field use | Implement configurable update rate throttling in settings; pause WS when app is backgrounded |
-| Three.js Gaussian splat HTML bundle size exceeds WebView limits | Low | Slow initial load, white screen | Lazy-load splat bundle; show placeholder skeleton during load; cache bundle in AsyncStorage |
+| Expo SDK 55 在未来更新中引入破坏性变更 | Medium | 构建失败、API 废弃 | 在 `app.config.ts` 中锁定 SDK 版本；在预览分支测试升级 |
+| 低端 Android 设备上的 WebView 内存压力 | Medium | 渲染 Three.js 泼溅时 OOM 崩溃 | 实现泼溅 LOD（细节层级）回退；通过 `onContentProcessDidTerminate` 监控 WebView 内存 |
+| react-native-wifi-reborn 无人维护或与 RN 0.83 不兼容 | Low | Android RSSI 扫描失效 | 必要时 fork 并打补丁；RSSI 扫描属次要功能 |
+| 感知服务器 WebSocket 协议变更 | Medium | 帧解析错误、显示中断 | 为 WebSocket 协议加版本；在 SensingFrame 中增加 `protocol_version` 字段 |
+| 移动端持续 WebSocket 连接耗电 | Medium | 长时间现场作业时体验变差 | 在设置中实现可配置的更新率限流；应用进入后台时暂停 WS |
+| Three.js 高斯泼溅 HTML 包超出 WebView 限制 | Low | 首次加载缓慢、白屏 | 懒加载泼溅包；加载期间显示占位骨架；把包缓存到 AsyncStorage |
 
 ---
 
-## 7. Future Work
+## 7. 后续工作
 
-### 7.1 Offline Model Inference
+### 7.1 离线模型推理
 
-Run a quantized ONNX pose estimation model directly on the mobile device using `onnxruntime-react-native`. This would allow the app to process raw CSI data (received via a local UDP relay or Bluetooth) without a sensing server, enabling fully disconnected field operation.
+用 `onnxruntime-react-native` 在移动设备上直接运行量化后的 ONNX 姿态估计模型。这样应用无需感知服务器即可处理原始 CSI 数据（通过本地 UDP 中继或蓝牙接收），实现完全断网的现场作业。
 
-**Prerequisites:** Export the trained WiFi-DensePose model (ADR-023) to ONNX format; quantize to INT8 for mobile; benchmark inference latency on iPhone 15 and Pixel 8.
+**前置条件：** 把训练好的 WiFi-DensePose 模型（ADR-023）导出为 ONNX 格式；量化为 INT8 以适配移动端；在 iPhone 15 与 Pixel 8 上实测推理时延。
 
-### 7.2 Push Notifications for MAT Alerts
+### 7.2 MAT 告警推送通知
 
-Integrate Firebase Cloud Messaging (Android) and APNs (iOS) to deliver push notifications when the sensing server detects new survivors or critical vital sign alerts. This allows operators to be alerted even when the app is backgrounded.
+集成 Firebase Cloud Messaging（Android）与 APNs（iOS），在感知服务器检测到新幸存者或危急生命体征告警时推送通知，使应用处于后台时作业人员也能收到提醒。
 
-**Prerequisites:** Add a push notification endpoint to the Rust sensing server; implement Expo Notifications integration in the mobile app.
+**前置条件：** 在 Rust 感知服务器中新增推送通知端点；在移动应用中实现 Expo Notifications 集成。
 
-### 7.3 Apple Watch Companion
+### 7.3 Apple Watch 伴侣应用
 
-Build a watchOS companion app using Expo's experimental watch support or a native SwiftUI module. The watch would display a minimal vitals view (breathing rate, heart rate, alert count) on the operator's wrist, with haptic feedback for critical MAT alerts.
+用 Expo 实验性的 watch 支持或原生 SwiftUI 模块构建 watchOS 伴侣应用。手表在作业人员腕上显示精简生命体征视图（呼吸率、心率、告警计数），并对危急 MAT 告警提供触觉反馈。
 
-**Prerequisites:** Evaluate Expo watch support maturity; define minimal watch screen set; implement WatchConnectivity bridge.
+**前置条件：** 评估 Expo watch 支持的成熟度；定义最小化的手表屏幕集合；实现 WatchConnectivity 桥接。
 
-### 7.4 Bluetooth Mesh Fallback
+### 7.4 蓝牙网格回退
 
-When WiFi is unavailable (collapsed building, power outage), use Bluetooth Low Energy (BLE) mesh to relay aggregated CSI summaries from ESP32 nodes to the mobile device. This requires ejecting from Expo managed workflow to bare workflow for BLE native module access.
+当 WiFi 不可用（建筑坍塌、停电）时，用低功耗蓝牙（BLE）网格把 ESP32 节点聚合后的 CSI 摘要中继到移动设备。这需要退出 Expo 托管工作流、改用 bare workflow 才能访问 BLE 原生模块。
 
-**Prerequisites:** Implement BLE GATT service on ESP32 firmware (ADR-018); integrate `react-native-ble-plx` in bare Expo workflow; define BLE CSI summary protocol (compressed, lower bandwidth than WiFi).
+**前置条件：** 在 ESP32 固件实现 BLE GATT 服务（ADR-018）；在 bare Expo 工作流中集成 `react-native-ble-plx`；定义 BLE CSI 摘要协议（压缩后带宽低于 WiFi）。
 
-### 7.5 Multi-Server Dashboard
+### 7.5 多服务器仪表盘
 
-Support connecting to multiple sensing servers simultaneously (e.g., one per floor or building wing). The app would aggregate data from all servers into a unified zone map and MAT dashboard with per-server status indicators.
+支持同时连接多台感知服务器（例如每层楼或每个楼翼一台）。应用把所有服务器的数据聚合到统一的区域地图与 MAT 仪表盘中，并附各服务器的状态指示。
 
-**Prerequisites:** Extend `settingsStore` to support server list; modify `ws.service` to manage multiple WebSocket connections; merge `poseStore` frames from multiple sources with server-id tags.
+**前置条件：** 扩展 `settingsStore` 以支持服务器列表；修改 `ws.service` 以管理多条 WebSocket 连接；合并来自多个来源、带 server-id 标签的 `poseStore` 帧。
 
 ---
 
-## 8. Related ADRs
+## 8. 相关 ADR
 
-| ADR | Relationship |
+| ADR | 关系 |
 |-----|-------------|
-| ADR-019 (Sensing-Only UI Mode) | **Extended**: The mobile app is the field-optimized evolution of the sensing-only UI mode, adding native mobile capabilities (push, RSSI, offline) |
-| ADR-021 (Vital Sign Detection) | **Consumed**: VitalsScreen displays breathing_rate_bpm and heart_rate_bpm extracted by the ADR-021 pipeline |
-| ADR-026 (Survivor Track Lifecycle) | **Consumed**: MATScreen displays survivor tracks with lifecycle states (detected, confirmed, rescued, lost) from ADR-026 |
-| ADR-029 (RuvSense Multistatic) | **Consumed**: The sensing server aggregates ESP32 TDM frames (ADR-029) and streams processed results to the mobile app |
-| ADR-031 (RuView Sensing-First RF) | **Consumed**: The WebSocket and REST APIs exposed by `wifi-densepose-sensing-server` (ADR-031) are the mobile app's data source |
-| ADR-032 (Mesh Security) | **Consumed**: Authenticated CSI frames (ADR-032) ensure the mobile app displays trustworthy data, not spoofed sensor readings |
+| ADR-019（仅感知 UI 模式） | **扩展**：移动应用是仅感知 UI 模式面向现场优化的演进，加入了原生移动能力（推送、RSSI、离线） |
+| ADR-021（生命体征检测） | **消费**：VitalsScreen 显示由 ADR-021 流水线提取的 breathing_rate_bpm 与 heart_rate_bpm |
+| ADR-026（幸存者轨迹生命周期） | **消费**：MATScreen 显示来自 ADR-026、带生命周期状态（detected、confirmed、rescued、lost）的幸存者轨迹 |
+| ADR-029（RuvSense 多基地） | **消费**：感知服务器聚合 ESP32 TDM 帧（ADR-029），并把处理结果流式推送到移动应用 |
+| ADR-031（RuView 感知优先 RF） | **消费**：`wifi-densepose-sensing-server`（ADR-031）暴露的 WebSocket 与 REST API 是移动应用的数据源 |
+| ADR-032（网格安全） | **消费**：经认证的 CSI 帧（ADR-032）确保移动应用显示的是可信数据，而非伪造的传感器读数 |
 
 ---
 
-## 9. References
+## 9. 参考资料
 
-1. Expo SDK 55 Documentation. https://docs.expo.dev/
-2. React Native 0.83 Release Notes. https://reactnative.dev/
-3. Zustand v5. https://github.com/pmndrs/zustand
-4. React Navigation v7. https://reactnavigation.org/
-5. Maestro Mobile Testing Framework. https://maestro.mobile.dev/
-6. react-native-wifi-reborn. https://github.com/JuanSeBestworker/react-native-wifi-reborn
-7. Three.js Gaussian Splatting. https://github.com/mrdoob/three.js
-8. AsyncStorage. https://react-native-async-storage.github.io/async-storage/
-9. Geng, J. et al. (2023). "DensePose From WiFi." arXiv:2301.00250.
-10. ADR-019 through ADR-032 (internal).
+1. Expo SDK 55 文档。https://docs.expo.dev/
+2. React Native 0.83 发布说明。https://reactnative.dev/
+3. Zustand v5 项目。https://github.com/pmndrs/zustand
+4. React Navigation v7 项目。https://reactnavigation.org/
+5. Maestro 移动测试框架。https://maestro.mobile.dev/
+6. react-native-wifi-reborn 项目。https://github.com/JuanSeBestworker/react-native-wifi-reborn
+7. Three.js 高斯泼溅。https://github.com/mrdoob/three.js
+8. AsyncStorage 项目。https://react-native-async-storage.github.io/async-storage/
+9. Geng, J. 等（2023 年）。"DensePose From WiFi." arXiv:2301.00250。
+10. ADR-019 至 ADR-032（内部文档）。
