@@ -1,79 +1,57 @@
-# Proof of Capabilities — answering the "it's fake / misleading" claims
+# 能力验证 —— 回应「这是假的 / 夸大宣传」的质疑
 
-**Short version: don't trust us — verify.** Every claim below comes with a command you can
-run yourself in minutes. Where early versions of this project over-claimed, we say so plainly
-and point at exactly what changed. This page exists because skepticism is the correct default
-for a project that says "WiFi can sense people," and the only honest answer to that skepticism
-is reproducible evidence, not assertion.
+**一句话版本：别信我们，自己验。** 下面每条说法都附了一条几分钟就能跑完的命令。早期版本里吹过头的地方，我们照直说明，并指出具体改了什么。之所以写这一页，是因为对一个声称「WiFi 能感知人」的项目，怀疑本来就该是默认态度；而面对怀疑，唯一诚实的答案是可复现的证据，不是口头保证。
 
 ---
 
-## 1. What people have said
+## 1. 外界都说了什么
 
-This project (and the broader "DensePose From WiFi" idea) went viral and drew sharp, often
-fair, criticism. The most pointed claims:
+这个项目（以及更广义的「用 WiFi 做 DensePose」这个思路）火过一阵，也招来了尖锐、而且往往挺在理的批评。最扎心的是这几条：
 
-- **"AI-generated facade / vibe-coded boilerplate"** — that the repo is scaffolding with the
-  core signal-processing and pose pipeline unimplemented. ([Hacker News](https://news.ycombinator.com/item?id=46388904),
-  [Cybernews](https://cybernews.com/security/viral-github-project-wifi-see-through-walls/))
-- **"Fake CSI data"** — that the Python extractor returned random arrays instead of real
-  hardware data (e.g. `csi_extractor.py` returning random amplitude/phase). ([audit fork](https://github.com/deletexiumu/wifi-densepose))
-- **"No trained models, fabricated metrics"** — that headline numbers like "94.2% pose
-  accuracy," "96.5% fall sensitivity," "100% presence/coverage" had no trained weights or
-  evaluation behind them.
-- **"Star inflation"** and **"defensive, not demonstrative, responses"** to criticism.
-- **"Reads like ad copy"** — emoji-heavy AI documentation that conveys little.
+- **「AI 糊出来的空壳 /  vibe coding 样板代码」** —— 说仓库只有架子，核心信号处理和姿态流水线根本没实现。（[Hacker News](https://news.ycombinator.com/item?id=46388904)、[Cybernews](https://cybernews.com/security/viral-github-project-wifi-see-through-walls/)）
+- **「CSI 数据是假的」** —— 说 Python 提取器返回的是随机数组而不是真实硬件数据（例如 `csi_extractor.py` 返回随机幅度/相位）。（[审计 fork](https://github.com/deletexiumu/wifi-densepose)）
+- **「没有训练好的模型，指标是编的」** —— 说「94.2% 姿态精度」「96.5% 跌倒灵敏度」「100% 在场/覆盖」这类主打数字背后既没有权重也没有评测。
+- **「刷星」**，以及面对批评时**「只会辩解、不肯拿证据」**。
+- **「读着像广告文案」** —— 堆满 emoji 的 AI 文档，信息量很低。
 
-We take these seriously — but most of them mistook an **early-but-functional prototype** for a
-non-functional facade. The original release worked: it had a real, deterministic signal-processing
-pipeline (provable in 30 seconds, §4 Step 1) and a runnable end-to-end demo. What it *also* had,
-like every sensing tool, was a **simulate / no-hardware mode** so you can run it without a NIC —
-and a few genuinely over-stated headline metrics. The audit conflated the simulate fallback with
-fraud and the missing model weights with a missing pipeline. Here is the honest accounting, then
-the proof.
+这些我们认真对待 —— 但其中大多数，是把**早期但能跑的原型**误认成了不能跑的空壳。最初那个版本是能工作的：它有一条真实、确定性的信号处理流水线（30 秒就能证明，见第 4 节第 1 步），还有一个能从头跑到尾的演示。它**同时**也和所有感知工具一样带了一个**模拟 / 无硬件模式**，好让你没插网卡也能跑；另外确实有几条主打指标吹过头了。那份审计把模拟回退当成了造假，把「缺模型权重」当成了「缺流水线」。下面先如实交代，再给证据。
 
 ---
 
-## 2. What was fair, and what was not
+## 2. 哪些批评站得住，哪些不成立
 
-The original release was **early but functional** — a working prototype, not a facade. Separating
-the fair criticism from the category errors:
+最初的版本是**早期但可用** —— 一个能工作的原型，不是空壳。把在理的批评和归类错误分开看：
 
-| Criticism | Our honest position |
+| 批评 | 我们如实的立场 |
 |-----------|--------------------|
-| "`csi_extractor` returns random arrays → the whole thing is fake" | **Category error.** Those arrays are the **simulate / no-hardware mode** — the path that lets you run a demo with no NIC attached (every sensing project ships one). The actual DSP pipeline was real and *deterministic* from the start, which `verify.py` proves bit-for-bit (§4 Step 1). A reproducible hash is impossible from random data. |
-| "Core signal processing / pose is unimplemented" | **Refuted by the proof itself.** `verify.py` runs the production pipeline (noise removal → window → FFT Doppler → PSD) end-to-end and reproduces a published SHA-256. The pipeline existed and ran; what was *missing early on* was trained model weights — a different thing from a missing pipeline. |
-| "100% presence accuracy" was unsupported | **Fair — formally retracted.** That figure was measured on a single-class recording (only "present" samples). It's replaced everywhere by an honest **82.3% held-out temporal-triplet** accuracy. See the in-place retraction in `README.md` / `docs/user-guide.md`. |
-| Some headline metrics (94.2% pose, 96.5% fall) lacked published evaluation early on | **Fair at the time.** Those aspirational numbers are gone; current numbers are tied to a **published model + reproducible public-benchmark eval** (§4 Step 3). |
-| Docs read like AI ad copy | **Partly fair.** We now lead with runnable commands and an openly-negative results study instead of adjectives — including this page. |
+| 「`csi_extractor` 返回随机数组 → 整个东西是假的」 | **归类错误。** 那些数组属于**模拟 / 无硬件模式** —— 就是让你不接网卡也能跑演示的那条路径（每个感知项目都带一个）。真正的 DSP 流水线从一开始就是真实且**确定性**的，`verify.py` 能逐位证明（第 4 节第 1 步）。随机数据不可能复现出固定哈希。 |
+| 「核心信号处理 / 姿态没实现」 | **证据本身就能驳倒。** `verify.py` 会把生产流水线（去噪 → 加窗 → FFT 多普勒 → PSD）从头跑到底，并复现一个已公开的 SHA-256。流水线存在、也在跑；早期**缺的是**训练好的模型权重 —— 这和「缺流水线」是两回事。 |
+| 「100% 在场精度」没有依据 | **说得对 —— 已正式撤回。** 那个数字是在单一类别录制（只有「有人」样本）上测的。现在所有位置都换成了如实的 **82.3% 留出集时序三元组**准确率。撤回说明就写在 `README.md` / `docs/user-guide.md` 原地。 |
+| 部分主打指标（94.2% 姿态、96.5% 跌倒）早期没有公开评测 | **当时说得对。** 那些 aspirational 数字已经删掉；现在的数字都对应**已发布的模型 + 可复现的公开基准评测**（第 4 节第 3 步）。 |
+| 文档读着像 AI 广告文案 | **部分说得对。** 现在我们一上来就给能跑的命令，以及一份 openly 列出负面结果的研究，而不是堆形容词 —— 这一页本身也是。 |
 
-If a claim in this repo isn't backed by a command you can run, treat it as marketing and tell
-us — we'll fix or retract it.
-
----
-
-## 3. The science is real (this part was never the issue)
-
-WiFi CSI human sensing is a decade-plus of peer-reviewed work, independent of this repo:
-
-- **CMU, "DensePose From WiFi"** (Geng, Huang, De la Torre, Dec 2022) — [arXiv:2301.00250](https://arxiv.org/abs/2301.00250).
-- **MIT CSAIL RF-Pose / RF-Pose3D** (Zhao et al.) — through-wall skeletal pose from radio.
-- **IEEE 802.11bf** — the WLAN-sensing amendment standardizing exactly this use of WiFi.
-- **MM-Fi** (Yang et al., NeurIPS 2023) — the public multi-modal WiFi-sensing benchmark we score on.
-
-The legitimate question was never "is WiFi sensing real?" — it's "does *this implementation*
-actually do it?" The rest of this page answers that.
+如果仓库里有一条说法，背后没有你能跑的命令，就当它是宣传话术，并且告诉我们 —— 我们会修掉或撤回。
 
 ---
 
-## 4. Prove it yourself (≈10 minutes, no special hardware)
+## 3. 科学本身是真的（这一点从来就不是争议）
 
-### Step 1 — Deterministic pipeline proof (the "Trust Kill Switch")
+用 WiFi CSI 感知人，是十几年同行评审研究的积累，与本仓库无关：
 
-This is the direct answer to "the signal processing is fake." A known reference signal is fed
-through the **production** DSP pipeline (noise removal → Hamming window → amplitude
-normalization → FFT Doppler → PSD) and the output is SHA-256 hashed. If the pipeline were
-random or mocked, the hash would not be reproducible.
+- **CMU《DensePose From WiFi》**（Geng、Huang、De la Torre，2022 年 12 月）—— [arXiv:2301.00250](https://arxiv.org/abs/2301.00250)。
+- **MIT CSAIL 的 RF-Pose / RF-Pose3D**（Zhao 等）—— 用无线电穿墙估计骨架姿态。
+- **IEEE 802.11bf** —— 把 WiFi 这种用法标准化了的 WLAN 感知修订。
+- **MM-Fi**（Yang 等，NeurIPS 2023）—— 我们用来打分的公开多模态 WiFi 感知基准。
+
+真正该问的从来不是「WiFi 感知是不是真的」，而是「**这一份实现**到底做没做到」。下面回答的是后一个问题。
+
+---
+
+## 4. 自己动手验（约 10 分钟，不需要特殊硬件）
+
+### 第 1 步 —— 确定性流水线证明（「信任熔断开关」）
+
+这是对「信号处理是假的」的直接回应。把一段已知的参考信号喂进**生产级** DSP 流水线（去噪 → 汉明窗 → 幅度归一化 → FFT 多普勒 → PSD），再对输出做 SHA-256。如果流水线是随机或打桩的，哈希不可能复现。
 
 ```bash
 python archive/v1/data/proof/verify.py
@@ -81,138 +59,95 @@ python archive/v1/data/proof/verify.py
 # Pipeline hash: f8e76f21a0f9852b70b6d9dd5318239f6b20cbcb4cdd995863263cecdc446f7a
 ```
 
-The published expected hash is committed at `archive/v1/data/proof/expected_features.sha256`.
-Run it on your machine — it reproduces **bit-for-bit across platforms** (verified identical on
-Windows, two independent Linux hosts, and the GitHub Azure CI runner). For the one feature that
-*isn't* bit-stable — the peak-normalized Doppler spectrum, whose argmax flips under
-cross-microarchitecture FFT reordering — the proof excludes it from the hash and additionally
-checks every other feature against a committed reference vector within a strict relative tolerance
-(`expected_features_reference.npz`), so a genuine regression still fails while CPU-level float
-noise does not. Five features (amplitude mean/variance, phase difference, correlation matrix, and
-the FFT-based PSD) carry the deterministic proof.
+公开的期望哈希提交在 `archive/v1/data/proof/expected_features.sha256`。在你自己的机器上跑一遍 —— 它**跨平台逐位一致**（已在 Windows、两台独立的 Linux 主机和 GitHub Azure CI runner 上验证相同）。唯一**不能**逐位稳定的特征是按峰值归一化的多普勒谱：跨微架构的 FFT 重排会让 argmax 翻转；证明脚本把它排除在哈希之外，同时把其余每个特征与提交的参考向量按严格相对容差逐一比对（`expected_features_reference.npz`），这样真正的回归仍会失败，而 CPU 级的浮点噪声不会。共有 5 个特征（幅度均值/方差、相位差、相关矩阵、基于 FFT 的 PSD）承担这份确定性证明。
 
-**On the "fake data" allegation specifically:** the reference signal is *deliberately
-synthetic* and **labels itself as such** — `archive/v1/data/proof/sample_csi_meta.json` says:
+**专门说「假数据」这条指控：** 参考信号是**刻意合成**的，而且**自己标得清清楚楚** —— `archive/v1/data/proof/sample_csi_meta.json` 写着：
 
 ```json
 { "is_synthetic": true, "is_real_capture": false, "numpy_seed": 42, ... }
 ```
 
-and `generate_reference_signal.py` states in its header: *"It is NOT a real WiFi capture."*
-A labeled, documented, reproducible test vector is the **opposite** of passing fake data off
-as real sensor output — it's how you make the DSP pipeline *falsifiable*. Conflating the two
-was the central error in the "fake CSI" audit.
+`generate_reference_signal.py` 的文件头也写明：*"It is NOT a real WiFi capture."*（这不是一次真实 WiFi 采集）。一份带标注、有文档、可复现的测试向量，恰恰和「把假数据冒充真实传感器输出」**相反** —— 它是让 DSP 流水线变得**可被证伪**的手段。把这两件事混为一谈，正是那份「假 CSI」审计最核心的错误。
 
-### Step 2 — Real code, real tests (the "unimplemented core" claim)
+### 第 2 步 —— 真代码、真测试（回应「核心没实现」）
 
 ```bash
 cd v2
 cargo test --workspace --no-default-features
 ```
 
-The Rust v2 workspace is **38 crates** with tests in **490+ files** (several thousand test
-functions). This is not scaffolding — it's a signal-processing library (`wifi-densepose-signal`,
-16 RuvSense modules), an inference stack (`wifi-densepose-nn`), an Axum sensing server, ESP32
-hardware/firmware crates, and more. The test run *is* the proof — don't take the count on
-faith, run it.
+Rust v2 工作区有 **38 个 crate**、**490+ 个文件**里带着测试（数千个测试函数）。这不是空架子 —— 里面有信号处理库（`wifi-densepose-signal`，16 个 RuvSense 模块）、推理栈（`wifi-densepose-nn`）、基于 Axum 的感知服务器、ESP32 硬件/固件 crate 等等。跑一遍测试**就是**证明 —— 别光信这个数字，自己跑。
 
-### Step 3 — Real trained model, verifiable on a public benchmark
+### 第 3 步 —— 真训练模型，可在公开基准上核验
 
-The headline number is **not** self-reported on a private split — it's on the **public MM-Fi
-benchmark**, with the weights published so you can re-run it:
+主打数字**不是**在私有划分上自报的，而是在**公开的 MM-Fi 基准**上测的，权重也已发布，你可以重跑：
 
 ```bash
 pip install huggingface_hub
 huggingface-cli download ruvnet/wifi-densepose-mmfi-pose --local-dir models/mmfi-pose
 ```
 
-| Metric (MM-Fi, matched `random_split`) | Value |
+| 指标（MM-Fi，匹配的 `random_split`） | 数值 |
 |----------------------------------------|-------|
-| torso-PCK@20, single model | **82.69%** |
-| torso-PCK@20, 3-model ensemble + TTA | **83.59%** |
-| 75K-param micro (edge) variant | 74.30% |
-| Prior published SOTA — MultiFormer (2025) | 72.25% |
-| Prior — CSI2Pose | 68.41% |
+| 躯干 PCK@20，单模型 | **82.69%** |
+| 躯干 PCK@20，3 模型集成 + TTA | **83.59%** |
+| 7.5 万参数微型（边缘）版本 | 74.30% |
+| 此前公开的 SOTA —— MultiFormer（2025） | 72.25% |
+| 此前 —— CSI2Pose | 68.41% |
 
-- Model card: [`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose)
-- Self-correcting, auditable leaderboard: [AetherArena Space](https://huggingface.co/spaces/ruvnet/aether-arena)
-- Pretrained encoder (82.3% held-out temporal-triplet): [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained)
+- 模型卡：[`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose)
+- 可自我校正、可审计的排行榜：[AetherArena Space](https://huggingface.co/spaces/ruvnet/aether-arena)
+- 预训练编码器（82.3% 留出集时序三元组）：[`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained)
 
-### Step 4 — Real CSI from real hardware
+### 第 4 步 —— 来自真实硬件的真实 CSI
 
-A $9 ESP32-S3 produces genuine 802.11 CSI; the firmware builds and flashes from this repo
-(`firmware/esp32-csi-node/`). The data path is ESP-IDF CSI callbacks (or nexmon_csi `.pcap` on a
-Raspberry Pi via the [rvCSI](https://github.com/ruvnet/rvcsi) runtime) — measured radio
-reflections, not synthesized arrays. Build/flash/provision steps are in
-[`docs/user-guide.md`](user-guide.md) and `CLAUDE.local.md`.
+一块 9 美元的 ESP32-S3 能产出真正的 802.11 CSI；固件就在本仓库里（`firmware/esp32-csi-node/`）可编译、可烧录。数据通路是 ESP-IDF 的 CSI 回调（或者在树莓派上经 [rvCSI](https://github.com/ruvnet/rvcsi) 运行时读 nexmon_csi 的 `.pcap`）—— 是实测的无线电反射，不是合成数组。编译/烧录/配置步骤见 [`docs/user-guide.md`](user-guide.md) 和 `CLAUDE.local.md`。
 
 ---
 
-## 5. Built in public — the development trail *is* the receipt
+## 5. 全程公开开发 —— 开发轨迹本身就是凭据
 
-**Every step of this platform was built in public** — regressions, improvements, dead ends, and
-fixes, all the way to where it is today. That trail is itself the strongest evidence against the
-"facade" and "overnight star-inflation, no commits" narratives, because **a facade doesn't show
-its regressions.** You can read the whole thing:
+**这个平台的每一步都是公开做出来的** —— 回归、改进、走死的岔路、以及修复，一直到今天这个样子。这条轨迹本身就是反驳「空壳」「一夜刷星、没有提交」最有力的证据，因为**空壳不会把自己的回归亮出来**。你可以从头翻：
 
-- **Git history** — continuous, granular commits (signal DSP, firmware, model training,
-  benchmark runs). Not a README drop followed by silence.
-- **96 ADRs** ([`docs/adr/`](adr/README.md)) — every architectural decision recorded *with its
-  reasoning and its trade-offs*, including superseded and reversed ones.
-- **CHANGELOG** — additions, fixes, and reversals dated in place (e.g. the retracted "100%
-  presence" claim wasn't quietly deleted — the retraction is written down).
-- **Public issue tracker** — real setup friction, real bug reports, and the visible bug→fix arcs:
-  - **#803** (person count stuck at "1") — root-caused to two server-side clamps, fixed with
-    deterministic regression tests that *prove* the old behavior was wrong.
-  - **#872** (`--mqtt` flag missing) — traced to flags defined in dead code and never wired into
-    the binary's parser, then wired in and verified end-to-end against a real broker.
+- **Git 历史** —— 持续、细粒度的提交（信号 DSP、固件、模型训练、基准跑分），不是丢一个 README 然后就没声了。
+- **96 份 ADR**（[`docs/adr/`](adr/README.md)）—— 每个架构决策都记了*理由和取舍*，包括后来被取代、被推翻的那些。
+- **CHANGELOG** —— 新增、修复和反转都原地标注日期（比如被撤回的「100% 在场」没有悄悄删掉，撤回这件事本身也写进去了）。
+- **公开 issue 列表** —— 真实的部署摩擦、真实的缺陷报告，以及看得见的「发现 → 修好」过程：
+  - **#803**（人数一直卡在「1」）—— 定位到服务端两处限制，并用确定性回归测试修好，那些测试**证明**了旧行为是错的。
+  - **#872**（`--mqtt` 参数不存在）—— 追到参数定义在死代码里、从没接进可执行文件的解析器；接上之后对着真实 broker 做了端到端验证。
 
-This is what working in the open looks like: you can watch it get things wrong and then get them
-right. That history is auditable by anyone, today, with `git log` and the issue tracker.
+公开做事就是这个样子：你能看着它出错，再看着它改对。这段历史今天任何人用 `git log` 和 issue 列表都能查。
 
-A facade hides its failures. We document ours in detail:
+空壳会藏起失败，我们把失败详细写下来：
 
-- **[Full MM-Fi study](benchmarks/mmfi-wifi-sensing-study.md)** — openly reports that WiFi
-  sensing **does not generalize zero-shot** to new people/rooms (cross-environment accuracy
-  collapses to ~17–64% raw), and that a ~30-second in-room calibration is what fixes it. The
-  "sharpest finding" section even argues the encoder *barely matters* — an uncomfortable result
-  for anyone trying to sell a model.
-- **[Efficiency frontier](benchmarks/wifi-pose-efficiency-frontier.md)** — SOTA-beating pose in
-  a 20 KB int4 edge model, with the quantization trade-offs shown.
-- **Retractions** — the "100% presence" figure was withdrawn in-place rather than quietly
-  edited away.
-- **[ADR-168 benchmark proof](adr/ADR-168-benchmark-proof.md)** and
-  **[WITNESS-LOG-028](WITNESS-LOG-028.md)** — how the numbers are produced and a 33-row
-  per-claim attestation matrix.
+- **[完整 MM-Fi 研究](benchmarks/mmfi-wifi-sensing-study.md)** —— 直说 WiFi 感知**无法零样本泛化**到新的人/房间（跨环境原始准确率掉到约 17～64%），要靠约 30 秒的室内校准才救得回来。「最尖锐的发现」一节甚至论证编码器*几乎不重要* —— 对想卖模型的人来说，这是个挺难堪的结论。
+- **[效率前沿](benchmarks/wifi-pose-efficiency-frontier.md)** —— 20 KB 的 int4 边缘模型做到超越 SOTA 的姿态成绩，量化的取舍也一并列出。
+- **撤回记录** —— 「100% 在场」是原地撤回的，不是悄悄编辑掉。
+- **[ADR-168 基准证明](adr/ADR-168-benchmark-proof.md)** 和 **[WITNESS-LOG-028](WITNESS-LOG-028.md)** —— 数字是怎么产出的，以及一张 33 行的逐条声明核验矩阵。
 
 ---
 
-## 6. Honest limitations (still true today)
+## 6. 如实的限制（今天依然成立）
 
-- **Zero-shot cross-room/person is weak.** Plan on ~30 s of in-room calibration per deployment.
-- **Single-node spatial resolution is limited.** Use 2+ ESP32 nodes (or add a Cognitum Seed)
-  for multi-person / localization.
-- **Multi-person counting is hard.** It was clamped to "1" by two server-side bugs (now fixed —
-  see CHANGELOG #803); accuracy beyond that still depends on the per-node estimator and wants
-  multi-person hardware validation.
-- **Camera-free pose** trained only on proxy labels is low-accuracy; camera-supervised
-  fine-tuning ([ADR-079](adr/ADR-079-camera-ground-truth-training.md)) is the path to good pose.
-- **Beta software.** APIs and firmware change.
+- **零样本跨房间 / 跨人表现弱。** 每个部署都要预留约 30 秒做室内校准。
+- **单节点空间分辨率有限。** 做多人 / 定位请用 2 个以上 ESP32 节点（或加一台 Cognitum Seed）。
+- **多人计数很难。** 曾被服务端两个 bug 钳死在「1」（现已修复 —— 见 CHANGELOG #803）；再往上的精度仍取决于逐节点估计器，需要多人场景的硬件验证。
+- **只靠代理标签训练的无摄像头姿态精度低**；要做到好姿态，路径是摄像头监督微调（[ADR-079](adr/ADR-079-camera-ground-truth-training.md)）。
+- **测试版软件。** 接口和固件都会变。
 
 ---
 
-## 7. Sources
+## 7. 资料来源
 
-- Carnegie Mellon, "DensePose From WiFi" — https://arxiv.org/abs/2301.00250
+- Carnegie Mellon《DensePose From WiFi》 — https://arxiv.org/abs/2301.00250
 - IEEE 802.11bf WLAN Sensing — https://www.ieee802.org/11/Reports/tgbf_update.htm
-- MM-Fi benchmark — https://github.com/ybhbingo/MMFi_dataset
-- Hacker News discussion — https://news.ycombinator.com/item?id=46388904
-- Cybernews coverage — https://cybernews.com/security/viral-github-project-wifi-see-through-walls/
-- byteiota, "Real or AI-Generated Hype?" — https://byteiota.com/wifi-densepose-hits-github-2-real-or-ai-generated-hype/
-- agentpedia, "RuView and the Reproducibility Question" — https://agentpedia.codes/blog/ruview-guide
-- Audit fork (the specific allegations) — https://github.com/deletexiumu/wifi-densepose
+- MM-Fi 基准 — https://github.com/ybhbingo/MMFi_dataset
+- Hacker News 讨论 — https://news.ycombinator.com/item?id=46388904
+- Cybernews 报道 — https://cybernews.com/security/viral-github-project-wifi-see-through-walls/
+- byteiota《Real or AI-Generated Hype?》 — https://byteiota.com/wifi-densepose-hits-github-2-real-or-ai-generated-hype/
+- agentpedia《RuView and the Reproducibility Question》 — https://agentpedia.codes/blog/ruview-guide
+- 审计 fork（具体指控） — https://github.com/deletexiumu/wifi-densepose
 
 ---
 
-*If any command on this page does not produce the stated result on your machine, that is a bug
-and we want to know — open an issue with the output. Reproducibility is the whole point.*
+*如果本页任何一条命令在你机器上跑不出写的结果，那就是缺陷，我们想知道 —— 请带上输出开个 issue。可复现本来就是全部意义所在。*
