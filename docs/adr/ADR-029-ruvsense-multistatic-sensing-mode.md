@@ -1,55 +1,55 @@
-# ADR-029: Project RuvSense -- Sensing-First RF Mode for Multistatic WiFi DensePose
+# ADR-029：RuvSense 项目 —— 面向多基地 WiFi DensePose 的感知优先 RF 模式
 
-| Field | Value |
+| 字段 | 值 |
 |-------|-------|
-| **Status** | Proposed |
-| **Date** | 2026-03-02 |
-| **Updated** | 2026-10-04 — multistatic fusion combines phase across nodes only when every frame declares the same shared phase reference; independent ESP32 nodes and the amplitude-only server bridge fuse amplitude only and report the reason (`phase_fusion` in `/health/ready`, issue #1752). |
-| **Deciders** | ruv |
-| **Codename** | **RuvSense** -- RuVector-Enhanced Sensing for Multistatic Fidelity |
-| **Relates to** | ADR-012 (ESP32 Mesh), ADR-014 (SOTA Signal Processing), ADR-016 (RuVector Training), ADR-017 (RuVector Signal+MAT), ADR-018 (ESP32 Implementation), ADR-024 (AETHER Embeddings), ADR-026 (Survivor Track Lifecycle), ADR-027 (MERIDIAN Generalization) |
+| **状态** | Proposed |
+| **日期** | 2026-03-02 |
+| **更新日期** | 2026-10-04 —— 只有当每一帧都声明同一个共享相位参考时，多基地融合才会跨节点合并相位；彼此独立的 ESP32 节点与仅支持幅度的服务端桥接只融合幅度，并报告原因（`/health/ready` 中的 `phase_fusion`，issue #1752）。|
+| **决策者** | ruv |
+| **代号** | **RuvSense** —— 面向多基地保真度的 RuVector 增强感知 |
+| **关联项** | ADR-012（ESP32 网格）、ADR-014（SOTA 信号处理）、ADR-016（RuVector 训练）、ADR-017（RuVector Signal+MAT）、ADR-018（ESP32 实现）、ADR-024（AETHER 嵌入）、ADR-026（幸存者轨迹生命周期）、ADR-027（MERIDIAN 泛化）|
 
 ---
 
-## 1. Context
+## 1. 背景
 
-### 1.1 The Fidelity Gap
+### 1.1 保真度差距
 
-Current WiFi-DensePose achieves functional pose estimation from a single ESP32 AP, but three fidelity metrics prevent production deployment:
+当前 WiFi-DensePose 已能从单个 ESP32 AP 实现可用的姿态估计，但有三项保真度指标阻碍其投入生产部署：
 
-| Metric | Current (Single ESP32) | Required (Production) | Root Cause |
+| 指标 | 现状（单台 ESP32）| 要求（生产环境）| 根本原因 |
 |--------|------------------------|----------------------|------------|
-| Torso keypoint jitter | ~15cm RMS | <3cm RMS | Single viewpoint, 20 MHz bandwidth, no temporal smoothing |
-| Multi-person separation | Fails >2 people, frequent ID swaps | 4+ people, zero swaps over 10 min | Underdetermined with 1 TX-RX link; no person-specific features |
-| Small motion sensitivity | Gross movement only | Breathing at 3m, heartbeat at 1.5m | Insufficient phase sensitivity at 2.4 GHz; noise floor too high |
-| Update rate | ~10 Hz effective | 20 Hz | Single-channel serial CSI collection |
-| Temporal stability | Drifts within hours | Stable over days | No coherence gating; model absorbs environmental drift |
+| 躯干关键点抖动 | ~15cm RMS | <3cm RMS | 单一视角、20 MHz 带宽、缺少时域平滑 |
+| 多人分离 | 超过 2 人即失败，频繁发生 ID 互换 | 4 人以上、10 分钟内零互换 | 仅 1 条 TX-RX 链路导致欠定；缺少个体专属特征 |
+| 微小运动灵敏度 | 只能感知大幅动作 | 3m 处呼吸、1.5m 处心跳 | 2.4 GHz 下相位灵敏度不足；本底噪声过高 |
+| 更新率 | 有效约 ~10 Hz | 20 Hz | 单信道串行 CSI 采集 |
+| 时域稳定性 | 数小时内发生漂移 | 数天保持稳定 | 没有相干性门控；模型吸收了环境漂移 |
 
-### 1.2 The Insight: Sensing-First RF Mode on Existing Silicon
+### 1.2 核心思路：在现有芯片上实现感知优先 RF 模式
 
-You do not need to invent a new WiFi standard. The winning move is a **sensing-first RF mode** that rides on existing silicon (ESP32-S3), existing bands (2.4/5 GHz), and existing regulations (802.11n NDP frames). The fidelity improvement comes from three physical levers:
+并不需要发明新的 WiFi 标准。更优解是一种**感知优先的 RF 模式**，直接依托现有芯片（ESP32-S3）、现有频段（2.4/5 GHz）与现有规范（802.11n NDP 帧）。保真度的提升来自三个物理杠杆：
 
-1. **Bandwidth**: Channel-hopping across 2.4 GHz channels 1/6/11 triples effective bandwidth from 20 MHz to 60 MHz, 3x multipath separation
-2. **Carrier frequency**: Dual-band sensing (2.4 + 5 GHz) doubles phase sensitivity to small motion
-3. **Viewpoints**: Multistatic ESP32 mesh (4 nodes = 12 TX-RX links) provides 360-degree geometric diversity
+1. **带宽**：在 2.4 GHz 的 1/6/11 信道间跳变，把有效带宽从 20 MHz 提升到 60 MHz，多径分离能力提升 3 倍
+2. **载频**：双频段感知（2.4 + 5 GHz）把对微小运动的相位灵敏度提高一倍
+3. **视角**：多基地 ESP32 网格（4 个节点 = 12 条 TX-RX 链路）提供 360 度几何多样性
 
-### 1.3 Acceptance Test
+### 1.3 验收测试
 
-**Two people in a room, 20 Hz update rate, stable tracks for 10 minutes with no identity swaps and low jitter in the torso keypoints.**
+**两人在同一房间内，20 Hz 更新率，轨迹稳定保持 10 分钟，无身份互换，躯干关键点抖动低。**
 
-Quantified:
-- Torso keypoint jitter < 30mm RMS (hips, shoulders, spine)
-- Zero identity swaps over 600 seconds (12,000 frames)
-- 20 Hz output rate (50 ms cycle time)
-- Breathing SNR > 10dB at 3m (validates small-motion sensitivity)
+量化指标：
+- 躯干关键点抖动 < 30mm RMS（髋部、肩部、脊柱）
+- 600 秒（12,000 帧）内零身份互换
+- 20 Hz 输出率（50 ms 周期）
+- 3m 处呼吸 SNR > 10dB（验证微小运动灵敏度）
 
 ---
 
-## 2. Decision
+## 2. 决策
 
-### 2.1 Architecture Overview
+### 2.1 架构总览
 
-Implement RuvSense as a new bounded context within `wifi-densepose-signal`, consisting of 6 modules:
+在 `wifi-densepose-signal` 中把 RuvSense 实现为一个新的限界上下文，由 6 个模块组成：
 
 ```
 wifi-densepose-signal/src/ruvsense/
@@ -62,77 +62,77 @@ wifi-densepose-signal/src/ruvsense/
 └── pose_tracker.rs     // 17-keypoint Kalman tracker with re-ID (§2.7)
 ```
 
-### 2.2 Channel-Hopping Firmware (ESP32-S3)
+### 2.2 信道跳变固件（ESP32-S3）
 
-Modify the ESP32 firmware (`firmware/esp32-csi-node/main/csi_collector.c`) to cycle through non-overlapping channels at configurable dwell times:
+修改 ESP32 固件（`firmware/esp32-csi-node/main/csi_collector.c`），使其按可配置的驻留时间在不重叠的信道间循环：
 
 ```c
-// Channel hop table (populated from NVS at boot)
+// 信道跳变表（启动时从 NVS 填充）
 static uint8_t s_hop_channels[6] = {1, 6, 11, 36, 40, 44};
 static uint8_t s_hop_count = 3;   // default: 2.4 GHz only
 static uint32_t s_dwell_ms = 50;  // 50ms per channel
 ```
 
-At 100 Hz raw CSI rate with 50 ms dwell across 3 channels, each channel yields ~33 frames/second. The existing ADR-018 binary frame format already carries `channel_freq_mhz` at offset 8, so no wire format change is needed.
+在 100 Hz 原始 CSI 速率、每信道 50 ms 驻留、共 3 个信道的条件下，每个信道约产生 ~33 帧/秒。现有 ADR-018 二进制帧格式已在偏移 8 处携带 `channel_freq_mhz`，因此无需改动线格式。
 
-> **Note (Issue #127 fix):** In promiscuous mode, CSI callbacks fire 100-500+ times/sec — far exceeding the channel dwell rate. The firmware now rate-limits UDP sends to 50 Hz and applies a 100 ms ENOMEM backoff if lwIP buffers are exhausted. This is essential for stable channel hopping under load.
+> **注（Issue #127 修复）：** 在混杂模式下，CSI 回调每秒触发 100-500+ 次，远超信道驻留速率。固件现在把 UDP 发送限速到 50 Hz，并在 lwIP 缓冲区耗尽时施加 100 ms 的 ENOMEM 退避。这对负载下的稳定信道跳变至关重要。
 
-**NDP frame injection:** `esp_wifi_80211_tx()` injects deterministic Null Data Packet frames (preamble-only, no payload, ~24 us airtime) at GPIO-triggered intervals. This is sensing-first: the primary RF emission purpose is CSI measurement, not data communication.
+**NDP 帧注入：** `esp_wifi_80211_tx()` 按 GPIO 触发的间隔注入确定性的 Null Data Packet 帧（仅前导码、无载荷、约 ~24 us 空中时间）。这正是感知优先：射频发射的首要目的是 CSI 测量，而非数据通信。
 
-### 2.3 Multi-Band Frame Fusion
+### 2.3 多频段帧融合
 
-Aggregate per-channel CSI frames into a wideband virtual snapshot:
+把各信道的 CSI 帧聚合为一张宽带虚拟快照：
 
 ```rust
-/// Fused multi-band CSI from one node at one time slot.
+/// 单节点单时隙融合后的多频段 CSI。
 pub struct MultiBandCsiFrame {
     pub node_id: u8,
     pub timestamp_us: u64,
-    /// One canonical-56 row per channel, ordered by center frequency.
+    /// 每个信道一行 canonical-56 数据，按中心频率排序。
     pub channel_frames: Vec<CanonicalCsiFrame>,
-    /// Center frequencies (MHz) for each channel row.
+    /// 各信道行对应的中心频率（MHz）。
     pub frequencies_mhz: Vec<u32>,
-    /// Cross-channel coherence score (0.0-1.0).
+    /// 跨信道相干性得分（0.0-1.0）。
     pub coherence: f32,
 }
 ```
 
-Cross-channel phase alignment uses `ruvector-solver::NeumannSolver` to solve for the channel-dependent phase rotation introduced by the ESP32 local oscillator during channel hops. The system:
+跨信道相位对齐使用 `ruvector-solver::NeumannSolver` 求解 ESP32 本振在信道跳变过程中引入的、随信道变化的相位旋转。系统关系如下：
 
 ```
 [Φ₁, Φ₆, Φ₁₁] = [Φ_body + δ₁, Φ_body + δ₆, Φ_body + δ₁₁]
 ```
 
-NeumannSolver fits the `δ` offsets from the static subcarrier components (which should have zero body-caused phase shift), then removes them.
+NeumannSolver 从静态子载波分量（其人体引起的相移应为零）拟合出 `δ` 偏移量，然后将其消除。
 
-### 2.4 Multistatic Viewpoint Fusion
+### 2.4 多基地视角融合
 
-With N ESP32 nodes, collect N `MultiBandCsiFrame` per time slot and fuse with geometric diversity:
+使用 N 个 ESP32 节点时，每个时隙采集 N 个 `MultiBandCsiFrame`，并借助几何多样性进行融合：
 
-**TDMA Sensing Schedule (4 nodes):**
+**TDMA 感知调度（4 个节点）：**
 
-| Slot | TX | RX₁ | RX₂ | RX₃ | Duration |
+| 时隙 | TX | RX₁ | RX₂ | RX₃ | 时长 |
 |------|-----|-----|-----|-----|----------|
-| 0 | Node A | B | C | D | 4 ms |
-| 1 | Node B | A | C | D | 4 ms |
-| 2 | Node C | A | B | D | 4 ms |
-| 3 | Node D | A | B | C | 4 ms |
-| 4 | -- | Processing + fusion | | | 30 ms |
-| **Total** | | | | | **50 ms = 20 Hz** |
+| 0 | 节点 A | B | C | D | 4 ms |
+| 1 | 节点 B | A | C | D | 4 ms |
+| 2 | 节点 C | A | B | D | 4 ms |
+| 3 | 节点 D | A | B | C | 4 ms |
+| 4 | -- | 处理 + 融合 | | | 30 ms |
+| **合计** | | | | | **50 ms = 20 Hz** |
 
-Synchronization: GPIO pulse from aggregator node at cycle start. Clock drift at ±10ppm over 50 ms is ~0.5 us, well within the 1 ms guard interval.
+同步：周期开始时由聚合节点发出 GPIO 脉冲。50 ms 内 ±10ppm 的时钟漂移约为 ~0.5 us，远在 1 ms 保护间隔之内。
 
-**Cross-node fusion** uses `ruvector-attn-mincut::attn_mincut` where time-frequency cells from different nodes attend to each other. Cells showing correlated motion energy across nodes (body reflection) are amplified; cells with single-node energy (local multipath artifact) are suppressed.
+**跨节点融合**使用 `ruvector-attn-mincut::attn_mincut`，让来自不同节点的时频单元彼此做注意力交互。跨节点呈现相关运动能量的单元（人体反射）被放大，只在单节点出现的能量单元（局部多径伪影）被抑制。
 
-**Multi-person separation** via `ruvector-mincut::DynamicMinCut`:
+**多人分离**通过 `ruvector-mincut::DynamicMinCut` 实现：
 
-1. Build cross-link temporal correlation graph (nodes = TX-RX links, edges = correlation coefficient)
-2. `DynamicMinCut` partitions into K clusters (one per detected person)
-3. Attention fusion (§5.3 of research doc) runs independently per cluster
+1. 构建跨链路时域相关图（节点 = TX-RX 链路，边 = 相关系数）
+2. `DynamicMinCut` 将其划分为 K 个簇（每个簇对应一个检测到的人）
+3. 注意力融合（研究文档 §5.3）在每个簇内独立运行
 
-### 2.5 Coherence Metric
+### 2.5 相干性指标
 
-Per-link coherence quantifies consistency with recent history:
+逐链路相干性用于量化与近期历史的一致程度：
 
 ```rust
 pub fn coherence_score(
@@ -151,46 +151,46 @@ pub fn coherence_score(
 }
 ```
 
-The static/dynamic decomposition uses `ruvector-solver` to separate environmental drift (slow, global) from body motion (fast, subcarrier-specific).
+静态/动态分解使用 `ruvector-solver`，把环境漂移（缓慢、全局）与人体运动（快速、子载波特异）分离开来。
 
-### 2.6 Coherence-Gated Update Policy
+### 2.6 相干性门控更新策略
 
 ```rust
 pub enum GateDecision {
-    /// Coherence > 0.85: Full Kalman measurement update
+    /// 相干性 > 0.85：执行完整 Kalman 量测更新
     Accept(Pose),
-    /// 0.5 < coherence < 0.85: Kalman predict only (3x inflated noise)
+    /// 0.5 < 相干性 < 0.85：仅做 Kalman 预测（噪声放大 3 倍）
     PredictOnly,
-    /// Coherence < 0.5: Reject measurement entirely
+    /// 相干性 < 0.5：完全拒绝该量测
     Reject,
-    /// >10s continuous low coherence: Trigger SONA recalibration (ADR-005)
+    /// 连续 >10s 低相干性：触发 SONA 重校准（ADR-005）
     Recalibrate,
 }
 ```
 
-When `Recalibrate` fires:
-1. Freeze output at last known good pose
-2. Collect 200 frames (10s) of unlabeled CSI
-3. Run AETHER contrastive TTT (ADR-024) to adapt encoder
-4. Update SONA LoRA weights (ADR-005), <1ms per update
-5. Resume sensing with adapted model
+当 `Recalibrate` 触发时：
+1. 冻结输出，保持最后一个已知良好的姿态
+2. 采集 200 帧（10s）无标注 CSI
+3. 运行 AETHER 对比式 TTT（ADR-024）自适应编码器
+4. 更新 SONA LoRA 权重（ADR-005），每次更新 <1ms
+5. 使用自适应后的模型恢复感知
 
-### 2.7 Pose Tracker (17-Keypoint Kalman with Re-ID)
+### 2.7 姿态跟踪器（17 关键点 Kalman + 重识别）
 
-Lift the Kalman + lifecycle + re-ID infrastructure from `wifi-densepose-mat/src/tracking/` (ADR-026) into the RuvSense bounded context, extended for 17-keypoint skeletons:
+把 `wifi-densepose-mat/src/tracking/`（ADR-026）中的 Kalman + 生命周期 + 重识别基础设施移植到 RuvSense 限界上下文，并扩展为 17 关键点骨架：
 
-| Parameter | Value | Rationale |
+| 参数 | 值 | 依据 |
 |-----------|-------|-----------|
-| State dimension | 6 per keypoint (x,y,z,vx,vy,vz) | Constant-velocity model |
-| Process noise σ_a | 0.3 m/s² | Normal walking acceleration |
-| Measurement noise σ_obs | 0.08 m | Target <8cm RMS at torso |
-| Mahalanobis gate | χ²(3) = 9.0 | 3σ ellipsoid (same as ADR-026) |
-| Birth hits | 2 frames (100ms at 20Hz) | Reject single-frame noise |
-| Loss misses | 5 frames (250ms) | Brief occlusion tolerance |
-| Re-ID feature | AETHER 128-dim embedding | Body-shape discriminative (ADR-024) |
-| Re-ID window | 5 seconds | Sufficient for crossing recovery |
+| 状态维度 | 每个关键点 6 维 (x,y,z,vx,vy,vz) | 恒速模型 |
+| 过程噪声 σ_a | 0.3 m/s² | 正常步行加速度 |
+| 量测噪声 σ_obs | 0.08 m | 目标：躯干 <8cm RMS |
+| Mahalanobis 门限 | χ²(3) = 9.0 | 3σ 椭球（与 ADR-026 相同）|
+| 起始命中数 | 2 帧（20Hz 下 100ms）| 剔除单帧噪声 |
+| 丢失容忍帧数 | 5 帧（250ms）| 容忍短暂遮挡 |
+| 重识别特征 | AETHER 128 维嵌入 | 具备体型区分度（ADR-024）|
+| 重识别窗口 | 5 秒 | 足以从交叉遮挡中恢复 |
 
-**Track assignment** uses `ruvector-mincut`'s `DynamicPersonMatcher` (already integrated in `metrics.rs`, ADR-016) with joint position + embedding cost:
+**轨迹分配**使用 `ruvector-mincut` 的 `DynamicPersonMatcher`（已集成于 `metrics.rs`，ADR-016），代价由位置与嵌入联合构成：
 
 ```
 cost(track_i, det_j) = 0.6 * mahalanobis(track_i, det_j.position)
@@ -199,9 +199,9 @@ cost(track_i, det_j) = 0.6 * mahalanobis(track_i, det_j.position)
 
 ---
 
-## 3. GOAP Integration Plan (Goal-Oriented Action Planning)
+## 3. GOAP 集成计划（目标导向的动作规划）
 
-### 3.1 Action Dependency Graph
+### 3.1 动作依赖图
 
 ```
 Phase 1: Foundation
@@ -228,177 +228,177 @@ Phase 4: Hardening
   Action 9: ADR-029 Documentation (this document)
 ```
 
-### 3.2 Cost and RuVector Mapping
+### 3.2 代价与 RuVector 映射
 
-| # | Action | Cost | Preconditions | RuVector Crates | Effects |
+| # | 动作 | 代价 | 前置条件 | RuVector crate | 效果 |
 |---|--------|------|---------------|-----------------|---------|
-| 1 | Channel-hopping firmware | 4/10 | ESP32 firmware exists | None (pure C) | `bandwidth_extended = true` |
-| 2 | Multi-band frame fusion | 5/10 | Action 1 | `solver`, `attention` | `fused_multi_band_frame = true` |
-| 3 | Multistatic mesh aggregation | 5/10 | Action 2 | `mincut`, `attn-mincut` | `multistatic_mesh = true` |
-| 4 | Pose tracker | 4/10 | Action 3, 7 | `mincut` | `pose_tracker = true` |
-| 5 | End-to-end pipeline | 6/10 | Actions 2-4 | `temporal-tensor`, `attention` | `20hz_update = true` |
-| 6 | Coherence metric | 3/10 | Action 2 | `solver` | `coherence_metric = true` |
-| 7 | Coherence gate | 3/10 | Action 6 | `attn-mincut` | `coherence_gating = true` |
-| 8 | AETHER re-ID | 4/10 | Actions 4, 7 | `attention` | `identity_stable = true` |
-| 9 | ADR documentation | 2/10 | All above | None | Decision documented |
+| 1 | 信道跳变固件 | 4/10 | ESP32 固件已存在 | None（纯 C）| `bandwidth_extended = true` |
+| 2 | 多频段帧融合 | 5/10 | 动作 1 | `solver`、`attention` | `fused_multi_band_frame = true` |
+| 3 | 多基地网格聚合 | 5/10 | 动作 2 | `mincut`、`attn-mincut` | `multistatic_mesh = true` |
+| 4 | 姿态跟踪器 | 4/10 | 动作 3、7 | `mincut` | `pose_tracker = true` |
+| 5 | 端到端流水线 | 6/10 | 动作 2-4 | `temporal-tensor`、`attention` | `20hz_update = true` |
+| 6 | 相干性指标 | 3/10 | 动作 2 | `solver` | `coherence_metric = true` |
+| 7 | 相干性门控 | 3/10 | 动作 6 | `attn-mincut` | `coherence_gating = true` |
+| 8 | AETHER 重识别 | 4/10 | 动作 4、7 | `attention` | `identity_stable = true` |
+| 9 | ADR 文档 | 2/10 | 以上全部 | None | 决策已记录 |
 
-**Total cost: 36 units. Minimum viable path to acceptance test: Actions 1-5 + 6-7 = 30 units.**
+**总代价：36 单位。通往验收测试的最小可行路径：动作 1-5 + 6-7 = 30 单位。**
 
-### 3.3 Latency Budget (50ms cycle)
+### 3.3 时延预算（50ms 周期）
 
-| Stage | Budget | Method |
+| 阶段 | 预算 | 方法 |
 |-------|--------|--------|
-| UDP receive + parse | <1 ms | ADR-018 binary, 148 bytes, zero-alloc |
-| Multi-band fusion | ~2 ms | NeumannSolver on 2×2 phase alignment |
-| Multistatic fusion | ~3 ms | attn_mincut on 3-6 nodes × 64 velocity bins |
-| Model inference | ~30-40 ms | CsiToPoseTransformer (lightweight, no ResNet) |
-| Kalman update | <1 ms | 17 independent 6D filters, stack-allocated |
-| **Total** | **~37-47 ms** | **Fits in 50 ms** |
+| UDP 接收 + 解析 | <1 ms | ADR-018 二进制帧、148 bytes、零分配 |
+| 多频段融合 | ~2 ms | NeumannSolver 做 2×2 相位对齐 |
+| 多基地融合 | ~3 ms | attn_mincut 处理 3-6 节点 × 64 速度单元 |
+| 模型推理 | ~30-40 ms | CsiToPoseTransformer（轻量，无 ResNet）|
+| Kalman 更新 | <1 ms | 17 个独立 6D 滤波器，栈上分配 |
+| **合计** | **~37-47 ms** | **可在 50 ms 内完成** |
 
 ---
 
-## 4. Hardware Bill of Materials
+## 4. 硬件物料清单
 
-| Component | Qty | Unit Cost | Purpose |
+| 组件 | 数量 | 单价 | 用途 |
 |-----------|-----|-----------|---------|
-| ESP32-S3-DevKitC-1 | 4 | $10 | TX/RX sensing nodes |
-| ESP32-S3-DevKitC-1 | 1 | $10 | Aggregator (or x86/RPi host) |
-| External 5dBi antenna | 4-8 | $3 | Improved gain, directional coverage |
-| USB-C hub (4 port) | 1 | $15 | Power distribution |
-| Wall mount brackets | 4 | $2 | Ceiling/wall installation |
-| **Total** | | **$73-91** | Complete 4-node mesh |
+| ESP32-S3-DevKitC-1 | 4 | $10 | TX/RX 感知节点 |
+| ESP32-S3-DevKitC-1 | 1 | $10 | 聚合节点（或 x86/RPi 主机）|
+| 外置 5dBi 天线 | 4-8 | $3 | 提升增益、定向覆盖 |
+| USB-C 集线器（4 口）| 1 | $15 | 供电分配 |
+| 壁挂支架 | 4 | $2 | 天花板/墙面安装 |
+| **合计** | | **$73-91** | 完整的 4 节点网格 |
 
 ---
 
-## 5. RuVector v2.0.4 Integration Map
+## 5. RuVector v2.0.4 集成映射
 
-All five published crates are exercised:
+五个已发布的 crate 全部都会被用到：
 
-| Crate | Actions | Integration Point | Algorithmic Advantage |
+| crate | 动作 | 集成点 | 算法优势 |
 |-------|---------|-------------------|----------------------|
-| `ruvector-solver` | 2, 6 | Phase alignment; coherence matrix decomposition | O(√n) Neumann convergence |
-| `ruvector-attention` | 2, 5, 8 | Cross-channel weighting; ring buffer; embedding similarity | Sublinear attention for small d |
-| `ruvector-mincut` | 3, 4 | Viewpoint diversity partitioning; track assignment | O(n^1.5 log n) dynamic updates |
-| `ruvector-attn-mincut` | 3, 7 | Cross-node spectrogram fusion; coherence gating | Attention + mincut in one pass |
-| `ruvector-temporal-tensor` | 5 | Compressed sensing window ring buffer | 50-75% memory reduction |
+| `ruvector-solver` | 2、6 | 相位对齐；相干矩阵分解 | O(√n) Neumann 收敛 |
+| `ruvector-attention` | 2、5、8 | 跨信道加权；环形缓冲；嵌入相似度 | 小 d 下的次线性注意力 |
+| `ruvector-mincut` | 3、4 | 视角多样性划分；轨迹分配 | O(n^1.5 log n) 动态更新 |
+| `ruvector-attn-mincut` | 3、7 | 跨节点频谱图融合；相干性门控 | 单趟完成注意力 + 最小割 |
+| `ruvector-temporal-tensor` | 5 | 压缩感知窗口环形缓冲 | 内存占用降低 50-75% |
 
 ---
 
-## 6. IEEE 802.11bf Alignment
+## 6. IEEE 802.11bf 对齐
 
-RuvSense's TDMA sensing schedule is forward-compatible with IEEE 802.11bf (WLAN Sensing, published 2024):
+RuvSense 的 TDMA 感知调度与 IEEE 802.11bf（WLAN Sensing，2024 年发布）前向兼容：
 
-| RuvSense Concept | 802.11bf Equivalent |
+| RuvSense 概念 | 802.11bf 对应项 |
 |-----------------|---------------------|
-| TX slot | Sensing Initiator |
-| RX slot | Sensing Responder |
-| TDMA cycle | Sensing Measurement Instance |
-| NDP frame | Sensing NDP |
-| Aggregator | Sensing Session Owner |
+| TX 时隙 | Sensing Initiator |
+| RX 时隙 | Sensing Responder |
+| TDMA 周期 | Sensing Measurement Instance |
+| NDP 帧 | Sensing NDP |
+| 聚合节点 | Sensing Session Owner |
 
-When commercial APs support 802.11bf, the ESP32 mesh can interoperate by translating SSP slots into 802.11bf Sensing Trigger frames.
+当商用 AP 支持 802.11bf 时，ESP32 网格可通过把 SSP 时隙翻译为 802.11bf Sensing Trigger 帧实现互操作。
 
 ---
 
-## 7. Dependency Changes
+## 7. 依赖变更
 
-### Firmware (C)
+### 固件（C）
 
-New files:
+新增文件：
 - `firmware/esp32-csi-node/main/sensing_schedule.h`
 - `firmware/esp32-csi-node/main/sensing_schedule.c`
 
-Modified files:
-- `firmware/esp32-csi-node/main/csi_collector.c` (add channel hopping, link tagging)
-- `firmware/esp32-csi-node/main/main.c` (add GPIO sync, TDMA timer)
+修改的文件：
+- `firmware/esp32-csi-node/main/csi_collector.c`（增加信道跳变、链路标记）
+- `firmware/esp32-csi-node/main/main.c`（增加 GPIO 同步、TDMA 定时器）
 
-### Rust
+### Rust 部分
 
-New module: `crates/wifi-densepose-signal/src/ruvsense/` (6 files, ~1500 lines estimated)
+新增模块：`crates/wifi-densepose-signal/src/ruvsense/`（6 个文件，预计 ~1500 行）
 
-Modified files:
-- `crates/wifi-densepose-signal/src/lib.rs` (export `ruvsense` module)
-- `crates/wifi-densepose-signal/Cargo.toml` (no new deps; all ruvector crates already present per ADR-017)
-- `crates/wifi-densepose-sensing-server/src/main.rs` (wire RuvSense pipeline into WebSocket output)
+修改的文件：
+- `crates/wifi-densepose-signal/src/lib.rs`（导出 `ruvsense` 模块）
+- `crates/wifi-densepose-signal/Cargo.toml`（无新增依赖；按 ADR-017，所有 ruvector crate 均已存在）
+- `crates/wifi-densepose-sensing-server/src/main.rs`（把 RuvSense 流水线接入 WebSocket 输出）
 
-No new workspace dependencies. All ruvector crates are already in the workspace `Cargo.toml`.
+不新增任何 workspace 依赖。所有 ruvector crate 都已在工作区 `Cargo.toml` 中。
 
 ---
 
-## 8. Implementation Priority
+## 8. 实施优先级
 
-| Priority | Actions | Weeks | Milestone |
+| 优先级 | 动作 | 周数 | 里程碑 |
 |----------|---------|-------|-----------|
-| P0 | 1 (firmware) | 2 | Channel-hopping ESP32 prototype |
-| P0 | 2 (multi-band) | 2 | Wideband virtual frames |
-| P1 | 3 (multistatic) | 2 | Multi-node fusion |
-| P1 | 4 (tracker) | 1 | 17-keypoint Kalman |
-| P1 | 6, 7 (coherence) | 1 | Gated updates |
-| P2 | 5 (end-to-end) | 2 | 20 Hz pipeline |
-| P2 | 8 (AETHER re-ID) | 1 | Identity hardening |
-| P3 | 9 (docs) | 0.5 | This ADR finalized |
-| **Total** | | **~10 weeks** | **Acceptance test** |
+| P0 | 1（固件）| 2 | 信道跳变 ESP32 原型 |
+| P0 | 2（多频段）| 2 | 宽带虚拟帧 |
+| P1 | 3（多基地）| 2 | 多节点融合 |
+| P1 | 4（跟踪器）| 1 | 17 关键点 Kalman |
+| P1 | 6、7（相干性）| 1 | 门控更新 |
+| P2 | 5（端到端）| 2 | 20 Hz 流水线 |
+| P2 | 8（AETHER 重识别）| 1 | 身份稳定性加固 |
+| P3 | 9（文档）| 0.5 | 本 ADR 定稿 |
+| **合计** | | **~10 周** | **验收测试** |
 
 ---
 
-## 9. Consequences
+## 9. 影响
 
-### 9.1 Positive
+### 9.1 正面
 
-- **3x bandwidth improvement** without hardware changes (channel hopping on existing ESP32)
-- **12 independent viewpoints** from 4 commodity $10 nodes (C(4,2) × 2 links)
-- **20 Hz update rate** with Kalman-smoothed output for sub-30mm torso jitter
-- **Days-long stability** via coherence gating + SONA recalibration
-- **All five ruvector crates exercised** — consistent algorithmic foundation
-- **$73-91 total BOM** — accessible for research and production
-- **802.11bf forward-compatible** — investment protected as commercial sensing arrives
-- **Cognitum upgrade path** — same software stack, swap ESP32 for higher-bandwidth front end
+- **带宽提升 3 倍**，无需更换硬件（在现有 ESP32 上做信道跳变）
+- 用 4 个 $10 的商用节点获得 **12 个独立视角**（C(4,2) × 2 条链路）
+- **20 Hz 更新率**，配合 Kalman 平滑输出，躯干抖动低于 30mm
+- 通过相干性门控 + SONA 重校准实现**数天级稳定性**
+- **五个 ruvector crate 全部得到运用** —— 算法基础一致
+- **BOM 总额 $73-91** —— 研究与生产都负担得起
+- **前向兼容 802.11bf** —— 商用感知能力落地时投资不会浪费
+- **Cognitum 升级路径** —— 软件栈不变，把 ESP32 换成更高带宽的前端即可
 
-### 9.2 Negative
+### 9.2 负面
 
-- **4-node deployment** requires physical installation and calibration of node positions
-- **TDMA scheduling** reduces per-node CSI rate (each node only transmits 1/4 of the time)
-- **Channel hopping** introduces ~1-5ms gaps during `esp_wifi_set_channel()` transitions
-- **5 GHz CSI on ESP32-S3** may not be available (ESP32-C6 supports it natively)
-- **Coherence gate** may reject valid measurements during fast body motion (mitigation: gate only on static-subcarrier coherence)
+- **4 节点部署**需要实际安装并标定节点位置
+- **TDMA 调度**降低单节点 CSI 速率（每个节点只有 1/4 的时间在发射）
+- **信道跳变**在 `esp_wifi_set_channel()` 切换期间引入约 ~1-5ms 的空档
+- **ESP32-S3 上的 5 GHz CSI** 可能不可用（ESP32-C6 原生支持）
+- **相干性门控**可能在人体快速运动时拒绝有效量测（缓解办法：只对静态子载波的相干性做门控）
 
-### 9.3 Risks
+### 9.3 风险
 
-| Risk | Probability | Impact | Mitigation |
+| 风险 | 概率 | 影响 | 缓解措施 |
 |------|-------------|--------|------------|
-| ESP32 channel hop causes CSI gaps | Medium | Reduced effective rate | Measure gap duration; increase dwell if >5ms |
-| CSI callback rate exhausts lwIP pbufs | **Resolved** | Guru meditation crash | 50 Hz rate limiter + 100 ms ENOMEM backoff (Issue #127, PR #132) |
-| 5 GHz CSI unavailable on S3 | High | Lose frequency diversity | Fallback: 3-channel 2.4 GHz still provides 3x BW; ESP32-C6 for dual-band |
-| Model inference >40ms | Medium | Miss 20 Hz target | Run model at 10 Hz; Kalman predict at 20 Hz interpolates |
-| Two-person separation fails at 3 nodes | Low | Identity swaps | AETHER re-ID recovers; increase to 4-6 nodes |
-| Coherence gate false-triggers | Low | Missed updates | Gate on environmental coherence only, not body-motion subcarriers |
+| ESP32 信道跳变造成 CSI 空档 | Medium | 有效速率下降 | 测量空档时长；若 >5ms 则增大驻留时间 |
+| CSI 回调速率耗尽 lwIP pbuf | **Resolved** | Guru meditation 崩溃 | 50 Hz 限速器 + 100 ms ENOMEM 退避（Issue #127、PR #132）|
+| S3 上 5 GHz CSI 不可用 | High | 失去频率多样性 | 回退方案：3 信道 2.4 GHz 仍可提供 3 倍带宽；双频段改用 ESP32-C6 |
+| 模型推理 >40ms | Medium | 达不到 20 Hz 目标 | 模型按 10 Hz 运行；Kalman 预测按 20 Hz 插值 |
+| 3 节点下两人分离失败 | Low | 身份互换 | AETHER 重识别可恢复；增加到 4-6 个节点 |
+| 相干性门控误触发 | Low | 漏掉更新 | 只对环境相干性做门控，不对人体运动子载波做门控 |
 
 ---
 
-## 10. Related ADRs
+## 10. 相关 ADR
 
-| ADR | Relationship |
+| ADR | 关系 |
 |-----|-------------|
-| ADR-012 | **Extended**: RuvSense adds TDMA multistatic to single-AP mesh |
-| ADR-014 | **Used**: All 6 SOTA algorithms applied per-link |
-| ADR-016 | **Extended**: New ruvector integration points for multi-link fusion |
-| ADR-017 | **Extended**: Coherence gating adds temporal stability layer |
-| ADR-018 | **Modified**: Firmware gains channel hopping, TDMA schedule, HT40 |
-| ADR-022 | **Complementary**: RuvSense is the ESP32 equivalent of Windows multi-BSSID |
-| ADR-024 | **Used**: AETHER embeddings for person re-identification |
-| ADR-026 | **Reused**: Kalman + lifecycle infrastructure lifted to RuvSense |
-| ADR-027 | **Used**: GeometryEncoder, HardwareNormalizer, FiLM conditioning |
+| ADR-012 | **扩展**：RuvSense 在单 AP 网格上加入 TDMA 多基地能力 |
+| ADR-014 | **使用**：6 种 SOTA 算法逐链路应用 |
+| ADR-016 | **扩展**：为多链路融合新增 ruvector 集成点 |
+| ADR-017 | **扩展**：相干性门控增加了时域稳定性层 |
+| ADR-018 | **修改**：固件增加信道跳变、TDMA 调度、HT40 |
+| ADR-022 | **互补**：RuvSense 是 Windows 多 BSSID 方案的 ESP32 对应实现 |
+| ADR-024 | **使用**：用 AETHER 嵌入做人员重识别 |
+| ADR-026 | **复用**：Kalman + 生命周期基础设施移植到 RuvSense |
+| ADR-027 | **使用**：GeometryEncoder、HardwareNormalizer、FiLM 条件化 |
 
 ---
 
-## 11. References
+## 11. 参考资料
 
-1. IEEE 802.11bf-2024. "WLAN Sensing." IEEE Standards Association.
-2. Geng, J., Huang, D., De la Torre, F. (2023). "DensePose From WiFi." arXiv:2301.00250.
-3. Yan, K. et al. (2024). "Person-in-WiFi 3D." CVPR 2024, pp. 969-978.
-4. Chen, L. et al. (2026). "PerceptAlign: Geometry-Aware WiFi Sensing." arXiv:2601.12252.
-5. Kotaru, M. et al. (2015). "SpotFi: Decimeter Level Localization Using WiFi." SIGCOMM.
-6. Zheng, Y. et al. (2019). "Zero-Effort Cross-Domain Gesture Recognition with Wi-Fi." MobiSys.
-7. Zeng, Y. et al. (2019). "FarSense: Pushing the Range Limit of WiFi-based Respiration Sensing." MobiCom.
-8. AM-FM (2026). "A Foundation Model for Ambient Intelligence Through WiFi." arXiv:2602.11200.
-9. Espressif ESP-CSI. https://github.com/espressif/esp-csi
+1. IEEE 802.11bf-2024. "WLAN Sensing." IEEE 标准协会。
+2. Geng, J.、Huang, D.、De la Torre, F.（2023 年）。"DensePose From WiFi." arXiv:2301.00250。
+3. Yan, K. 等（2024 年）。"Person-in-WiFi 3D." CVPR 2024，第 969-978 页。
+4. Chen, L. 等（2026 年）。"PerceptAlign: Geometry-Aware WiFi Sensing." arXiv:2601.12252。
+5. Kotaru, M. 等（2015 年）。"SpotFi: Decimeter Level Localization Using WiFi." SIGCOMM。
+6. Zheng, Y. 等（2019 年）。"Zero-Effort Cross-Domain Gesture Recognition with Wi-Fi." MobiSys。
+7. Zeng, Y. 等（2019 年）。"FarSense: Pushing the Range Limit of WiFi-based Respiration Sensing." MobiCom。
+8. AM-FM（2026 年）。"A Foundation Model for Ambient Intelligence Through WiFi." arXiv:2602.11200。
+9. Espressif ESP-CSI 项目。https://github.com/espressif/esp-csi
