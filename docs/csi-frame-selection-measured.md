@@ -1,165 +1,98 @@
-# Which CSI frames a node keeps decides whether cross-node fusion works
+# 节点保留哪些 CSI 帧，决定了跨节点融合能不能成
 
-A measured comparison of three frame-selection gates on a nine-node ESP32-C6
-fleet, and a method for repeating it in your own environment.
+在九节点 ESP32-C6 集群上实测对比三种选帧门控，并给出在你自己环境里复跑这套对比的方法。
 
-**This is one house.** Nine boards, one floor plan, one RF environment, one
-transmitter population. The numbers below are what we measured here; the part
-worth reusing is the method, not our figures. `run_arms.py` is included so you
-can measure yours.
+**这只是同一栋房子里的结果。** 九块板、同一张户型图、同一个射频环境、同一批发射端。下面的数字是这里测到的；值得复用的是方法，不是我们的数值。仓库里带了 `run_arms.py`，你可以测自己的。
 
 ---
 
-## The problem
+## 问题是什么
 
-Cross-node fusion pairs frames by transmission identity: two nodes are fusing
-usefully only when they hold measurements of *the same packet in the air*. The
-metric is `paired_fraction` — of the transmissions the fleet reported, what
-share were captured by two or more nodes.
+跨节点融合是按「发射身份」给帧配对的：只有两个节点量到的确实是**空中同一个数据包**，融合才有意义。衡量指标是 `paired_fraction` —— 集群上报的发射里，有多大比例被两个及以上节点同时捕获。
 
-Every node also rate-limits which CSI callbacks it keeps, because processing
-every callback at 100–500 Hz destabilises the WiFi ISR. **How that limiting is
-done turns out to matter far more than we expected**, because it decides
-whether two nodes keep the *same* frames or merely the *same number* of frames.
+每个节点还会限流，只保留一部分 CSI 回调，因为按 100～500 Hz 全量处理会把 WiFi 中断服务拖垮。**怎么个限流法，影响比我们预想的大得多** —— 因为它决定了两个节点留下的是**同一批帧**，还是仅仅**同样多的帧**。
 
-Three mechanisms, all valid rate limits:
+三种机制，都是合理的限流方式：
 
-| gate | rule |
+| 门控 | 规则 |
 |---|---|
-| `elapsed` | at least 20 ms since **this node's** last accepted frame |
-| `mesh` | first frame heard in each shared 20 ms window of a mesh-aligned clock |
-| `seq` | keep frames where the 802.11 `rx_seq` is divisible by N |
+| `elapsed` | 距**本节点**上一次接受的帧至少 20 ms |
+| `mesh` | 在组网对齐时钟的每个共享 20 ms 窗口里，只取听到的第一帧 |
+| `seq` | 只保留 802.11 `rx_seq` 能被 N 整除的帧 |
 
-`elapsed` gives every node an independent phase. `mesh` makes nodes agree on
-the *window*. `seq` makes them agree on the *frame*, using a number the
-transmitter assigns — so it needs no clock, no leader and no synchronisation.
+`elapsed` 让每个节点各有自己的相位；`mesh` 让节点在**窗口**上达成一致；`seq` 让节点在**具体哪一帧**上达成一致，靠的是发射端自己编的序号 —— 所以不需要时钟、不需要主节点、也不需要同步。
 
-## Method
+## 方法
 
-Four arms — the three gates plus `mesh`+`seq` stacked — run as a 2x2 factorial.
-Three deliberate choices, each of which we got wrong first:
+四组实验 —— 三种门控，加上 `mesh`+`seq` 叠加 —— 按 2×2 因子设计跑。有三个刻意的选择，每一个我们都先做错过：
 
-**Whole fleet per arm, never a subset.** An earlier attempt compared four gated
-nodes against four ungated ones. Nodes differ enormously in how much traffic
-they hear, so that comparison could not be read at all.
+**每组都用整个集群，绝不用子集。** 早先一次尝试拿四个开了门控的节点对比四个没开的。各节点能听到的流量差别极大，那种对比根本没法读。
 
-**Verify the gate is actually running.** Each switch is read back from every
-node before sampling. "Config was stored" is not "gate is live", and an earlier
-run could not distinguish a null result from a change that never applied.
+**确认门控真的在跑。** 每次切换后、开始采样前，都要从每个节点把开关读回来。「配置存进去了」不等于「门控生效了」；之前有一轮就分不清「结果是零」和「改动压根没应用」。
 
-**Frame rate is NOT a valid check that a gate is working.** A bucket gate needs
-only one survivor per window, so at ~14 candidate frames per bucket even a
-perfect 1-in-4 gate moves frame rate about 2%. Use instead
+**帧率不能用来判断门控是否生效。** 分桶门控每个窗口只要留一个幸存帧就够了，所以在每桶约 14 个候选帧时，即便是一个完美的「四取一」门控，帧率也只动约 2%。请改用
 
     R_window = (delta early_drop + delta accepted) / delta accepted
 
-computed from **differenced** counters. Never divide lifetime totals: they
-carry a large post-boot burst. One node read R = 1126 moments after a reboot,
-26.5 an hour later, and 19.2 windowed.
+而且要用**做差后的**计数器来算。千万别拿开机以来的累计总量相除：里面带着一段很大的启动突发。有个节点重启后不久读到 R = 1126，一小时后是 26.5，按窗口算是 19.2。
 
-**Establish the noise floor first.** A null run — three hours, no changes —
-gave drift of sd **0.45 pp** across 20-minute windows, about 2x the ±0.2 pp
-binomial counting error. Without that number none of the results below can be
-called significant.
+**先把噪声底测出来。** 一次空跑 —— 三小时、什么都不改 —— 得到 20 分钟窗口间的漂移标准差 **0.45 个百分点**，约为 ±0.2 个百分点二项计数误差的两倍。没有这个数，下面任何结果都不能说「显著」。
 
-Arms are 20 minutes in Latin-square blocks (`U M S MS / S MS M U / MS U S M`),
-so slow drift lands on every arm equally rather than on whichever ran first.
+每组跑 20 分钟，按拉丁方区组排列（`U M S MS / S MS M U / MS U S M`），这样缓慢漂移会均摊到每一组，而不是全落在最先跑的那组上。
 
-## Results
+## 结果
 
-Three blocks, twelve arms, every arm verified live on all nine nodes.
+三个区组、十二组实验，每组都在九个节点上确认过确实生效。
 
-| arm | block 0 | block 1 | block 2 | mean |
+| 组 | 区组 0 | 区组 1 | 区组 2 | 均值 |
 |---|---|---|---|---|
 | `elapsed` | 0.2881 | 0.2409 | 0.2012 | **0.2434** |
 | `mesh` | 0.2692 | 0.2580 | 0.2167 | **0.2480** |
-| `seq` (period 8) | 0.5819 | 0.5573 | 0.5422 | **0.5605** |
+| `seq`（周期 8） | 0.5819 | 0.5573 | 0.5422 | **0.5605** |
 | `mesh`+`seq` | 0.5639 | 0.5623 | 0.5093 | 0.5452 |
 
-**`seq` roughly doubles pairing: +31.7 pp, 2.30x.** That gap is ~70x the
-measured drift floor and reproduces in all three blocks; within-block contrasts
-sit at +0.153 to +0.175 every time.
+**`seq` 大致把配对率翻倍：+31.7 个百分点，2.30 倍。** 这个差距约为实测漂移底的 70 倍，三个区组里都复现了；区组内的对比每次都落在 +0.153 到 +0.175。
 
-**Mesh-time alignment bought essentially nothing here: +0.5 pp**, about one
-standard deviation of the noise floor. We built that gate and expected it to be
-the answer; it is indistinguishable from doing nothing. Stacking it on top of
-`seq` is marginally *worse* than `seq` alone.
+**组网时间对齐在这里几乎没带来好处：+0.5 个百分点**，大约就是噪声底的一个标准差。这个门控是我们自己做的，本来还指望它是答案；结果和什么都不做没区别。把它叠在 `seq` 上，反而比单用 `seq` 略差一点。
 
-### It is a trade, not a free win
+### 这是一笔交换，不是白捡的便宜
 
-At period 8 the seq arms carried ~75–95k transmissions per 20 minutes against
-~120–160k ungated. You are buying pairing with raw frame rate. Absolute paired
-transmissions per minute still went **up** (2629 vs 2524), because the frames
-it discards are disproportionately ones only one node would have kept — but
-whether that trade is right depends on what else consumes the stream.
+周期取 8 时，`seq` 组每 20 分钟承载约 7.5～9.5 万次发射，而不开门控是约 12～16 万次。你是在用原始帧率换配对率。不过每分钟的绝对配对发射数仍然**上升**了（2629 对 2524），因为它丢掉的帧里，不成比例地集中在「本来就只有一个节点会保留」的那些上 —— 但这笔交换划不划算，取决于还有谁在消费这条流。
 
-One measurement that made the trade easier here: on-device edge processing was
-**unaffected**. Frames actually processed stayed ~1900 per node per 4 minutes
-in both modes, because that pipeline is separately rate-limited. The cost falls
-on the uplink, not on local sensing.
+有一项实测让这里更容易接受这个取舍：设备端边缘处理**没受影响**。两种模式下每个节点每 4 分钟实际处理的帧都稳定在约 1900，因为那条流水线另有独立限流。代价落在上联带宽上，不在本地感知上。
 
-### The mesh arm was partly an elapsed arm
+### mesh 组有一部分其实跑的是 elapsed
 
-The mesh gate uses mesh-time buckets only while `c6_sync_espnow_is_valid()`. A
-node without valid sync falls back to the elapsed gate rather than gating on a
-meaningless epoch -- correct behaviour, but it weakens this comparison.
+mesh 门控只在 `c6_sync_espnow_is_valid()` 为真时才用组网时间分桶。没有有效同步的节点会回退到 elapsed 门控，而不是拿一个没意义的纪元去分桶 —— 行为是对的，但削弱了这次对比。
 
-Three of the nine nodes never synchronised during these runs. For those three,
-the `mesh` and `mesh`+`seq` arms silently ran the elapsed gate. So **+0.5 pp is
-not a clean fleet-wide measurement of window alignment**; it is "mesh where sync
-held, elapsed where it did not", and the true effect of alignment on a fully
-synchronised fleet is not measured here.
+九节点里有三个在这些实验中始终没能同步。对这三个来说，`mesh` 和 `mesh`+`seq` 组悄悄跑的是 elapsed。所以 **+0.5 个百分点并不是一次干净的、全集群的窗口对齐测量**；它是「同步成立的地方用 mesh，没成立的地方用 elapsed」，而全同步集群下对齐的真实效果，这里没有测到。
 
-We are reporting the number as observed rather than reconstructing it, because
-the arms were assigned before we understood the fallback, and a post-hoc
-per-node reanalysis would not be the experiment we ran.
+我们按观测到的值如实报告，而不是去重构一个数字，因为分组是在我们发现这个回退之前就定好的；事后再按节点重新分析，就不是我们实际跑过的那个实验了。
 
-The cause is worth naming because it is environmental, not a firmware defect.
-Time sync is leader-elected and hub-and-spoke: one node broadcasts and the rest
-follow. Whether every node hears that leader is a property of the building. A
-larger or more divided house fragments into sync domains, and any option that
-depends on shared time then degrades quietly for the nodes that fell out --
-which is precisely the situation where someone would most want to trust this
-measurement.
+成因值得点出来，因为它是环境造成的，不是固件缺陷。时间同步是选主 + 星型结构：一个节点广播，其余跟随。每个节点能不能听到那个主节点，取决于房子本身。更大、分隔更多的房子会碎成多个同步域，任何依赖共享时间的方案，都会在掉出同步的那些节点上悄悄退化 —— 而恰恰是这种情形，人们才最想相信这份测量结果。
 
-### A prediction we got wrong
+### 一个我们预测错了的地方
 
-Our mesh had split into two leader domains with three nodes never synchronising
-at all. We predicted `seq` would win *most* on node pairs spanning that split.
-Per-pair yield says otherwise:
+我们的组网裂成了两个主节点域，还有三个节点完全没同步上。当时预测 `seq` 会在**跨越分裂的节点对上**赢得最多。逐对产出却给出了相反的结果：
 
-| pair group | pairs | seq / mesh |
+| 节点对分组 | 对数 | seq / mesh |
 |---|---|---|
-| same sync domain | 7 | 5.82x |
-| spans the two domains | 8 | 6.24x |
-| involves a never-synced node | 21 | **5.16x** |
+| 同一同步域 | 7 | 5.82 倍 |
+| 跨两个域 | 8 | 6.24 倍 |
+| 涉及从未同步的节点 | 21 | **5.16 倍** |
 
-Cross-domain is marginally best, but the never-synced nodes are the *lowest* —
-the opposite of the prediction — and within-group spread (3.6x–8.1x) dwarfs
-every between-group difference.
+跨域略好一点，但从未同步的节点反而**最低** —— 和预测相反 —— 而且组内部的离散程度（3.6～8.1 倍）远大于任何组间差异。
 
-So `seq` is **not** a workaround for broken time sync. It wins roughly
-uniformly, including where sync is healthy. The useful consequence is negative:
-repairing our mesh split would probably not have closed the gap, and we would
-have spent that effort for nothing.
+所以 `seq` **不是**时间同步坏掉时的补救办法。它几乎是均匀地赢，在同步正常的地方也一样。有用的结论反而是个负面结论：就算把组网分裂修好，大概也抹不平这个差距，那份功夫会白花。
 
-## What we suggest
+## 我们的建议
 
-Not "use `seq`". **Make it selectable and measure your own environment.** The
-right answer depends on your transmitter population, your node placement and
-what consumes your CSI stream — none of which we can see from here.
+不是「请用 `seq`」。**把它做成可选项，然后测你自己的环境。** 正确答案取决于你的发射端构成、节点摆位，以及谁在消费 CSI 流 —— 这些从这里都看不到。
 
-`run_arms.py` runs the factorial unattended: it applies each arm fleet-wide,
-verifies every node adopted it, samples `/api/v1/fusion`, and writes one row
-per arm. Run the null pass first; without your own drift floor the contrasts
-cannot be judged.
+`run_arms.py` 会无人值守地跑完整个因子实验：每组在全集群应用设置、确认每个节点都采纳了、采样 `/api/v1/fusion`、每组写一行结果。先跑一次空跑；没有你自己的漂移底，就判断不了那些对比。
 
-## Limits
+## 局限
 
-- One environment, nine nodes. Treat the numbers as an existence proof, not a
-  constant.
-- Only period 8 was characterised. 4 and 16 are unmeasured, so the
-  yield/pairing curve has a single point on it.
-- `paired_fraction` measures **frame pairing**, which is a precondition for
-  cross-receiver work. Nothing here measures sensing accuracy, and none of it
-  should be read as an accuracy claim.
+- 一个环境、九个节点。把这些数字当成「存在性证明」，别当成常数。
+- 只刻画了周期 8。4 和 16 都没测，所以「产出/配对」曲线上目前只有一个点。
+- `paired_fraction` 量的是**帧配对**，它是跨接收端工作的前提条件。这里没有任何东西测了感知精度，也不该被读成精度声明。
