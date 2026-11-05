@@ -128,7 +128,7 @@ export class PoseService {
     // Validate options
     const validationResult = this.validateStreamOptions(options);
     if (!validationResult.valid) {
-      throw new Error(`Invalid stream options: ${validationResult.errors.join(', ')}`);
+      throw new Error(`流配置无效：${validationResult.errors.join(', ')}`);
     }
 
     // Use a lower confidence threshold when model inference is active
@@ -201,18 +201,18 @@ export class PoseService {
     const errors = [];
 
     if (options.zoneIds && !Array.isArray(options.zoneIds)) {
-      errors.push('zoneIds must be an array');
+      errors.push('zoneIds 必须是数组');
     }
 
     if (options.minConfidence !== undefined) {
       if (typeof options.minConfidence !== 'number' || options.minConfidence < 0 || options.minConfidence > 1) {
-        errors.push('minConfidence must be a number between 0 and 1');
+        errors.push('minConfidence 必须是 0 到 1 之间的数字');
       }
     }
 
     if (options.maxFps !== undefined) {
       if (typeof options.maxFps !== 'number' || options.maxFps <= 0 || options.maxFps > 60) {
-        errors.push('maxFps must be a number between 1 and 60');
+        errors.push('maxFps 必须是 1 到 60 之间的数字');
       }
     }
 
@@ -279,7 +279,7 @@ export class PoseService {
       if (this.config.enableValidation) {
         const validationResult = this.validatePoseMessage(data);
         if (!validationResult.valid) {
-          this.addValidationError(`Invalid message structure: ${validationResult.errors.join(', ')}`);
+          this.addValidationError(`消息结构无效：${validationResult.errors.join(', ')}`);
           return;
         }
       }
@@ -310,7 +310,7 @@ export class PoseService {
           if (this.config.enableValidation && actualData) {
             const poseValidation = this.validatePoseData(actualData);
             if (!poseValidation.valid) {
-              this.addValidationError(`Invalid pose data: ${poseValidation.errors.join(', ')}`);
+              this.addValidationError(`姿态数据无效：${poseValidation.errors.join(', ')}`);
               return;
             }
           }
@@ -369,7 +369,7 @@ export class PoseService {
     } catch (error) {
       this.logger.error('Error handling pose message', { error: error.message, data });
       this.performanceMetrics.errorCount++;
-      this.addValidationError(`Message handling error: ${error.message}`);
+      this.addValidationError(`消息处理出错：${error.message}`);
       
       this.notifyPoseSubscribers({
         type: 'error',
@@ -383,12 +383,12 @@ export class PoseService {
     const errors = [];
 
     if (!message || typeof message !== 'object') {
-      errors.push('Message must be an object');
+      errors.push('消息必须是对象');
       return { valid: false, errors };
     }
 
     if (!message.type || typeof message.type !== 'string') {
-      errors.push('Message must have a valid type string');
+      errors.push('消息必须包含有效的 type 字符串');
     }
 
     return {
@@ -401,26 +401,26 @@ export class PoseService {
     const errors = [];
 
     if (!poseData || typeof poseData !== 'object') {
-      errors.push('Pose data must be an object');
+      errors.push('姿态数据必须是对象');
       return { valid: false, errors };
     }
 
     if (poseData.pose && poseData.pose.persons) {
       const persons = poseData.pose.persons;
       if (!Array.isArray(persons)) {
-        errors.push('Persons must be an array');
+        errors.push('Persons 必须是数组');
       } else if (persons.length > this.config.maxPersons) {
-        errors.push(`Too many persons detected (${persons.length} > ${this.config.maxPersons})`);
+        errors.push(`检测到的人数过多（${persons.length} > ${this.config.maxPersons}）`);
       }
 
       // Validate person data
       persons.forEach((person, index) => {
         if (!person || typeof person !== 'object') {
-          errors.push(`Person ${index} must be an object`);
+          errors.push(`第 ${index} 个人必须是对象`);
         } else {
           if (person.confidence !== undefined && 
               (typeof person.confidence !== 'number' || person.confidence < 0 || person.confidence > 1)) {
-            errors.push(`Person ${index} confidence must be between 0 and 1`);
+            errors.push(`第 ${index} 个人的置信度必须在 0 到 1 之间`);
           }
         }
       });
@@ -704,7 +704,7 @@ export class PoseService {
   // Force reconnection
   async reconnectStream() {
     if (!this.streamConnection) {
-      throw new Error('No active stream connection to reconnect');
+      throw new Error('没有可重连的活动流连接');
     }
 
     this.logger.info('Forcing stream reconnection');
@@ -712,7 +712,7 @@ export class PoseService {
     // Get current connection stats to preserve options
     const stats = wsService.getConnectionStats(this.streamConnection);
     if (!stats) {
-      throw new Error('Cannot get connection stats for reconnection');
+      throw new Error('无法获取用于重连的连接状态');
     }
 
     // Extract original options from URL parameters

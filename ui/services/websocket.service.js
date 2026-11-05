@@ -131,7 +131,7 @@ export class WebSocketService {
       const ws = new WebSocket(connectUrl);
       const timeout = setTimeout(() => {
         ws.close();
-        reject(new Error(`Connection timeout after ${this.config.connectionTimeout}ms`));
+        reject(new Error(`连接超时（${this.config.connectionTimeout} 毫秒）`));
       }, this.config.connectionTimeout);
 
       ws.onopen = () => {
@@ -141,7 +141,7 @@ export class WebSocketService {
 
       ws.onerror = (error) => {
         clearTimeout(timeout);
-        reject(new Error(`WebSocket connection failed: ${error.message || 'Unknown error'}`));
+        reject(new Error(`WebSocket 连接失败：${error.message || '未知错误'}`));
       };
     });
   }
@@ -210,7 +210,7 @@ export class WebSocketService {
         });
         
         if (handlers.onError) {
-          handlers.onError(new Error(`Message parse error: ${error.message}`));
+          handlers.onError(new Error(`消息解析出错：${error.message}`));
         }
       }
     };
@@ -298,11 +298,11 @@ export class WebSocketService {
     const connection = this.findConnectionById(connectionId);
     
     if (!connection) {
-      throw new Error(`Connection ${connectionId} not found`);
+      throw new Error(`找不到连接 ${connectionId}`);
     }
 
     if (connection.status !== 'connected') {
-      throw new Error(`Connection ${connectionId} is not connected`);
+      throw new Error(`连接 ${connectionId} 尚未建立`);
     }
 
     const data = typeof message === 'string' 
@@ -326,7 +326,7 @@ export class WebSocketService {
     const connection = this.findConnectionById(connectionId);
     
     if (!connection) {
-      throw new Error(`Connection ${connectionId} not found`);
+      throw new Error(`找不到连接 ${connectionId}`);
     }
 
     if (!this.messageHandlers.has(connection.url)) {
@@ -504,7 +504,7 @@ export class WebSocketService {
   onConnectionStateChange(connectionId, callback) {
     const connection = this.findConnectionById(connectionId);
     if (!connection) {
-      throw new Error(`Connection ${connectionId} not found`);
+      throw new Error(`找不到连接 ${connectionId}`);
     }
 
     if (!this.connectionStateCallbacks.has(connection.url)) {
@@ -628,7 +628,7 @@ export class WebSocketService {
   forceReconnect(connectionId) {
     const connection = this.findConnectionById(connectionId);
     if (!connection) {
-      throw new Error(`Connection ${connectionId} not found`);
+      throw new Error(`找不到连接 ${connectionId}`);
     }
 
     this.logger.info('Forcing reconnection', { connectionId, url: connection.url });

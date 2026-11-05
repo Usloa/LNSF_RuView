@@ -106,7 +106,7 @@ export class ApiService {
         const error = await processedResponse.json().catch(() => ({
           message: `HTTP ${processedResponse.status}: ${processedResponse.statusText}`
         }));
-        throw new Error(error.message || error.detail || 'Request failed');
+        throw new Error(error.message || error.detail || '请求失败');
       }
 
       // Parse JSON response
