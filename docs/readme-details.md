@@ -819,7 +819,7 @@ pipeline.create_session("room-a", "person-001")?;
 
 // 把 CSI 帧送入六级流水线
 let result = pipeline.process_csi_frame("room-a", &amplitudes, &phases)?;
-// result.gestalt = Movement, confidence = 0.87
+// result.gestalt = Movement（运动），confidence = 0.87
 // result.sensory_embedding = [0.12, -0.34, ...]
 
 // 通过收敛分析做跨房间身份匹配
@@ -837,12 +837,12 @@ let convergence = pipeline.find_cross_room_convergence("person-001", 0.75)?;
 
 ---
 
-## 📡 Signal Processing & Sensing
+## 📡 信号处理与感知
 
 <details>
-<summary><a id="esp32-s3-hardware-pipeline"></a><strong>📡 ESP32-S3 Hardware Pipeline (ADR-018)</strong> — 28 Hz CSI streaming, flash & provision</summary>
+<summary><a id="esp32-s3-hardware-pipeline"></a><strong>📡 ESP32-S3 硬件流水线（ADR-018）</strong> —— 28 Hz CSI 推流、烧录与配置</summary>
 
-A single ESP32-S3 board (~$9) captures WiFi signal data 28 times per second and streams it over UDP. A host server can visualize and record the data, but the ESP32 can also run on its own — detecting presence, measuring breathing and heart rate, and alerting on falls without any server at all.
+一块 ESP32-S3（约 $9）每秒采集 28 次 WiFi 信号数据并通过 UDP 推送。主机服务可以把数据可视化并录制下来，但 ESP32 也能独立工作 —— 完全不需要服务器就能检测在场、测量呼吸与心率、对跌倒发出告警。
 
 ```
 ESP32-S3 node                    UDP/5005        Host server (optional)
@@ -859,74 +859,74 @@ ESP32-S3 node                    UDP/5005        Host server (optional)
 └───────────────────────┘
 ```
 
-| Metric | Measured on hardware |
+| 指标 | 硬件实测值 |
 |--------|----------------------|
-| CSI frame rate | 28.5 Hz (channel 5, BW20) |
-| Subcarriers per frame | 64 / 128 / 192 (depends on WiFi mode) |
-| UDP latency | < 1 ms on local network |
-| Presence detection range | Reliable at 3 m through walls |
-| Binary size | 990 KB (8MB flash) / 773 KB (4MB flash) |
-| Boot to ready | ~3.9 seconds |
+| CSI 帧率 | 28.5 Hz（信道 5，BW20） |
+| 每帧子载波数 | 64 / 128 / 192（取决于 WiFi 模式） |
+| UDP 延迟 | 局域网内 < 1 ms |
+| 在场检测距离 | 穿墙 3 m 内可靠 |
+| 固件体积 | 990 KB（8MB flash）/ 773 KB（4MB flash） |
+| 启动到就绪 | 约 3.9 秒 |
 
-### Flash and provision
+### 烧录与配置
 
-Download a pre-built binary — no build toolchain needed:
+下载预编译固件即可 —— 无需构建工具链：
 
-| Release | What's included | Tag |
+| 版本 | 包含内容 | 标签 |
 |---------|-----------------|-----|
-| [v0.7.0](https://github.com/ruvnet/RuView/releases/tag/v0.7.0) | **Latest** — Camera-supervised WiFlow model (accuracy figure retracted 2026-06-10, see above), ground-truth training pipeline, ruvector optimizations | `v0.7.0` |
-| [v0.6.0](https://github.com/ruvnet/RuView/releases/tag/v0.6.0-esp32) | [Pre-trained models on HuggingFace](https://huggingface.co/ruv/ruview), 17 sensing apps, 51.6% contrastive improvement, 0.008ms inference | `v0.6.0-esp32` |
-| [v0.5.5](https://github.com/ruvnet/RuView/releases/tag/v0.5.5-esp32) | SNN + MinCut (#348 fix) + CNN spectrogram + WiFlow + multi-freq mesh + graph transformer | `v0.5.5-esp32` |
-| [v0.5.4](https://github.com/ruvnet/RuView/releases/tag/v0.5.4-esp32) | Cognitum Seed integration ([ADR-069](../docs/adr/ADR-069-cognitum-seed-csi-pipeline.md)), 8-dim feature vectors, RVF store, witness chain, security hardening | `v0.5.4-esp32` |
-| [v0.5.0](https://github.com/ruvnet/RuView/releases/tag/v0.5.0-esp32) | mmWave sensor fusion ([ADR-063](../docs/adr/ADR-063-mmwave-sensor-fusion.md)), auto-detect MR60BHA2/LD2410, 48-byte fused vitals, all v0.4.3.1 fixes | `v0.5.0-esp32` |
-| [v0.4.3.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.3.1-esp32) | Fall detection fix ([#263](https://github.com/ruvnet/RuView/issues/263)), 4MB flash ([#265](https://github.com/ruvnet/RuView/issues/265)), watchdog fix ([#266](https://github.com/ruvnet/RuView/issues/266)) | `v0.4.3.1-esp32` |
-| [v0.4.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.1-esp32) | CSI build fix, compile guard, AMOLED display, edge intelligence ([ADR-057](../docs/adr/ADR-057-firmware-csi-build-guard.md)) | `v0.4.1-esp32` |
-| [v0.3.0-alpha](https://github.com/ruvnet/RuView/releases/tag/v0.3.0-alpha-esp32) | Alpha — adds on-device edge intelligence and WASM modules ([ADR-039](../docs/adr/ADR-039-esp32-edge-intelligence.md), [ADR-040](../docs/adr/ADR-040-wasm-programmable-sensing.md)) | `v0.3.0-alpha-esp32` |
-| [v0.2.0](https://github.com/ruvnet/RuView/releases/tag/v0.2.0-esp32) | Raw CSI streaming, multi-node TDM, channel hopping | `v0.2.0-esp32` |
+| [v0.7.0](https://github.com/ruvnet/RuView/releases/tag/v0.7.0) | **最新** —— 摄像头监督的 WiFlow 模型（精度数值已于 2026-06-10 撤回，见上文）、真值训练流水线、ruvector 优化 | `v0.7.0` |
+| [v0.6.0](https://github.com/ruvnet/RuView/releases/tag/v0.6.0-esp32) | [HuggingFace 上的预训练模型](https://huggingface.co/ruv/ruview)、17 种感知应用、对比学习提升 51.6%、推理 0.008ms | `v0.6.0-esp32` |
+| [v0.5.5](https://github.com/ruvnet/RuView/releases/tag/v0.5.5-esp32) | SNN + MinCut（修复 #348）+ CNN 频谱图 + WiFlow + 多频组网 + 图 Transformer | `v0.5.5-esp32` |
+| [v0.5.4](https://github.com/ruvnet/RuView/releases/tag/v0.5.4-esp32) | Cognitum Seed 集成（[ADR-069](../docs/adr/ADR-069-cognitum-seed-csi-pipeline.md)）、8 维特征向量、RVF 存储、见证链、安全加固 | `v0.5.4-esp32` |
+| [v0.5.0](https://github.com/ruvnet/RuView/releases/tag/v0.5.0-esp32) | 毫米波传感器融合（[ADR-063](../docs/adr/ADR-063-mmwave-sensor-fusion.md)）、自动识别 MR60BHA2/LD2410、48 字节融合生命体征、包含 v0.4.3.1 全部修复 | `v0.5.0-esp32` |
+| [v0.4.3.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.3.1-esp32) | 跌倒检测修复（[#263](https://github.com/ruvnet/RuView/issues/263)）、4MB flash（[#265](https://github.com/ruvnet/RuView/issues/265)）、看门狗修复（[#266](https://github.com/ruvnet/RuView/issues/266)） | `v0.4.3.1-esp32` |
+| [v0.4.1](https://github.com/ruvnet/RuView/releases/tag/v0.4.1-esp32) | CSI 构建修复、编译防护、AMOLED 显示、边缘智能（[ADR-057](../docs/adr/ADR-057-firmware-csi-build-guard.md)） | `v0.4.1-esp32` |
+| [v0.3.0-alpha](https://github.com/ruvnet/RuView/releases/tag/v0.3.0-alpha-esp32) | Alpha 版 —— 新增设备端边缘智能与 WASM 模块（[ADR-039](../docs/adr/ADR-039-esp32-edge-intelligence.md)、[ADR-040](../docs/adr/ADR-040-wasm-programmable-sensing.md)） | `v0.3.0-alpha-esp32` |
+| [v0.2.0](https://github.com/ruvnet/RuView/releases/tag/v0.2.0-esp32) | 原始 CSI 推流、多节点 TDM、跳频 | `v0.2.0-esp32` |
 
 ```bash
-# 1. Flash the firmware to your ESP32-S3 (8MB flash — most boards)
+# 1. 把固件烧录到 ESP32-S3（8MB flash —— 多数板子）
 python -m esptool --chip esp32s3 --port COM7 --baud 460800 \
   write_flash --flash-mode dio --flash-size 8MB --flash-freq 80m \
   0x0 bootloader.bin 0x8000 partition-table.bin \
   0xf000 ota_data_initial.bin 0x20000 esp32-csi-node.bin
 
-# 1b. For 4MB flash boards (e.g. ESP32-S3 SuperMini 4MB) — use the 4MB binaries:
+# 1b. 4MB flash 板（如 ESP32-S3 SuperMini 4MB）—— 改用 4MB 固件：
 python -m esptool --chip esp32s3 --port COM7 --baud 460800 \
   write_flash --flash-mode dio --flash-size 4MB --flash-freq 80m \
   0x0 bootloader.bin 0x8000 partition-table-4mb.bin \
   0xF000 ota_data_initial.bin 0x20000 esp32-csi-node-4mb.bin
 
-# 2. Set WiFi credentials and server address (stored in flash, survives reboots)
+# 2. 设置 WiFi 凭据与服务器地址（存入 flash，重启后仍有效）
 python firmware/esp32-csi-node/provision.py --port COM7 \
   --ssid "YourWiFi" --password "secret" --target-ip 192.168.1.20
 
-# 3. (Optional) Start the host server to visualize data
+# 3.（可选）启动主机服务以可视化数据
 cargo run -p wifi-densepose-sensing-server -- --http-port 3000 --source auto
-# Open http://localhost:3000
+# 打开 http://localhost:3000
 ```
 
-### Multi-node mesh
+### 多节点组网
 
-For better accuracy and room coverage, deploy 3-6 nodes with time-division multiplexing (TDM) so they take turns transmitting:
+为了更高的精度和更好的房间覆盖，可部署 3-6 个节点，使用时分复用（TDM）让它们轮流发射：
 
 ```bash
-# Node 0 of a 3-node mesh
+# 三节点组网中的节点 0
 python firmware/esp32-csi-node/provision.py --port COM7 \
   --ssid "YourWiFi" --password "secret" --target-ip 192.168.1.20 \
   --node-id 0 --tdm-slot 0 --tdm-total 3
 
-# Node 1
+# 节点 1
 python firmware/esp32-csi-node/provision.py --port COM8 \
   --ssid "YourWiFi" --password "secret" --target-ip 192.168.1.20 \
   --node-id 1 --tdm-slot 1 --tdm-total 3
 ```
 
-Nodes can also hop across WiFi channels (1, 6, 11) to increase sensing bandwidth — configured via [ADR-029](../docs/adr/ADR-029-ruvsense-multistatic-sensing-mode.md) channel hopping.
+节点也能在 WiFi 信道（1、6、11）之间跳频以提升感知带宽 —— 配置方式见 [ADR-029](../docs/adr/ADR-029-ruvsense-multistatic-sensing-mode.md) 的跳频部分。
 
-### Cognitum Seed integration (ADR-069)
+### Cognitum Seed 集成（ADR-069）
 
-Connect an ESP32 to a [Cognitum Seed](https://cognitum.one) ($131) for persistent vector storage, kNN search, cryptographic witness chain, and AI-accessible MCP proxy:
+把 ESP32 接到 [Cognitum Seed](https://cognitum.one)（$131），即可获得持久化向量存储、kNN 检索、密码学见证链，以及供 AI 调用的 MCP 代理：
 
 ```
 ESP32-S3 ($9)  ──UDP──>  Host bridge  ──HTTPS──>  Cognitum Seed ($15)
@@ -937,71 +937,71 @@ ESP32-S3 ($9)  ──UDP──>  Host bridge  ──HTTPS──>  Cognitum Seed 
 ```
 
 ```bash
-# 1. Provision ESP32 to send features to your laptop
+# 1. 配置 ESP32，把特征发到你的笔记本
 python firmware/esp32-csi-node/provision.py --port COM9 \
   --ssid "YourWiFi" --password "secret" --target-ip 192.168.1.20 --target-port 5006
 
-# 2. Run the bridge (forwards to Seed via HTTPS)
+# 2. 运行桥接（经 HTTPS 转发到 Seed）
 export SEED_TOKEN="your-pairing-token"
 python scripts/seed_csi_bridge.py \
   --seed-url https://169.254.42.1:8443 --token "$SEED_TOKEN" --validate
 
-# 3. Check Seed stats
+# 3. 查看 Seed 统计
 python scripts/seed_csi_bridge.py --token "$SEED_TOKEN" --stats
 ```
 
-The 8-dim feature vector captures: presence, motion, breathing rate, heart rate, phase variance, person count, fall detection, and RSSI — all normalized to [0.0, 1.0]. See [ADR-069](../docs/adr/ADR-069-cognitum-seed-csi-pipeline.md) for the full architecture.
+8 维特征向量包含：在场、运动、呼吸率、心率、相位方差、人数、跌倒检测与 RSSI —— 全部归一化到 [0.0, 1.0]。完整架构见 [ADR-069](../docs/adr/ADR-069-cognitum-seed-csi-pipeline.md)。
 
-### On-device intelligence (v0.3.0-alpha)
+### 设备端智能（v0.3.0-alpha）
 
-The alpha firmware can analyze signals locally and send compact results instead of raw data. This means the ESP32 works standalone — no server needed for basic sensing. Disabled by default for backward compatibility.
+alpha 版固件可在本地分析信号，只发送压缩后的结果而不传原始数据。也就是说 ESP32 可以独立工作 —— 基础感知不需要服务器。为保持向后兼容，默认关闭。
 
-| Tier | What it does | RAM used |
+| 层级 | 作用 | 占用 RAM |
 |------|-------------|----------|
-| **0** | Off — streams raw CSI only (same as v0.2.0) | 0 KB |
-| **1** | Cleans up signals, picks the best subcarriers, compresses data (saves 30-50% bandwidth) | ~30 KB |
-| **2** | Everything in Tier 1 + detects presence, measures breathing and heart rate, detects falls | ~33 KB |
-| **3** | Everything in Tier 2 + runs custom WASM modules (gesture recognition, intrusion detection, and [63 more](../docs/edge-modules/README.md)) | ~160 KB/module |
+| **0** | 关闭 —— 只推送原始 CSI（与 v0.2.0 相同） | 0 KB |
+| **1** | 净化信号、挑选最优子载波、压缩数据（节省 30-50% 带宽） | ~30 KB |
+| **2** | 包含层级 1 全部能力 + 检测在场、测量呼吸与心率、检测跌倒 | ~33 KB |
+| **3** | 包含层级 2 全部能力 + 运行自定义 WASM 模块（手势识别、入侵检测，以及[另外 63 个](../docs/edge-modules/README.md)） | ~160 KB/模块 |
 
-Enable without reflashing — just reprovision:
+无需重新烧录，重新配置一次即可启用：
 
 ```bash
-# Turn on Tier 2 (vitals) on an already-flashed node
+# 在已烧录的节点上打开层级 2（生命体征）
 python firmware/esp32-csi-node/provision.py --port COM7 \
   --ssid "YourWiFi" --password "secret" --target-ip 192.168.1.20 \
   --edge-tier 2
 
-# Fine-tune detection thresholds (fall-thresh in milli-units: 15000 = 15.0 rad/s²)
+# 微调检测阈值（fall-thresh 用毫单位：15000 = 15.0 rad/s²）
 python firmware/esp32-csi-node/provision.py --port COM7 \
   --edge-tier 2 --vital-int 500 --fall-thresh 15000 --subk-count 16
 ```
 
-When Tier 2 is active, the node sends a 32-byte vitals packet once per second containing: presence, motion level, breathing BPM, heart rate BPM, confidence scores, fall alert flag, and occupancy count.
+层级 2 启用后，节点每秒发送一个 32 字节的生命体征包，内含：在场、运动强度、呼吸 BPM、心率 BPM、置信度、跌倒告警标志与人数。
 
-See [firmware/esp32-csi-node/README.md](../firmware/esp32-csi-node/README.md), [ADR-039](../docs/adr/ADR-039-esp32-edge-intelligence.md), [ADR-050](../docs/adr/ADR-050-provisioning-tool-enhancements.md), and [Tutorial #34](https://github.com/ruvnet/RuView/issues/34).
+参见 [firmware/esp32-csi-node/README.md](../firmware/esp32-csi-node/README.md)、[ADR-039](../docs/adr/ADR-039-esp32-edge-intelligence.md)、[ADR-050](../docs/adr/ADR-050-provisioning-tool-enhancements.md) 与[教程 #34](https://github.com/ruvnet/RuView/issues/34)。
 
 </details>
 
 <details>
-<summary><strong>🦀 Rust Implementation (v2)</strong> — 810x faster, 54K fps pipeline</summary>
+<summary><strong>🦀 Rust 实现（v2）</strong> —— 快 810 倍，54K 帧/秒流水线</summary>
 
-### Performance Benchmarks (Validated)
+### 性能基准（已验证）
 
-| Operation | Python (v1) | Rust (v2) | Speedup |
+| 操作 | Python (v1) | Rust (v2) | 提速 |
 |-----------|-------------|-----------|---------|
-| CSI Preprocessing (4x64) | ~5ms | **5.19 µs** | ~1000x |
-| Phase Sanitization (4x64) | ~3ms | **3.84 µs** | ~780x |
-| Feature Extraction (4x64) | ~8ms | **9.03 µs** | ~890x |
-| Motion Detection | ~1ms | **186 ns** | ~5400x |
-| **Full Pipeline** | ~15ms | **18.47 µs** | ~810x |
-| **Vital Signs** | N/A | **86 µs** | 11,665 fps |
+| CSI 预处理（4x64） | ~5ms | **5.19 µs** | ~1000x |
+| 相位净化（4x64） | ~3ms | **3.84 µs** | ~780x |
+| 特征提取（4x64） | ~8ms | **9.03 µs** | ~890x |
+| 运动检测 | ~1ms | **186 ns** | ~5400x |
+| **完整流水线** | ~15ms | **18.47 µs** | ~810x |
+| **生命体征** | 不适用 | **86 µs** | 11,665 fps |
 
-| Resource | Python (v1) | Rust (v2) |
+| 资源项 | Python (v1) | Rust (v2) |
 |----------|-------------|-----------|
-| Memory | ~500 MB | ~100 MB |
-| Docker Image | 569 MB | 132 MB |
-| Tests | 41 | 542+ |
-| WASM Support | No | Yes |
+| 内存 | ~500 MB | ~100 MB |
+| Docker 镜像 | 569 MB | 132 MB |
+| 测试数 | 41 | 542+ |
+| WASM 支持 | 不支持 | 支持 |
 
 ```bash
 cd v2
@@ -1013,69 +1013,69 @@ cargo bench --package wifi-densepose-signal
 </details>
 
 <details>
-<summary><a id="vital-sign-detection"></a><strong>💓 Vital Sign Detection (ADR-021)</strong> — Breathing and heartbeat via FFT</summary>
+<summary><a id="vital-sign-detection"></a><strong>💓 生命体征检测（ADR-021）</strong> —— 用 FFT 检测呼吸与心跳</summary>
 
-| Capability | Range | Method |
+| 能力 | 范围 | 方法 |
 |------------|-------|--------|
-| **Breathing Rate** | 6-30 BPM (0.1-0.5 Hz) | Bandpass filter + FFT peak detection |
-| **Heart Rate** | 40-120 BPM (0.8-2.0 Hz) | Bandpass filter + FFT peak detection |
-| **Sampling Rate** | 20 Hz (ESP32 CSI) | Real-time streaming |
-| **Confidence** | 0.0-1.0 per sign | Spectral coherence + signal quality |
+| **呼吸率** | 6-30 BPM（0.1-0.5 Hz） | 带通滤波 + FFT 峰值检测 |
+| **心率** | 40-120 BPM（0.8-2.0 Hz） | 带通滤波 + FFT 峰值检测 |
+| **采样率** | 20 Hz（ESP32 CSI） | 实时推流 |
+| **置信度** | 每项体征 0.0-1.0 | 频谱相干性 + 信号质量 |
 
 ```bash
 ./target/release/sensing-server --source simulate --http-port 3000 --ws-port 3001 --ui-path ../../ui
 curl http://localhost:3000/api/v1/vital-signs
 ```
 
-See [ADR-021](../docs/adr/ADR-021-vital-sign-detection-rvdna-pipeline.md).
+参见 [ADR-021](../docs/adr/ADR-021-vital-sign-detection-rvdna-pipeline.md)。
 
 </details>
 
 <details>
-<summary><a id="wifi-scan-domain-layer"></a><strong>📡 WiFi Scan Domain Layer (ADR-022/025)</strong> — 8-stage RSSI pipeline for Windows, macOS, and Linux WiFi</summary>
+<summary><a id="wifi-scan-domain-layer"></a><strong>📡 WiFi 扫描领域层（ADR-022/025）</strong> —— 面向 Windows、macOS、Linux WiFi 的八级 RSSI 流水线</summary>
 
-| Stage | Purpose |
+| 阶段 | 作用 |
 |-------|---------|
-| **Predictive Gating** | Pre-filter scan results using temporal prediction |
-| **Attention Weighting** | Weight BSSIDs by signal relevance |
-| **Spatial Correlation** | Cross-AP spatial signal correlation |
-| **Motion Estimation** | Detect movement from RSSI variance |
-| **Breathing Extraction** | Extract respiratory rate from sub-Hz oscillations |
-| **Quality Gating** | Reject low-confidence estimates |
-| **Fingerprint Matching** | Location and posture classification via RF fingerprints |
-| **Orchestration** | Fuse all stages into unified sensing output |
+| **预测门控** | 用时序预测预筛扫描结果 |
+| **注意力加权** | 按信号相关度给 BSSID 加权 |
+| **空间相关** | 跨 AP 的空间信号相关性 |
+| **运动估计** | 由 RSSI 方差检测移动 |
+| **呼吸提取** | 从亚赫兹振荡中提取呼吸率 |
+| **质量门控** | 剔除低置信度估计 |
+| **指纹匹配** | 用射频指纹判定位置与姿态 |
+| **编排** | 把各阶段融合成统一的感知输出 |
 
 ```bash
 cargo test -p wifi-densepose-wifiscan
 ```
 
-See [ADR-022](../docs/adr/ADR-022-windows-wifi-enhanced-fidelity-ruvector.md) and [Tutorial #36](https://github.com/ruvnet/RuView/issues/36).
+参见 [ADR-022](../docs/adr/ADR-022-windows-wifi-enhanced-fidelity-ruvector.md) 与[教程 #36](https://github.com/ruvnet/RuView/issues/36)。
 
 </details>
 
 <details>
-<summary><a id="wifi-mat-disaster-response"></a><strong>🚨 WiFi-Mat: Disaster Response</strong> — Search & rescue, START triage, 3D localization</summary>
+<summary><a id="wifi-mat-disaster-response"></a><strong>🚨 WiFi-Mat：灾害响应</strong> —— 搜索救援、START 分诊、三维定位</summary>
 
-WiFi signals penetrate non-metallic debris (concrete, wood, drywall) where cameras and thermal sensors cannot reach. The WiFi-Mat module (`wifi-densepose-mat`, 139 tests) uses CSI analysis to detect survivors trapped under rubble, classify their condition using the START triage protocol, and estimate their 3D position — giving rescue teams actionable intelligence within seconds of deployment.
+WiFi 信号能穿透摄像头与热成像够不到的非金属废墟（混凝土、木材、石膏板）。WiFi-Mat 模块（`wifi-densepose-mat`，139 项测试）用 CSI 分析探测被埋在瓦砾下的幸存者，按 START 规程判定伤情，并估计其三维位置 —— 部署后几秒内就能给救援队提供可直接采取行动的情报。
 
-| Capability | How It Works | Performance Target |
+| 能力 | 原理 | 性能指标 |
 |------------|-------------|-------------------|
-| **Breathing Detection** | Bandpass 0.07-1.0 Hz + Fresnel zone modeling detects chest displacement of 5-10mm at 5 GHz | 4-60 BPM, <500ms latency |
-| **Heartbeat Detection** | Micro-Doppler shift extraction from fine-grained CSI phase variation | Via ruvector-temporal-tensor |
-| **3D Localization** | Multi-AP triangulation + CSI fingerprint matching + depth estimation through rubble layers | 3-5m penetration |
-| **START Triage** | Ensemble classifier votes on breathing + movement + vital stability → P1-P4 priority | <1% false negative |
-| **Zone Scanning** | 16+ concurrent scan zones with periodic re-scan and audit logging | Full disaster site |
+| **呼吸检测** | 0.07-1.0 Hz 带通 + 菲涅尔区建模，可在 5 GHz 下检测 5-10mm 的胸部位移 | 4-60 BPM，延迟 <500ms |
+| **心跳检测** | 从细粒度 CSI 相位变化中提取微多普勒频移 | 借助 ruvector-temporal-tensor |
+| **三维定位** | 多 AP 三角定位 + CSI 指纹匹配 + 穿透废墟层的深度估计 | 穿透 3-5m |
+| **START 分诊** | 集成分类器对呼吸 + 运动 + 生命体征稳定性投票 → P1-P4 优先级 | 漏检率 <1% |
+| **区域扫描** | 16 个以上并发扫描区，周期性重扫并记录审计日志 | 覆盖整个灾害现场 |
 
-**Triage classification (START protocol compatible):**
+**分诊分级（兼容 START 规程）：**
 
-| Status | Color | Detection Criteria | Priority |
+| 状态 | 颜色 | 判定依据 | 优先级 |
 |--------|-------|-------------------|----------|
-| Immediate | Red | Breathing detected, no movement | P1 |
-| Delayed | Yellow | Movement + breathing, stable vitals | P2 |
-| Minor | Green | Strong movement, responsive patterns | P3 |
-| Deceased | Black | No vitals for >30 min continuous scan | P4 |
+| 立即救治 | 红 | 检测到呼吸，无动作 | P1 |
+| 延迟救治 | 黄 | 有动作与呼吸，生命体征稳定 | P2 |
+| 轻伤 | 绿 | 动作明显，有响应模式 | P3 |
+| 死亡 | 黑 | 连续扫描 >30 分钟无任何生命体征 | P4 |
 
-**Deployment modes:** portable (single TX/RX handheld), distributed (multiple APs around collapse site), drone-mounted (UAV scanning), vehicle-mounted (mobile command post).
+**部署方式：** 便携（单发单收手持）、分布式（坍塌现场周围布多个 AP）、机载（无人机扫描）、车载（移动指挥所）。
 
 ```rust
 use wifi_densepose_mat::{DisasterResponse, DisasterConfig, DisasterType, ScanZone, ZoneBounds};
@@ -1092,42 +1092,42 @@ response.add_zone(ScanZone::new("North Wing", ZoneBounds::rectangle(0.0, 0.0, 30
 response.start_scanning().await?;
 ```
 
-**Safety guarantees:** fail-safe defaults (assume life present on ambiguous signals), redundant multi-algorithm voting, complete audit trail, offline-capable (no network required).
+**安全保证：** 失效安全默认值（信号不明确时假定有人）、多算法冗余投票、完整审计轨迹、可离线运行（无需网络）。
 
-- [WiFi-Mat User Guide](../docs/wifi-mat-user-guide.md) | [ADR-001](../docs/adr/ADR-001-wifi-mat-disaster-detection.md) | [Domain Model](../docs/ddd/wifi-mat-domain-model.md)
+- [WiFi-Mat 用户指南](../docs/wifi-mat-user-guide.md) | [ADR-001](../docs/adr/ADR-001-wifi-mat-disaster-detection.md) | [领域模型](../docs/ddd/wifi-mat-domain-model.md)
 
 </details>
 
 <details>
-<summary><a id="sota-signal-processing"></a><strong>🔬 SOTA Signal Processing (ADR-014)</strong> — 6 research-grade algorithms</summary>
+<summary><a id="sota-signal-processing"></a><strong>🔬 SOTA 信号处理（ADR-014）</strong> —— 6 种研究级算法</summary>
 
-The signal processing layer bridges the gap between raw commodity WiFi hardware output and research-grade sensing accuracy. Each algorithm addresses a specific limitation of naive CSI processing — from hardware-induced phase corruption to environment-dependent multipath interference. All six are implemented in `wifi-densepose-signal/src/` with deterministic tests and no mock data.
+信号处理层把普通商用 WiFi 硬件的原始输出，提升到研究级的感知精度。每种算法都针对朴素 CSI 处理的某个具体缺陷 —— 从硬件引入的相位失真，到随环境变化的多径干扰。六个算法全部实现在 `wifi-densepose-signal/src/`，配有确定性测试，不使用任何模拟数据。
 
-| Algorithm | What It Does | Why It Matters | Math | Source |
+| 算法 | 作用 | 意义 | 数学表达 | 来源 |
 |-----------|-------------|----------------|------|--------|
-| **Conjugate Multiplication** | Multiplies CSI antenna pairs: `H₁[k] × conj(H₂[k])` | Cancels CFO, SFO, and packet detection delay that corrupt raw phase — preserves only environment-caused phase differences | `CSI_ratio[k] = H₁[k] * conj(H₂[k])` | [SpotFi](https://dl.acm.org/doi/10.1145/2789168.2790124) (SIGCOMM 2015) |
-| **Hampel Filter** | Replaces outliers using running median ± scaled MAD | Z-score uses mean/std which are corrupted by the very outliers it detects (masking effect). Hampel uses median/MAD, resisting up to 50% contamination | `σ̂ = 1.4826 × MAD` | Standard DSP; WiGest (2015) |
-| **Fresnel Zone Model** | Models signal variation from chest displacement crossing Fresnel zone boundaries | Zero-crossing counting fails in multipath-rich environments. Fresnel predicts *where* breathing should appear based on TX-RX-body geometry | `ΔΦ = 2π × 2Δd / λ`, `A = \|sin(ΔΦ/2)\|` | [FarSense](https://dl.acm.org/doi/10.1145/3300061.3345431) (MobiCom 2019) |
-| **CSI Spectrogram** | Sliding-window FFT (STFT) per subcarrier → 2D time-frequency matrix | Breathing = 0.2-0.4 Hz band, walking = 1-2 Hz, static = noise. 2D structure enables CNN spatial pattern recognition that 1D features miss | `S[t,f] = \|Σₙ x[n] w[n-t] e^{-j2πfn}\|²` | Standard since 2018 |
-| **Subcarrier Selection** | Ranks subcarriers by motion sensitivity (variance ratio) and selects top-K | Not all subcarriers respond to motion — some sit in multipath nulls. Selecting the 10-20 most sensitive improves SNR by 6-10 dB | `sensitivity[k] = var_motion / var_static` | [WiDance](https://dl.acm.org/doi/10.1145/3117811.3117826) (MobiCom 2017) |
-| **Body Velocity Profile** | Extracts velocity distribution from Doppler shifts across subcarriers | BVP is domain-independent — same velocity profile regardless of room layout, furniture, or AP placement. Basis for cross-environment recognition | `BVP[v,t] = Σₖ \|STFTₖ[v,t]\|` | [Widar 3.0](https://dl.acm.org/doi/10.1145/3328916) (MobiSys 2019) |
+| **共轭相乘** | 把 CSI 天线对相乘：`H₁[k] × conj(H₂[k])` | 抵消破坏原始相位的 CFO、SFO 与包检测时延 —— 只保留由环境引起的相位差 | `CSI_ratio[k] = H₁[k] * conj(H₂[k])` | [SpotFi](https://dl.acm.org/doi/10.1145/2789168.2790124)（SIGCOMM 2015） |
+| **Hampel 滤波** | 用滑动中位数 ± 缩放 MAD 替换异常值 | Z-score 用的均值/标准差会被它要检测的异常值本身污染（掩蔽效应）。Hampel 改用中位数/MAD，可容忍高达 50% 的污染 | `σ̂ = 1.4826 × MAD` | 标准 DSP；WiGest (2015) |
+| **菲涅尔区模型** | 对胸部位移穿越菲涅尔区边界引起的信号变化建模 | 多径丰富的环境里过零计数会失效。菲涅尔模型根据发射-接收-人体的几何关系预测呼吸*应该出现在哪里* | `ΔΦ = 2π × 2Δd / λ`, `A = \|sin(ΔΦ/2)\|` | [FarSense](https://dl.acm.org/doi/10.1145/3300061.3345431)（MobiCom 2019） |
+| **CSI 频谱图** | 逐子载波做滑窗 FFT（STFT）→ 二维时频矩阵 | 呼吸在 0.2-0.4 Hz 频带，行走在 1-2 Hz，静止则为噪声。二维结构让 CNN 能识别一维特征漏掉的空间模式 | `S[t,f] = \|Σₙ x[n] w[n-t] e^{-j2πfn}\|²` | 2018 年起的通用做法 |
+| **子载波筛选** | 按运动敏感度（方差比）给子载波排序，取 top-K | 并非所有子载波都对运动有响应 —— 有些正好落在多径零点上。选最敏感的 10-20 个可把信噪比提升 6-10 dB | `sensitivity[k] = var_motion / var_static` | [WiDance](https://dl.acm.org/doi/10.1145/3117811.3117826)（MobiCom 2017） |
+| **身体速度剖面** | 从各子载波的多普勒频移中提取速度分布 | BVP 与场景无关 —— 无论房间布局、家具还是 AP 摆位如何，速度剖面都一致。这是跨环境识别的基础 | `BVP[v,t] = Σₖ \|STFTₖ[v,t]\|` | [Widar 3.0](https://dl.acm.org/doi/10.1145/3328916)（MobiSys 2019） |
 
-**Processing pipeline order:** Raw CSI → Conjugate multiplication (phase cleaning) → Hampel filter (outlier removal) → Subcarrier selection (top-K) → CSI spectrogram (time-frequency) → Fresnel model (breathing) + BVP (activity)
+**流水线顺序：** 原始 CSI → 共轭相乘（相位净化）→ Hampel 滤波（剔除异常值）→ 子载波筛选（top-K）→ CSI 频谱图（时频）→ 菲涅尔模型（呼吸）+ BVP（活动）
 
-See [ADR-014](../docs/adr/ADR-014-sota-signal-processing.md) for full mathematical derivations.
+完整数学推导见 [ADR-014](../docs/adr/ADR-014-sota-signal-processing.md)。
 
 </details>
 
 ---
 
-## 🧠 Models & Training
+## 🧠 模型与训练
 
 <details>
-<summary><a id="ai-backbone-ruvector"></a><strong>🤖 AI Backbone: RuVector</strong> — Attention, graph algorithms, and edge-AI compression powering the sensing pipeline</summary>
+<summary><a id="ai-backbone-ruvector"></a><strong>🤖 AI 骨架：RuVector</strong> —— 支撑感知流水线的注意力、图算法与边缘 AI 压缩</summary>
 
-Raw WiFi signals are noisy, redundant, and environment-dependent. [RuVector](https://github.com/ruvnet/ruvector) is the AI intelligence layer that transforms them into clean, structured input for the DensePose neural network. It uses **attention mechanisms** to learn which signals to trust, **graph algorithms** that automatically discover which WiFi channels are sensitive to body motion, and **compressed representations** that make edge inference possible on an $8 microcontroller.
+原始 WiFi 信号噪声大、冗余多，还随环境变化。[RuVector](https://github.com/ruvnet/ruvector) 是智能层，把它们整理成干净、结构化的输入交给 DensePose 神经网络。它用**注意力机制**学会该相信哪些信号，用**图算法**自动找出对人体运动敏感的 WiFi 信道，再用**压缩表示**让 8 美元的微控制器也能做边缘推理。
 
-Without RuVector, WiFi DensePose would need hand-tuned thresholds, brute-force matrix math, and 4x more memory — making real-time edge inference impossible.
+没有 RuVector，WiFi DensePose 就得依赖手工阈值、暴力矩阵运算和多 4 倍的内存 —— 实时边缘推理根本做不到。
 
 ```
 Raw WiFi CSI (56 subcarriers, noisy)
@@ -1142,27 +1142,27 @@ Clean, structured signal --> DensePose Neural Network --> 17-keypoint body pose
                          --> ruvector-solver ------------> physics-based localization
 ```
 
-The [`wifi-densepose-ruvector`](https://crates.io/crates/wifi-densepose-ruvector) crate ([ADR-017](../docs/adr/ADR-017-ruvector-signal-mat-integration.md)) connects all 7 integration points:
+[`wifi-densepose-ruvector`](https://crates.io/crates/wifi-densepose-ruvector) crate（[ADR-017](../docs/adr/ADR-017-ruvector-signal-mat-integration.md)）串起全部 7 个集成点：
 
-| AI Capability | What It Replaces | RuVector Crate | Result |
+| AI 能力 | 取代了什么 | RuVector Crate | 效果 |
 |--------------|-----------------|----------------|--------|
-| **Self-optimizing channel selection** | Hand-tuned thresholds that break when rooms change | `ruvector-mincut` | Graph min-cut adapts to any environment automatically |
-| **Attention-based signal cleaning** | Fixed energy cutoffs that miss subtle breathing | `ruvector-attn-mincut` | Learned gating amplifies body signals, suppresses noise |
-| **Learned signal fusion** | Simple averaging where one bad channel corrupts all | `ruvector-attention` | Transformer-style attention downweights corrupted channels |
-| **Physics-informed localization** | Expensive nonlinear solvers | `ruvector-solver` | Sparse least-squares Fresnel geometry in real-time |
-| **O(1) survivor triangulation** | O(N^3) matrix inversion | `ruvector-solver` | Neumann series linearization for instant position updates |
-| **75% memory compression** | 13.4 MB breathing buffers that overflow edge devices | `ruvector-temporal-tensor` | Tiered 3-8 bit quantization fits 60s of vitals in 3.4 MB |
+| **自优化信道选择** | 换房间就失效的手工阈值 | `ruvector-mincut` | 图最小割自动适应任意环境 |
+| **注意力信号净化** | 会漏掉细微呼吸的固定能量阈值 | `ruvector-attn-mincut` | 学习式门控放大人体信号、抑制噪声 |
+| **学习式信号融合** | 一个坏信道就能毁掉全部的简单平均 | `ruvector-attention` | Transformer 式注意力降低受损信道的权重 |
+| **物理约束定位** | 开销大的非线性求解器 | `ruvector-solver` | 实时做稀疏最小二乘菲涅尔几何求解 |
+| **O(1) 幸存者三角定位** | O(N^3) 矩阵求逆 | `ruvector-solver` | 用 Neumann 级数线性化，位置即时更新 |
+| **内存压缩 75%** | 会撑爆边缘设备的 13.4 MB 呼吸缓冲区 | `ruvector-temporal-tensor` | 3-8 位分层量化，把 60 秒生命体征压进 3.4 MB |
 
-See [issue #67](https://github.com/ruvnet/RuView/issues/67) for a deep dive with code examples, or [`cargo add wifi-densepose-ruvector`](https://crates.io/crates/wifi-densepose-ruvector) to use it directly.
+带代码示例的深入说明见 [issue #67](https://github.com/ruvnet/RuView/issues/67)，也可直接执行 [`cargo add wifi-densepose-ruvector`](https://crates.io/crates/wifi-densepose-ruvector) 使用。
 
 </details>
 
 <details>
-<summary><a id="rvf-model-container"></a><strong>📦 RVF Model Container</strong> — Single-file deployment with progressive loading</summary>
+<summary><a id="rvf-model-container"></a><strong>📦 RVF 模型容器</strong> —— 单文件部署，支持渐进加载</summary>
 
-The [RuVector Format (RVF)](https://github.com/ruvnet/ruvector/tree/main/crates/rvf) packages an entire trained model — weights, HNSW indexes, quantization codebooks, SONA adaptation deltas, and WASM inference runtime — into a single self-contained binary file. No external dependencies are needed at deployment time.
+[RuVector Format (RVF)](https://github.com/ruvnet/ruvector/tree/main/crates/rvf) 把整个训练好的模型 —— 权重、HNSW 索引、量化码本、SONA 自适应增量、WASM 推理运行时 —— 打包进一个自包含的二进制文件。部署时不需要任何外部依赖。
 
-**Container structure:**
+**容器结构：**
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -1186,131 +1186,131 @@ The [RuVector Format (RVF)](https://github.com/ruvnet/ruvector/tree/main/crates/
 └──────────────────────────────────────────────────────┘
 ```
 
-**Deployment targets:**
+**部署目标：**
 
-| Target | Quantization | Size | Load Time | Use Case |
+| 目标 | 量化 | 体积 | 加载耗时 | 适用场景 |
 |--------|-------------|------|-----------|----------|
-| **ESP32 / IoT** | int4 | ~0.7 MB | <5ms (Layer A) | Presence + breathing only |
-| **Mobile / WebView** | int8 | ~6 MB | ~200ms (Layer B) | Pose estimation on phone |
-| **Browser (WASM)** | int8 | ~10 MB | ~500ms (Layer B) | In-browser demo |
-| **Field (WiFi-Mat)** | fp16 | ~62 MB | ~2s (Layer C) | Full DensePose + disaster triage |
-| **Server / Cloud** | f32 | ~50+ MB | ~3s (Layer C) | Training + full inference |
+| **ESP32 / IoT** | int4 | ~0.7 MB | <5ms（A 层） | 仅在场 + 呼吸 |
+| **移动端 / WebView** | int8 | ~6 MB | ~200ms（B 层） | 手机端姿态估计 |
+| **浏览器（WASM）** | int8 | ~10 MB | ~500ms（B 层） | 浏览器内演示 |
+| **现场（WiFi-Mat）** | fp16 | ~62 MB | ~2s（C 层） | 完整 DensePose + 灾害分诊 |
+| **服务端 / 云端** | f32 | ~50+ MB | ~3s（C 层） | 训练 + 完整推理 |
 
-| Property | Detail |
+| 属性 | 说明 |
 |----------|--------|
-| **Format** | Segment-based binary, 20+ segment types, CRC32 integrity per segment |
-| **Progressive Loading** | **Layer A** (<5ms): manifest + entry points → **Layer B** (100ms-1s): hot weights + adjacency → **Layer C** (seconds): full graph |
-| **Signing** | Ed25519 training proofs for verifiable provenance — chain of custody from training data to deployed model |
-| **Quantization** | Per-segment temperature-tiered: f32 (full), f16 (half), u8 (int8), int4 — with SIMD-accelerated distance computation |
-| **CLI** | `--export-rvf` (generate), `--load-rvf` (config), `--save-rvf` (persist), `--model` (inference), `--progressive` (3-layer load) |
+| **格式** | 基于分段的二进制，20+ 种分段类型，逐段 CRC32 校验 |
+| **渐进加载** | **A 层**（<5ms）：清单 + 入口 → **B 层**（100ms-1s）：热点权重 + 邻接 → **C 层**（秒级）：完整图 |
+| **签名** | 用 Ed25519 训练证明实现可核验的来源追溯 —— 从训练数据到部署模型的完整保管链 |
+| **量化** | 逐段按热度分层：f32（全精度）、f16（半精度）、u8 (int8)、int4 —— 距离计算用 SIMD 加速 |
+| **命令行** | `--export-rvf`（生成）、`--load-rvf`（配置）、`--save-rvf`（持久化）、`--model`（推理）、`--progressive`（三层加载） |
 
 ```bash
-# Export model package
+# 导出模型包
 ./target/release/sensing-server --export-rvf wifi-densepose-v1.rvf
 
-# Load and run with progressive loading
+# 以渐进加载方式载入并运行
 ./target/release/sensing-server --model wifi-densepose-v1.rvf --progressive
 
-# Export via Docker
+# 通过 Docker 导出
 docker run --rm -v $(pwd):/out ruvnet/wifi-densepose:latest --export-rvf /out/model.rvf
 ```
 
-Built on the [rvf](https://github.com/ruvnet/ruvector/tree/main/crates/rvf) crate family (rvf-types, rvf-wire, rvf-manifest, rvf-index, rvf-quant, rvf-crypto, rvf-runtime). See [ADR-023](../docs/adr/ADR-023-trained-densepose-model-ruvector-pipeline.md).
+基于 [rvf](https://github.com/ruvnet/ruvector/tree/main/crates/rvf) crate 家族（rvf-types、rvf-wire、rvf-manifest、rvf-index、rvf-quant、rvf-crypto、rvf-runtime）。参见 [ADR-023](../docs/adr/ADR-023-trained-densepose-model-ruvector-pipeline.md)。
 
 </details>
 
 <details>
-<summary><a id="training--fine-tuning"></a><strong>🧬 Training & Fine-Tuning</strong> — MM-Fi/Wi-Pose pre-training, SONA adaptation</summary>
+<summary><a id="training--fine-tuning"></a><strong>🧬 训练与微调</strong> —— MM-Fi/Wi-Pose 预训练、SONA 自适应</summary>
 
-The training pipeline implements 8 phases in pure Rust (7,832 lines, zero external ML dependencies). It trains a graph transformer with cross-attention to map CSI feature matrices to 17 COCO body keypoints and DensePose UV coordinates — following the approach from the CMU "DensePose From WiFi" paper ([arXiv:2301.00250](https://arxiv.org/abs/2301.00250)). RuVector crates provide the core building blocks: [ruvector-attention](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-attention) for cross-attention layers, [ruvector-mincut](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-mincut) for multi-person matching, and [ruvector-temporal-tensor](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-temporal-tensor) for CSI buffer compression.
+训练流水线用纯 Rust 实现 8 个阶段（7,832 行，不依赖任何外部机器学习库）。它训练带交叉注意力的图 Transformer，把 CSI 特征矩阵映射为 17 个 COCO 人体关键点与 DensePose UV 坐标 —— 沿用 CMU 论文《DensePose From WiFi》（[arXiv:2301.00250](https://arxiv.org/abs/2301.00250)）的思路。RuVector 的 crate 提供核心构件：[ruvector-attention](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-attention) 负责交叉注意力层，[ruvector-mincut](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-mincut) 负责多人匹配，[ruvector-temporal-tensor](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-temporal-tensor) 负责 CSI 缓冲区压缩。
 
-**Three-tier data strategy:**
+**三层数据策略：**
 
-| Tier | Method | Purpose | RuVector Integration |
+| 层级 | 方法 | 目的 | RuVector 集成 |
 |------|--------|---------|---------------------|
-| **1. Pre-train** | MM-Fi + Wi-Pose public datasets | Cross-environment generalization (multi-subject, multi-room) | `ruvector-temporal-tensor` compresses CSI windows (114→56 subcarrier resampling) |
-| **2. Fine-tune** | ESP32 CSI + camera pseudo-labels | Environment-specific multipath adaptation | `ruvector-solver` for Fresnel geometry, `ruvector-attn-mincut` for subcarrier gating |
-| **3. SONA adapt** | Micro-LoRA (rank-4) + EWC++ | Continuous on-device learning without catastrophic forgetting | [SONA](https://github.com/ruvnet/ruvector/tree/main/crates/sona) architecture (Self-Optimizing Neural Architecture) |
+| **1. 预训练** | MM-Fi + Wi-Pose 公开数据集 | 跨环境泛化（多受试者、多房间） | `ruvector-temporal-tensor` 压缩 CSI 窗口（114→56 子载波重采样） |
+| **2. 微调** | ESP32 CSI + 摄像头伪标签 | 适配特定环境的多径 | `ruvector-solver` 求菲涅尔几何，`ruvector-attn-mincut` 做子载波门控 |
+| **3. SONA 自适应** | Micro-LoRA（rank-4）+ EWC++ | 设备端持续学习且不发生灾难性遗忘 | [SONA](https://github.com/ruvnet/ruvector/tree/main/crates/sona) 架构（自优化神经架构） |
 
-**Training pipeline components:**
+**训练流水线组成：**
 
-| Phase | Module | What It Does | RuVector Crate |
+| 阶段 | 模块 | 作用 | RuVector Crate |
 |-------|--------|-------------|----------------|
-| 1 | `dataset.rs` (850 lines) | MM-Fi `.npy` + Wi-Pose `.mat` loaders, subcarrier resampling (114→56, 30→56), windowing | [ruvector-temporal-tensor](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-temporal-tensor) |
-| 2 | `graph_transformer.rs` (855 lines) | COCO BodyGraph (17 kp, 16 edges), AntennaGraph, multi-head CrossAttention, GCN message passing | [ruvector-attention](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-attention) |
-| 3 | `trainer.rs` (881 lines) | 6-term composite loss (MSE, CE, UV, temporal, bone, symmetry), SGD+momentum, cosine+warmup, PCK/OKS | [ruvector-mincut](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-mincut) (person matching) |
-| 4 | `sona.rs` (639 lines) | LoRA adapters (A×B delta), EWC++ Fisher regularization, EnvironmentDetector (3-sigma drift) | [sona](https://github.com/ruvnet/ruvector/tree/main/crates/sona) |
-| 5 | `sparse_inference.rs` (753 lines) | NeuronProfiler hot/cold partitioning, SparseLinear (skip cold rows), INT8/FP16 quantization | [ruvector-sparse-inference](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-sparse-inference) |
-| 6 | `rvf_pipeline.rs` (1,027 lines) | Progressive 3-layer loader, HNSW index, OverlayGraph, `RvfModelBuilder` | [ruvector-core](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-core) (HNSW) |
-| 7 | `rvf_container.rs` (914 lines) | Binary container format, 6+ segment types, CRC32 integrity | [rvf](https://github.com/ruvnet/ruvector/tree/main/crates/rvf) |
-| 8 | `main.rs` integration | `--train`, `--model`, `--progressive` CLI flags, REST endpoints | — |
+| 1 | `dataset.rs`（850 行） | MM-Fi `.npy` + Wi-Pose `.mat` 加载器、子载波重采样（114→56、30→56）、分窗 | [ruvector-temporal-tensor](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-temporal-tensor) |
+| 2 | `graph_transformer.rs`（855 行） | COCO BodyGraph（17 关键点、16 条边）、AntennaGraph、多头 CrossAttention、GCN 消息传递 | [ruvector-attention](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-attention) |
+| 3 | `trainer.rs`（881 行） | 六项复合损失（MSE、CE、UV、时序、骨骼、对称）、SGD+动量、余弦+warmup、PCK/OKS | [ruvector-mincut](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-mincut)（人员匹配） |
+| 4 | `sona.rs`（639 行） | LoRA 适配器（A×B 增量）、EWC++ Fisher 正则、EnvironmentDetector（3-sigma 漂移） | [sona](https://github.com/ruvnet/ruvector/tree/main/crates/sona) |
+| 5 | `sparse_inference.rs`（753 行） | NeuronProfiler 冷热分区、SparseLinear（跳过冷行）、INT8/FP16 量化 | [ruvector-sparse-inference](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-sparse-inference) |
+| 6 | `rvf_pipeline.rs`（1,027 行） | 三层渐进加载器、HNSW 索引、OverlayGraph、`RvfModelBuilder` | [ruvector-core](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-core)（HNSW） |
+| 7 | `rvf_container.rs`（914 行） | 二进制容器格式、6+ 种分段类型、CRC32 校验 | [rvf](https://github.com/ruvnet/ruvector/tree/main/crates/rvf) |
+| 8 | `main.rs` 集成 | `--train`、`--model`、`--progressive` 命令行参数与 REST 接口 | — |
 
-**SONA (Self-Optimizing Neural Architecture)** — the continuous adaptation system:
+**SONA（自优化神经架构）** —— 持续自适应系统：
 
-| Component | What It Does | Why It Matters |
+| 组件 | 作用 | 意义 |
 |-----------|-------------|----------------|
-| **Micro-LoRA (rank-4)** | Trains small A×B weight deltas instead of full weights | 100x fewer parameters to update → runs on ESP32 |
-| **EWC++ (Fisher matrix)** | Penalizes changes to important weights from previous environments | Prevents catastrophic forgetting when moving between rooms |
-| **EnvironmentDetector** | Monitors CSI feature drift with 3-sigma threshold | Auto-triggers adaptation when the model is moved to a new space |
-| **Best-epoch snapshot** | Saves best validation loss weights, restores before export | Prevents shipping overfit final-epoch parameters |
+| **Micro-LoRA（rank-4）** | 只训练小的 A×B 权重增量，不动完整权重 | 需更新的参数少 100 倍 → 能跑在 ESP32 上 |
+| **EWC++（Fisher 矩阵）** | 惩罚对过往环境中重要权重的改动 | 换房间时避免灾难性遗忘 |
+| **EnvironmentDetector** | 用 3-sigma 阈值监视 CSI 特征漂移 | 模型换到新空间时自动触发自适应 |
+| **最佳轮次快照** | 保存验证损失最优的权重，导出前恢复 | 避免把最后一轮过拟合的参数交付出去 |
 
 ```bash
-# Pre-train on MM-Fi dataset
+# 在 MM-Fi 数据集上预训练
 ./target/release/sensing-server --train --dataset data/ --dataset-type mmfi --epochs 100
 
-# Train and export to RVF in one step
+# 一步完成训练并导出为 RVF
 ./target/release/sensing-server --train --dataset data/ --epochs 100 --save-rvf model.rvf
 
-# Via Docker (no toolchain needed)
+# 通过 Docker（无需工具链）
 docker run --rm -v $(pwd)/data:/data ruvnet/wifi-densepose:latest \
   --train --dataset /data --epochs 100 --export-rvf /data/model.rvf
 ```
 
-See [ADR-023](../docs/adr/ADR-023-trained-densepose-model-ruvector-pipeline.md) · [SONA crate](https://github.com/ruvnet/ruvector/tree/main/crates/sona) · [arXiv:2301.00250](https://arxiv.org/abs/2301.00250)
+参见 [ADR-023](../docs/adr/ADR-023-trained-densepose-model-ruvector-pipeline.md) · [SONA crate](https://github.com/ruvnet/ruvector/tree/main/crates/sona) · [arXiv:2301.00250](https://arxiv.org/abs/2301.00250)
 
 </details>
 
 <details>
-<summary><a id="ruvector-crates"></a><strong>🔩 RuVector Crates</strong> — 11 vendored signal intelligence crates from <a href="https://github.com/ruvnet/ruvector">github.com/ruvnet/ruvector</a></summary>
+<summary><a id="ruvector-crates"></a><strong>🔩 RuVector Crates</strong> —— 来自 <a href="https://github.com/ruvnet/ruvector">github.com/ruvnet/ruvector</a> 的 11 个内置信号智能 crate</summary>
 
-**5 directly-used crates** (v2.0.4, declared in `Cargo.toml`, 7 integration points):
+**5 个直接使用的 crate**（v2.0.4，声明在 `Cargo.toml`，共 7 个集成点）：
 
-| Crate | What It Does | Where It's Used in WiFi-DensePose | Source |
+| Crate | 作用 | 在 WiFi-DensePose 中的使用位置 | 来源 |
 |-------|-------------|-----------------------------------|--------|
-| [`ruvector-attention`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-attention) | Scaled dot-product attention, MoE routing, sparse attention | `model.rs` (spatial attention), `bvp.rs` (sensitivity-weighted velocity profiles) | [crate](https://crates.io/crates/ruvector-attention) |
-| [`ruvector-mincut`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-mincut) | Subpolynomial dynamic min-cut O(n^1.5 log n) | `metrics.rs` (DynamicPersonMatcher — multi-person assignment), `subcarrier_selection.rs` (sensitive/insensitive split) | [crate](https://crates.io/crates/ruvector-mincut) |
-| [`ruvector-attn-mincut`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-attn-mincut) | Attention-gated spectrogram noise suppression | `model.rs` (antenna attention gating), `spectrogram.rs` (gate noisy time-frequency bins) | [crate](https://crates.io/crates/ruvector-attn-mincut) |
-| [`ruvector-solver`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-solver) | Sparse Neumann series solver O(sqrt(n)) | `fresnel.rs` (TX-body-RX geometry), `triangulation.rs` (3D localization), `subcarrier.rs` (sparse interpolation 114→56) | [crate](https://crates.io/crates/ruvector-solver) |
-| [`ruvector-temporal-tensor`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-temporal-tensor) | Tiered temporal compression (8/7/5/3-bit) | `dataset.rs` (CSI buffer compression), `breathing.rs` + `heartbeat.rs` (compressed vital sign spectrograms) | [crate](https://crates.io/crates/ruvector-temporal-tensor) |
+| [`ruvector-attention`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-attention) | 缩放点积注意力、MoE 路由、稀疏注意力 | `model.rs`（空间注意力）、`bvp.rs`（敏感度加权的速度剖面） | [crate](https://crates.io/crates/ruvector-attention) |
+| [`ruvector-mincut`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-mincut) | 次多项式动态最小割 O(n^1.5 log n) | `metrics.rs`（DynamicPersonMatcher —— 多人匹配）、`subcarrier_selection.rs`（敏感/不敏感划分） | [crate](https://crates.io/crates/ruvector-mincut) |
+| [`ruvector-attn-mincut`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-attn-mincut) | 注意力门控的频谱图降噪 | `model.rs`（天线注意力门控）、`spectrogram.rs`（门控噪声时频单元） | [crate](https://crates.io/crates/ruvector-attn-mincut) |
+| [`ruvector-solver`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-solver) | 稀疏 Neumann 级数求解器 O(sqrt(n)) | `fresnel.rs`（发射-人体-接收几何）、`triangulation.rs`（三维定位）、`subcarrier.rs`（114→56 稀疏插值） | [crate](https://crates.io/crates/ruvector-solver) |
+| [`ruvector-temporal-tensor`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-temporal-tensor) | 分层时序压缩（8/7/5/3 位） | `dataset.rs`（CSI 缓冲区压缩）、`breathing.rs` + `heartbeat.rs`（压缩后的生命体征频谱图） | [crate](https://crates.io/crates/ruvector-temporal-tensor) |
 
-**6 additional vendored crates** (used by training pipeline and inference):
+**另外 6 个内置 crate**（供训练流水线与推理使用）：
 
-| Crate | What It Does | Source |
+| Crate | 作用 | 来源 |
 |-------|-------------|--------|
-| [`ruvector-core`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-core) | VectorDB engine, HNSW index, SIMD distance functions, quantization codebooks | [crate](https://crates.io/crates/ruvector-core) |
-| [`ruvector-gnn`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-gnn) | Graph neural network layers, graph attention, EWC-regularized training | [crate](https://crates.io/crates/ruvector-gnn) |
-| [`ruvector-graph-transformer`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-graph-transformer) | Proof-gated graph transformer with cross-attention | [crate](https://crates.io/crates/ruvector-graph-transformer) |
-| [`ruvector-sparse-inference`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-sparse-inference) | PowerInfer-style hot/cold neuron partitioning, skip cold rows at runtime | [crate](https://crates.io/crates/ruvector-sparse-inference) |
-| [`ruvector-nervous-system`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-nervous-system) | PredictiveLayer, OscillatoryRouter, Hopfield associative memory | [crate](https://crates.io/crates/ruvector-nervous-system) |
-| [`ruvector-coherence`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-coherence) | Spectral coherence monitoring, HNSW graph health, Fiedler connectivity | [crate](https://crates.io/crates/ruvector-coherence) |
+| [`ruvector-core`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-core) | VectorDB 引擎、HNSW 索引、SIMD 距离函数、量化码本 | [crate](https://crates.io/crates/ruvector-core) |
+| [`ruvector-gnn`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-gnn) | 图神经网络层、图注意力、EWC 正则训练 | [crate](https://crates.io/crates/ruvector-gnn) |
+| [`ruvector-graph-transformer`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-graph-transformer) | 带证明门控与交叉注意力的图 Transformer | [crate](https://crates.io/crates/ruvector-graph-transformer) |
+| [`ruvector-sparse-inference`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-sparse-inference) | PowerInfer 式冷热神经元分区，运行时跳过冷行 | [crate](https://crates.io/crates/ruvector-sparse-inference) |
+| [`ruvector-nervous-system`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-nervous-system) | PredictiveLayer、OscillatoryRouter、Hopfield 联想记忆 | [crate](https://crates.io/crates/ruvector-nervous-system) |
+| [`ruvector-coherence`](https://github.com/ruvnet/ruvector/tree/main/crates/ruvector-coherence) | 频谱相干性监视、HNSW 图健康度、Fiedler 连通性 | [crate](https://crates.io/crates/ruvector-coherence) |
 
-The full RuVector ecosystem includes 90+ crates. See [github.com/ruvnet/ruvector](https://github.com/ruvnet/ruvector) for the complete library, and [`vendor/ruvector/`](../vendor/) for the vendored source in this project.
+完整 RuVector 生态有 90+ 个 crate。完整库见 [github.com/ruvnet/ruvector](https://github.com/ruvnet/ruvector)，本项目内置的源码见 [`vendor/ruvector/`](../vendor/)。
 
 </details>
 
 <details>
-<summary><a id="ruv-neural"></a><strong>🧠 rUv Neural</strong> — Brain topology analysis ecosystem for neural decoding and medical sensing</summary>
+<summary><a id="ruv-neural"></a><strong>🧠 rUv Neural</strong> —— 面向神经解码与医学感知的脑拓扑分析生态</summary>
 
-[**rUv Neural**](https://github.com/ruvnet/ruv-neural#readme) is a 12-crate Rust ecosystem that extends RuView's signal processing into brain network topology analysis. It transforms neural magnetic field measurements from quantum sensors (NV diamond magnetometers, optically pumped magnetometers) into dynamic connectivity graphs, using minimum cut algorithms to detect cognitive state transitions in real time. The ecosystem includes crates for signal processing (`ruv-neural-signal`), graph construction (`ruv-neural-graph`), HNSW-indexed pattern memory (`ruv-neural-memory`), graph embeddings (`ruv-neural-embed`), cognitive state decoding (`ruv-neural-decoder`), and ESP32/WASM edge targets. Medical and research applications include early neurological disease detection via topology signatures, brain-computer interfaces, clinical neurofeedback, and non-invasive biomedical sensing -- bridging RuView's RF sensing architecture with the emerging field of quantum biomedical diagnostics.
+[**rUv Neural**](https://github.com/ruvnet/ruv-neural#readme) 是包含 12 个 crate 的 Rust 生态，把 RuView 的信号处理延伸到脑网络拓扑分析。它把量子传感器（NV 色心磁强计、光泵磁强计）测得的神经磁场数据转成动态连接图，用最小割算法实时检测认知状态跃迁。生态里包含信号处理（`ruv-neural-signal`）、图构建（`ruv-neural-graph`）、HNSW 索引的模式记忆（`ruv-neural-memory`）、图嵌入（`ruv-neural-embed`）、认知状态解码（`ruv-neural-decoder`）以及 ESP32/WASM 边缘目标等 crate。医学与科研用途包括：用拓扑特征早期发现神经系统疾病、脑机接口、临床神经反馈、非侵入式生物医学感知 —— 把 RuView 的射频感知架构与新兴的量子生物医学诊断连接起来。
 
 </details>
 
 ---
 
 <details>
-<summary><strong>🏗️ System Architecture</strong> — End-to-end data flow from CSI capture to REST/WebSocket API</summary>
+<summary><strong>🏗️ 系统架构</strong> —— 从 CSI 采集到 REST/WebSocket API 的端到端数据流</summary>
 
-### End-to-End Pipeline
+### 端到端流水线
 
 ```mermaid
 graph TB
@@ -1385,7 +1385,7 @@ graph TB
     style API fill:#1a1a2e,stroke:#0f3460,color:#eee
 ```
 
-### Signal Processing Detail
+### 信号处理细节
 
 ```mermaid
 graph LR
@@ -1429,7 +1429,7 @@ graph LR
     style OUT fill:#0d1117,stroke:#8b949e,color:#c9d1d9
 ```
 
-### Deployment Topology
+### 部署拓扑
 
 ```mermaid
 graph TB
@@ -1465,403 +1465,410 @@ graph TB
     style CLIENT fill:#0f3460,stroke:#0f3460,color:#eee
 ```
 
-| Component | Crate / Module | Description |
+| 组件 | Crate / 模块 | 说明 |
 |-----------|---------------|-------------|
-| **Aggregator** | `wifi-densepose-hardware` | ESP32 UDP listener, ADR-018 frame parser, I/Q → amplitude/phase bridge |
-| **Signal Processor** | `wifi-densepose-signal` | SpotFi phase sanitization, Hampel filter, STFT spectrogram, Fresnel geometry, BVP |
-| **Subcarrier Selection** | `ruvector-mincut` + `ruvector-attn-mincut` | Dynamic sensitive/insensitive partitioning, attention-gated noise suppression |
-| **Fresnel Solver** | `ruvector-solver` | Sparse Neumann series O(sqrt(n)) for TX-body-RX distance estimation |
-| **Graph Transformer** | `wifi-densepose-train` | COCO BodyGraph (17 kp, 16 edges), cross-attention CSI→pose, GCN message passing |
-| **SONA** | `sona` crate | Micro-LoRA (rank-4) adaptation, EWC++ catastrophic forgetting prevention |
-| **Vital Signs** | `wifi-densepose-signal` | FFT-based breathing (0.1-0.5 Hz) and heartbeat (0.8-2.0 Hz) extraction |
-| **REST API** | `wifi-densepose-sensing-server` | Axum server: `/api/v1/sensing`, `/health`, `/vital-signs`, `/bssid`, `/sona` |
-| **WebSocket** | `wifi-densepose-sensing-server` | Real-time pose, sensing, and vital sign streaming on `:3001` |
-| **Analytics** | `wifi-densepose-mat` | Fall detection, activity recognition, START triage (WiFi-Mat disaster module) |
-| **Web UI** | `ui/` | Three.js scene, Gaussian splat visualization, signal dashboard |
+| **汇聚端** | `wifi-densepose-hardware` | ESP32 UDP 监听、ADR-018 帧解析、I/Q → 幅度/相位转换 |
+| **信号处理器** | `wifi-densepose-signal` | SpotFi 相位净化、Hampel 滤波、STFT 频谱图、菲涅尔几何、BVP |
+| **子载波筛选** | `ruvector-mincut` + `ruvector-attn-mincut` | 动态敏感/不敏感划分、注意力门控降噪 |
+| **菲涅尔求解器** | `ruvector-solver` | 用稀疏 Neumann 级数 O(sqrt(n)) 估计发射-人体-接收距离 |
+| **图 Transformer** | `wifi-densepose-train` | COCO BodyGraph（17 关键点、16 条边）、交叉注意力 CSI→姿态、GCN 消息传递 |
+| **SONA** | `sona` crate | Micro-LoRA（rank-4）自适应、用 EWC++ 防止灾难性遗忘 |
+| **生命体征** | `wifi-densepose-signal` | 基于 FFT 提取呼吸（0.1-0.5 Hz）与心跳（0.8-2.0 Hz） |
+| **REST API** | `wifi-densepose-sensing-server` | Axum 服务：`/api/v1/sensing`、`/health`、`/vital-signs`、`/bssid`、`/sona` |
+| **WebSocket** | `wifi-densepose-sensing-server` | 在 `:3001` 上实时推送姿态、感知与生命体征数据 |
+| **分析** | `wifi-densepose-mat` | 跌倒检测、活动识别、START 分诊（WiFi-Mat 灾害模块） |
+| **Web 界面** | `ui/` | Three.js 场景、高斯溅射可视化、信号仪表盘 |
 
 </details>
 
 ---
 
-## 🖥️ CLI Usage
+<a id="cli-usage"></a>
+## 🖥️ 命令行用法
 
 <details>
-<summary><strong>Rust Sensing Server</strong> — Primary CLI interface</summary>
+<summary><strong>Rust 感知服务器</strong> —— 主命令行接口</summary>
 
 ```bash
-# Start with simulated data (no hardware)
+# 用模拟数据启动（无需硬件）
 ./target/release/sensing-server --source simulate --ui-path ../../ui
 
-# Start with ESP32 CSI hardware
+# 用 ESP32 CSI 硬件启动
 ./target/release/sensing-server --source esp32 --udp-port 5005
 
-# Start with Windows WiFi RSSI
+# 用 Windows WiFi RSSI 启动
 ./target/release/sensing-server --source wifi
 
-# Run vital sign benchmark
+# 运行生命体征基准
 ./target/release/sensing-server --benchmark
 
-# Export RVF model package
+# 导出 RVF 模型包
 ./target/release/sensing-server --export-rvf model.rvf
 
-# Train a model
+# 训练模型
 ./target/release/sensing-server --train --dataset data/ --epochs 100
 
-# Load trained model with progressive loading
+# 以渐进加载方式载入训练好的模型
 ./target/release/sensing-server --model wifi-densepose-v1.rvf --progressive
 ```
 
-| Flag | Description |
+| 参数 | 说明 |
 |------|-------------|
-| `--source` | Data source: `auto`, `wifi`, `esp32`, `simulate` |
-| `--http-port` | HTTP port for UI and REST API (default: 8080) |
-| `--ws-port` | WebSocket port (default: 8765) |
-| `--udp-port` | UDP port for ESP32 CSI frames (default: 5005) |
-| `--benchmark` | Run vital sign benchmark (1000 frames) and exit |
-| `--export-rvf` | Export RVF container package and exit |
-| `--load-rvf` | Load model config from RVF container |
-| `--save-rvf` | Save model state on shutdown |
-| `--model` | Load trained `.rvf` model for inference |
-| `--progressive` | Enable progressive loading (Layer A instant start) |
-| `--train` | Train a model and exit |
-| `--dataset` | Path to dataset directory (MM-Fi or Wi-Pose) |
-| `--epochs` | Training epochs (default: 100) |
+| `--source` | 数据源：`auto`、`wifi`、`esp32`、`simulate` |
+| `--http-port` | 界面与 REST API 的 HTTP 端口（默认 8080） |
+| `--ws-port` | WebSocket 端口（默认 8765） |
+| `--udp-port` | ESP32 CSI 帧的 UDP 端口（默认 5005） |
+| `--benchmark` | 运行生命体征基准（1000 帧）后退出 |
+| `--export-rvf` | 导出 RVF 容器包后退出 |
+| `--load-rvf` | 从 RVF 容器读取模型配置 |
+| `--save-rvf` | 关闭时保存模型状态 |
+| `--model` | 载入训练好的 `.rvf` 模型用于推理 |
+| `--progressive` | 启用渐进加载（A 层即时启动） |
+| `--train` | 训练模型后退出 |
+| `--dataset` | 数据集目录路径（MM-Fi 或 Wi-Pose） |
+| `--epochs` | 训练轮数（默认 100） |
 
 </details>
 
 <details>
-<summary><a id="rest-api--websocket"></a><strong>REST API & WebSocket</strong> — Endpoints reference</summary>
+<summary><a id="rest-api--websocket"></a><strong>REST API 与 WebSocket</strong> —— 接口速查</summary>
 
-#### REST API (Rust Sensing Server)
+#### REST API（Rust 感知服务器）
 
 ```bash
-GET  /api/v1/sensing              # Latest sensing frame
-GET  /api/v1/vital-signs          # Breathing, heart rate, confidence
-GET  /api/v1/bssid                # Multi-BSSID registry
-GET  /api/v1/model/layers         # Progressive loading status
-GET  /api/v1/model/sona/profiles  # SONA profiles
-POST /api/v1/model/sona/activate  # Activate SONA profile
+GET  /api/v1/sensing              # 最新感知帧
+GET  /api/v1/vital-signs          # 呼吸、心率、置信度
+GET  /api/v1/bssid                # 多 BSSID 注册表
+GET  /api/v1/model/layers         # 渐进加载状态
+GET  /api/v1/model/sona/profiles  # SONA 配置档
+POST /api/v1/model/sona/activate  # 激活 SONA 配置档
 ```
 
-WebSocket: `ws://localhost:3001/ws/sensing` (real-time sensing + vital signs)
+WebSocket：`ws://localhost:3001/ws/sensing`（实时感知 + 生命体征）
 
-> Default ports (Docker): HTTP 3000, WS 3001. Binary defaults: HTTP 8080, WS 8765. Override with `--http-port` / `--ws-port`.
+> 默认端口（Docker）：HTTP 3000、WS 3001。二进制默认值：HTTP 8080、WS 8765。可用 `--http-port` / `--ws-port` 覆盖。
 
 </details>
 
 <details>
-<summary><a id="hardware-support-1"></a><strong>Hardware Support</strong> — Devices, cost, and guides</summary>
+<summary><a id="hardware-support-1"></a><strong>硬件支持</strong> —— 设备、成本与指南</summary>
 
-| Hardware | CSI | Cost | Guide |
+| 硬件 | CSI | 成本 | 指南 |
 |----------|-----|------|-------|
-| **ESP32-S3** | Native | ~$8 | [Tutorial #34](https://github.com/ruvnet/RuView/issues/34) |
-| Intel 5300 | Firmware mod | ~$15 | Linux `iwl-csi` |
-| Atheros AR9580 | ath9k patch | ~$20 | Linux only |
-| Any Windows WiFi | RSSI only | $0 | [Tutorial #36](https://github.com/ruvnet/RuView/issues/36) |
-| Any macOS WiFi | RSSI only (CoreWLAN) | $0 | [ADR-025](../docs/adr/ADR-025-macos-corewlan-wifi-sensing.md) |
-| Any Linux WiFi | RSSI only (`iw`) | $0 | Requires `iw` + `CAP_NET_ADMIN` |
+| **ESP32-S3** | 原生支持 | ~$8 | [教程 #34](https://github.com/ruvnet/RuView/issues/34) |
+| Intel 5300 | 需改固件 | ~$15 | Linux `iwl-csi` |
+| Atheros AR9580 | 需打 ath9k 补丁 | ~$20 | 仅 Linux |
+| 任意 Windows WiFi 网卡 | 仅 RSSI | $0 | [教程 #36](https://github.com/ruvnet/RuView/issues/36) |
+| 任意 macOS WiFi 网卡 | 仅 RSSI（CoreWLAN） | $0 | [ADR-025](../docs/adr/ADR-025-macos-corewlan-wifi-sensing.md) |
+| 任意 Linux WiFi 网卡 | 仅 RSSI（`iw`） | $0 | 需要 `iw` + `CAP_NET_ADMIN` |
 
 </details>
 
 <details>
-<summary><strong>QEMU Firmware Testing (ADR-061) — 9-Layer Platform</strong></summary>
+<summary><strong>QEMU 固件测试（ADR-061）—— 九层平台</strong></summary>
 
-Test ESP32-S3 firmware without physical hardware using Espressif's QEMU fork. The platform provides 9 layers of testing capability:
+用乐鑫的 QEMU 分支在没有物理硬件的情况下测试 ESP32-S3 固件。平台提供 9 层测试能力：
 
-| Layer | Capability | Script / Config |
+| 层级 | 能力 | 脚本 / 配置 |
 |-------|-----------|-----------------|
-| 1 | Mock CSI generator (10 physics-based scenarios) | `firmware/esp32-csi-node/main/mock_csi.c` |
-| 2 | Single-node QEMU runner + UART validation (16 checks) | `scripts/qemu-esp32s3-test.sh`, `scripts/validate_qemu_output.py` |
-| 3 | Multi-node TDM mesh simulation (TAP networking) | `scripts/qemu-mesh-test.sh`, `scripts/validate_mesh_test.py` |
-| 4 | GDB remote debugging (VS Code integration) | `.vscode/launch.json` |
-| 5 | Code coverage (gcov/lcov via apptrace) | `firmware/esp32-csi-node/sdkconfig.coverage` |
-| 6 | Fuzz testing (libFuzzer + ASAN/UBSAN) | `firmware/esp32-csi-node/test/fuzz_*.c` |
-| 7 | NVS provisioning matrix (14 configs) | `scripts/generate_nvs_matrix.py` |
-| 8 | Snapshot regression (sub-second VM restore) | `scripts/qemu-snapshot-test.sh` |
-| 9 | Chaos testing (fault injection + health monitoring) | `scripts/qemu-chaos-test.sh`, `scripts/inject_fault.py`, `scripts/check_health.py` |
+| 1 | 模拟 CSI 生成器（10 种基于物理的场景） | `firmware/esp32-csi-node/main/mock_csi.c` |
+| 2 | 单节点 QEMU 运行器 + UART 校验（16 项检查） | `scripts/qemu-esp32s3-test.sh`、`scripts/validate_qemu_output.py` |
+| 3 | 多节点 TDM 组网模拟（TAP 网络） | `scripts/qemu-mesh-test.sh`、`scripts/validate_mesh_test.py` |
+| 4 | GDB 远程调试（VS Code 集成） | `.vscode/launch.json` |
+| 5 | 代码覆盖率（经 apptrace 使用 gcov/lcov） | `firmware/esp32-csi-node/sdkconfig.coverage` |
+| 6 | 模糊测试（libFuzzer + ASAN/UBSAN） | `firmware/esp32-csi-node/test/fuzz_*.c` |
+| 7 | NVS 配置矩阵（14 种配置） | `scripts/generate_nvs_matrix.py` |
+| 8 | 快照回归（亚秒级虚拟机恢复） | `scripts/qemu-snapshot-test.sh` |
+| 9 | 混沌测试（故障注入 + 健康监视） | `scripts/qemu-chaos-test.sh`、`scripts/inject_fault.py`、`scripts/check_health.py` |
 
 ```bash
-# Quick start: build + run + validate
+# 快速开始：构建 + 运行 + 校验
 cd firmware/esp32-csi-node
 idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.qemu" build
 
-# Single-node test (builds, merges flash, runs QEMU, validates output)
+# 单节点测试（构建、合并 flash、运行 QEMU、校验输出）
 bash scripts/qemu-esp32s3-test.sh
 
-# Multi-node mesh test (3 QEMU instances with TDM)
+# 多节点组网测试（3 个 QEMU 实例 + TDM）
 sudo bash scripts/qemu-mesh-test.sh 3
 
-# Fuzz testing (60 seconds per target)
+# 模糊测试（每个目标 60 秒）
 cd firmware/esp32-csi-node/test && make all CC=clang && make run_serialize FUZZ_DURATION=60
 
-# Chaos testing (fault injection resilience)
+# 混沌测试（故障注入韧性）
 bash scripts/qemu-chaos-test.sh --faults all --duration 120
 ```
 
-**10 test scenarios**: empty room, static person, walking, fall, multi-person, channel sweep, MAC filter, ring overflow, boundary RSSI, zero-length frames.
+**10 种测试场景**：空房间、静止的人、行走、跌倒、多人、信道扫描、MAC 过滤、环形缓冲溢出、边界 RSSI、零长度帧。
 
-**14 NVS configs**: default, WiFi-only, full ADR-060, edge tiers 0/1/2, TDM mesh, WASM signed/unsigned, 5GHz, boundary max/min, power-save, empty-strings.
+**14 种 NVS 配置**：默认、仅 WiFi、完整 ADR-060、边缘层级 0/1/2、TDM 组网、WASM 已签名/未签名、5GHz、边界最大/最小、省电、空字符串。
 
-**CI**: GitHub Actions workflow runs 7 NVS matrix configs, 3 fuzz targets, and NVS binary validation on every push to `firmware/`.
+**CI**：每次向 `firmware/` 推送时，GitHub Actions 都会跑 7 种 NVS 矩阵配置、3 个模糊测试目标，以及 NVS 二进制校验。
 
-See [ADR-061](../docs/adr/ADR-061-qemu-esp32s3-firmware-testing.md) for the full architecture.
+完整架构见 [ADR-061](../docs/adr/ADR-061-qemu-esp32s3-firmware-testing.md)。
 
 </details>
 
 <details>
-<summary><strong>QEMU Swarm Configurator (ADR-062)</strong></summary>
+<summary><strong>QEMU 集群配置器（ADR-062）</strong></summary>
 
-Test multiple ESP32-S3 nodes simultaneously using a YAML-driven orchestrator. Define node roles, network topologies, and validation assertions in a config file.
+用 YAML 驱动的编排器同时测试多个 ESP32-S3 节点。在配置文件里定义节点角色、网络拓扑与校验断言。
 
 ```bash
-# Quick smoke test (2 nodes, 15 seconds)
+# 快速冒烟测试（2 节点，15 秒）
 python3 scripts/qemu_swarm.py --preset smoke
 
-# Standard 3-node test (coordinator + 2 sensors)
+# 标准三节点测试（1 协调器 + 2 传感器）
 python3 scripts/qemu_swarm.py --preset standard
 
-# See all presets
+# 查看全部预设
 python3 scripts/qemu_swarm.py --list-presets
 
-# Preview without running
+# 只预览不运行
 python3 scripts/qemu_swarm.py --preset standard --dry-run
 ```
 
-**Topologies**: star (sensors → coordinator), mesh (fully connected), line (relay chain), ring (circular).
+**拓扑**：星型（传感器 → 协调器）、网状（全连接）、链型（中继链）、环型（首尾相连）。
 
-**Node roles**: sensor (generates CSI), coordinator (aggregates), gateway (bridges to host).
+**节点角色**：传感器（生成 CSI）、协调器（汇聚）、网关（桥接到主机）。
 
-**7 presets**: smoke, standard, ci-matrix, large-mesh, line-relay, ring-fault, heterogeneous.
+**7 种预设**：smoke、standard、ci-matrix、large-mesh、line-relay、ring-fault、heterogeneous。
 
-**9 swarm assertions**: boot check, crash detection, TDM collision, frame production, coordinator reception, fall detection, frame rate, boot time, heap health.
+**9 项集群断言**：启动检查、崩溃检测、TDM 冲突、帧产出、协调器接收、跌倒检测、帧率、启动耗时、堆健康度。
 
-See [ADR-062](../docs/adr/ADR-062-qemu-swarm-configurator.md) and the [User Guide](../docs/user-guide.md#testing-firmware-without-hardware-qemu) for step-by-step instructions.
+分步说明见 [ADR-062](../docs/adr/ADR-062-qemu-swarm-configurator.md) 与[用户指南](../docs/user-guide.md#testing-firmware-without-hardware-qemu)。
 
 </details>
 
 <details>
-<summary><strong>Python Legacy CLI</strong> — v1 API server commands</summary>
+<summary><strong>旧版 Python 命令行</strong> —— v1 API 服务命令</summary>
 
 ```bash
-wifi-densepose start                    # Start API server
-wifi-densepose -c config.yaml start     # Custom config
-wifi-densepose -v start                 # Verbose logging
-wifi-densepose status                   # Check status
-wifi-densepose stop                     # Stop server
-wifi-densepose config show              # Show configuration
-wifi-densepose db init                  # Initialize database
-wifi-densepose tasks list               # List background tasks
+wifi-densepose start                    # 启动 API 服务
+wifi-densepose -c config.yaml start     # 自定义配置
+wifi-densepose -v start                 # 详细日志
+wifi-densepose status                   # 查看状态
+wifi-densepose stop                     # 停止服务
+wifi-densepose config show              # 显示配置
+wifi-densepose db init                  # 初始化数据库
+wifi-densepose tasks list               # 列出后台任务
 ```
 
 </details>
 
 <details>
-<summary><strong>Documentation Links</strong></summary>
+<summary><strong>文档链接</strong></summary>
 
-- [User Guide](../docs/user-guide.md) — installation, first run, API, hardware setup, QEMU testing
-- [WiFi-Mat User Guide](../docs/wifi-mat-user-guide.md) | [Domain Model](../docs/ddd/wifi-mat-domain-model.md)
-- [ADR-061](../docs/adr/ADR-061-qemu-esp32s3-firmware-testing.md) QEMU platform | [ADR-062](../docs/adr/ADR-062-qemu-swarm-configurator.md) Swarm configurator
+- [用户指南](../docs/user-guide.md) —— 安装、首次运行、API、硬件配置、QEMU 测试
+- [WiFi-Mat 用户指南](../docs/wifi-mat-user-guide.md) | [领域模型](../docs/ddd/wifi-mat-domain-model.md)
+- [ADR-061](../docs/adr/ADR-061-qemu-esp32s3-firmware-testing.md) QEMU 平台 | [ADR-062](../docs/adr/ADR-062-qemu-swarm-configurator.md) 集群配置器
 - [ADR-021](../docs/adr/ADR-021-vital-sign-detection-rvdna-pipeline.md) | [ADR-022](../docs/adr/ADR-022-windows-wifi-enhanced-fidelity-ruvector.md) | [ADR-023](../docs/adr/ADR-023-trained-densepose-model-ruvector-pipeline.md)
 
 </details>
 
 ---
 
-## 🧪 Testing
+<a id="testing"></a>
+## 🧪 测试
 
 <details>
-<summary><strong>542+ tests across 7 suites</strong> — zero mocks, hardware-free simulation</summary>
+<summary><strong>7 个测试套件共 542+ 项测试</strong> —— 零 mock，免硬件模拟</summary>
 
 ```bash
-# Rust tests (primary — 542+ tests)
+# Rust 测试（主测试 —— 542+ 项）
 cd v2
 cargo test --workspace
 
-# Sensing server tests (229 tests)
+# 感知服务器测试（229 项）
 cargo test -p wifi-densepose-sensing-server
 
-# Vital sign benchmark
+# 生命体征基准
 ./target/release/sensing-server --benchmark
 
-# Python tests
+# Python 测试
 python -m pytest archive/v1/tests/ -v
 
-# Pipeline verification (no hardware needed)
+# 流水线验证（无需硬件）
 ./verify
 ```
 
-| Suite | Tests | What It Covers |
+| 套件 | 测试数 | 覆盖范围 |
 |-------|-------|----------------|
-| sensing-server lib | 147 | Graph transformer, trainer, SONA, sparse inference, RVF |
-| sensing-server bin | 48 | CLI integration, WebSocket, REST API |
-| RVF integration | 16 | Container build, read, progressive load |
-| Vital signs integration | 18 | FFT detection, breathing, heartbeat |
-| wifi-densepose-signal | 83 | SOTA algorithms, Doppler, Fresnel |
-| wifi-densepose-mat | 139 | Disaster response, triage, localization |
-| wifi-densepose-wifiscan | 91 | 8-stage RSSI pipeline |
+| sensing-server lib | 147 | 图 Transformer、训练器、SONA、稀疏推理、RVF |
+| sensing-server bin | 48 | 命令行集成、WebSocket、REST API |
+| RVF 集成 | 16 | 容器构建、读取、渐进加载 |
+| 生命体征集成 | 18 | FFT 检测、呼吸、心跳 |
+| wifi-densepose-signal | 83 | SOTA 算法、多普勒、菲涅尔 |
+| wifi-densepose-mat | 139 | 灾害响应、分诊、定位 |
+| wifi-densepose-wifiscan | 91 | 八级 RSSI 流水线 |
 
 </details>
 
 ---
 
-## 🚀 Deployment
+<a id="deployment"></a>
+## 🚀 部署
 
 <details>
-<summary><strong>Docker deployment</strong> — Production setup with docker-compose</summary>
+<summary><strong>Docker 部署</strong> —— 用 docker-compose 搭建生产环境</summary>
 
 ```bash
-# Rust sensing server (132 MB)
+# Rust 感知服务器（132 MB）
 docker pull ruvnet/wifi-densepose:latest
 docker run -p 3000:3000 -p 3001:3001 -p 5005:5005/udp ruvnet/wifi-densepose:latest
 
-# Python pipeline (569 MB)
+# Python 流水线（569 MB）
 docker pull ruvnet/wifi-densepose:python
 docker run -p 8765:8765 -p 8080:8080 ruvnet/wifi-densepose:python
 
-# Both via docker-compose
+# 两者一起用 docker-compose
 cd docker && docker compose up
 
-# Export RVF model
+# 导出 RVF 模型
 docker run --rm -v $(pwd):/out ruvnet/wifi-densepose:latest --export-rvf /out/model.rvf
 ```
 
-### Environment Variables
+### 环境变量
 
 ```bash
-RUST_LOG=info                    # Logging level
-WIFI_INTERFACE=wlan0             # WiFi interface for RSSI
-POSE_CONFIDENCE_THRESHOLD=0.7    # Minimum confidence
-POSE_MAX_PERSONS=10              # Max tracked individuals
+RUST_LOG=info                    # 日志级别
+WIFI_INTERFACE=wlan0             # 用于 RSSI 的 WiFi 网卡
+POSE_CONFIDENCE_THRESHOLD=0.7    # 最低置信度
+POSE_MAX_PERSONS=10              # 最多追踪人数
 ```
 
 </details>
 
 ---
 
-## 📊 Performance Metrics
+<a id="performance-metrics"></a>
+## 📊 性能指标
 
 <details>
-<summary><strong>Measured benchmarks</strong> — Rust sensing server, validated via cargo bench</summary>
+<summary><strong>实测基准</strong> —— Rust 感知服务器，经 cargo bench 验证</summary>
 
-### Rust Sensing Server
+### Rust 感知服务器
 
-| Metric | Value |
+| 指标 | 数值 |
 |--------|-------|
-| Vital sign detection | **11,665 fps** (86 µs/frame) |
-| Full CSI pipeline | **54,000 fps** (18.47 µs/frame) |
-| Motion detection | **186 ns** (~5,400x vs Python) |
-| Docker image | 132 MB |
-| Memory usage | ~100 MB |
-| Test count | 542+ |
+| 生命体征检测 | **11,665 fps**（86 µs/帧） |
+| 完整 CSI 流水线 | **54,000 fps**（18.47 µs/帧） |
+| 运动检测 | **186 ns**（约为 Python 的 5,400 倍） |
+| Docker 镜像 | 132 MB |
+| 内存占用 | ~100 MB |
+| 测试数 | 542+ |
 
-### Python vs Rust
+<a id="python-vs-rust"></a>
+### Python 与 Rust 对比
 
-| Operation | Python | Rust | Speedup |
+| 操作 | Python | Rust | 提速 |
 |-----------|--------|------|---------|
-| CSI Preprocessing | ~5 ms | 5.19 µs | 1000x |
-| Phase Sanitization | ~3 ms | 3.84 µs | 780x |
-| Feature Extraction | ~8 ms | 9.03 µs | 890x |
-| Motion Detection | ~1 ms | 186 ns | 5400x |
-| **Full Pipeline** | ~15 ms | 18.47 µs | **810x** |
+| CSI 预处理 | ~5 ms | 5.19 µs | 1000x |
+| 相位净化 | ~3 ms | 3.84 µs | 780x |
+| 特征提取 | ~8 ms | 9.03 µs | 890x |
+| 运动检测 | ~1 ms | 186 ns | 5400x |
+| **完整流水线** | ~15 ms | 18.47 µs | **810x** |
 
 </details>
 
 ---
 
-## 🤝 Contributing
+<a id="contributing"></a>
+## 🤝 贡献指南
 
 <details>
-<summary><strong>Dev setup, code standards, PR process</strong></summary>
+<summary><strong>开发环境、代码规范、PR 流程</strong></summary>
 
 ```bash
 git clone https://github.com/ruvnet/RuView.git
 cd RuView
 
-# Rust development
+# Rust 开发
 cd v2
 cargo build --release
 cargo test --workspace
 
-# Python development
+# Python 开发
 python -m venv venv && source venv/bin/activate
 pip install -r requirements-dev.txt && pip install -e .
 pre-commit install
 ```
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes
-4. **Push** and open a Pull Request
+1. **Fork** 本仓库
+2. **创建**功能分支（`git checkout -b feature/amazing-feature`）
+3. **提交**你的改动
+4. **推送**并发起 Pull Request
 
 </details>
 
 ---
 
-## 📄 Changelog
+<a id="changelog"></a>
+## 📄 变更记录
 
 <details>
-<summary><strong>Release history</strong></summary>
+<summary><strong>版本历史</strong></summary>
 
 ### v3.2.0 — 2026-03-03
 
-Edge intelligence: 24 hot-loadable WASM modules for on-device CSI processing on ESP32-S3.
+边缘智能：24 个可热加载的 WASM 模块，在 ESP32-S3 上做设备端 CSI 处理。
 
-- **ADR-041 Edge Intelligence Modules** — 24 `no_std` Rust modules compiled to `wasm32-unknown-unknown`, loaded via WASM3 on ESP32; 8 categories covering signal intelligence, adaptive learning, spatial reasoning, temporal analysis, AI security, quantum-inspired, autonomous systems, and exotic algorithms
-- **Vendor Integration** — Algorithms ported from `midstream` (DTW, attractors, Flash Attention, min-cut, optimal transport) and `sublinear-time-solver` (PageRank, HNSW, sparse recovery, spiking NN)
-- **On-device gesture learning** — User-teachable DTW gesture recognition with 3-rehearsal protocol and 16 template slots
-- **Lifelong learning (EWC++)** — Elastic Weight Consolidation prevents catastrophic forgetting when learning new tasks
-- **AI security modules** — FNV-1a replay detection, injection/jamming detection, 6D behavioral anomaly profiling with Mahalanobis scoring
-- **Self-healing mesh** — 8-node mesh with health tracking, degradation/recovery hysteresis, and coverage redistribution
-- **Common utility library** — `vendor_common.rs` shared across all 24 modules: CircularBuffer, EMA, WelfordStats, DTW, FixedPriorityQueue, vector math
-- **243 tests passing** — All modules include comprehensive inline tests; 0 failures
-- **Security audit** — 15 findings addressed (1 critical, 3 high, 6 medium, 5 low)
+- **ADR-041 边缘智能模块** —— 24 个编译到 `wasm32-unknown-unknown` 的 `no_std` Rust 模块，经 WASM3 加载到 ESP32；分 8 类：信号智能、自适应学习、空间推理、时序分析、AI 安全、量子启发、自主系统与特种算法
+- **内置算法集成** —— 从 `midstream`（DTW、吸引子、Flash Attention、最小割、最优传输）与 `sublinear-time-solver`（PageRank、HNSW、稀疏恢复、脉冲神经网络）移植而来
+- **设备端手势学习** —— 用户可教学的 DTW 手势识别，采用 3 次演练协议与 16 个模板槽位
+- **持续学习（EWC++）** —— 用弹性权重固化，在学习新任务时避免灾难性遗忘
+- **AI 安全模块** —— FNV-1a 重放检测、注入/干扰检测、用马氏距离评分的 6 维行为异常画像
+- **自愈组网** —— 8 节点组网，带健康跟踪、降级/恢复迟滞与覆盖重分配
+- **通用工具库** —— 24 个模块共用的 `vendor_common.rs`：CircularBuffer、EMA、WelfordStats、DTW、FixedPriorityQueue、向量运算
+- **243 项测试通过** —— 所有模块都带完整的内联测试，0 失败
+- **安全审计** —— 处理了 15 项发现（1 严重、3 高、6 中、5 低）
 
 ### v3.1.0 — 2026-03-02
 
-Multistatic sensing, persistent field model, and cross-viewpoint fusion — the biggest capability jump since v2.0.
+多静态感知、持久场模型与跨视角融合 —— 自 v2.0 以来最大的一次能力跃升。
 
-- **Project RuvSense (ADR-029)** — Multistatic mesh: TDM protocol, channel hopping (ch1/6/11), multi-band frame fusion, coherence gating, 17-keypoint Kalman tracker with re-ID; 10 new signal modules (5,300+ lines)
-- **RuvSense Persistent Field Model (ADR-030)** — 7 exotic sensing tiers: field normal modes (SVD), RF tomography, longitudinal drift detection, intention prediction, cross-room identity, gesture classification, adversarial detection
-- **Project RuView (ADR-031)** — Cross-viewpoint attention with geometric bias, Geometric Diversity Index, viewpoint fusion orchestrator; 5 new ruvector modules (2,200+ lines)
-- **TDM Hardware Protocol** — ESP32 sensing coordinator: sync beacons, slot scheduling, clock drift compensation (±10ppm), 20 Hz aggregate rate
-- **Channel-Hopping Firmware** — ESP32 firmware extended with hop table, timer-driven channel switching, NDP injection stub; NVS config for all TDM parameters; fully backward-compatible
-- **DDD Domain Model** — 6 bounded contexts, ubiquitous language, aggregate roots, domain events, full event bus specification
-- **`ruvector-crv` 6-stage CRV signal-line integration (ADR-033)** — Maps Coordinate Remote Viewing methodology to WiFi CSI: gestalt classification, sensory encoding, GNN topology, SNN coherence gating, differentiable search, MinCut partitioning; cross-session convergence for multi-room identity continuity
-- **ADR-032 multistatic mesh security hardening** — HMAC-SHA256 beacon auth, SipHash-2-4 frame integrity, NDP rate limiter, coherence gate timeout, bounded buffers, NVS credential zeroing, atomic firmware state
-- **ADR-032a QUIC transport layer** — `midstreamer-quic` TLS 1.3 AEAD for aggregator nodes, dual-mode security (ManualCrypto/QuicTransport), QUIC stream mapping, connection migration, congestion control
-- **ADR-033 CRV signal-line sensing integration** — Architecture decision record for the 6-stage CRV pipeline mapping to ruvector components
-- **Temporal gesture matching** — `midstreamer-temporal-compare` DTW/LCS/edit-distance gesture classification with quantized feature comparison
-- **Attractor drift analysis** — `midstreamer-attractor` Takens' theorem phase-space embedding with Lyapunov exponent regime detection (Stable/Periodic/Chaotic)
-- **v0.3.0 published** — All 15 workspace crates published to [crates.io](https://crates.io/crates/wifi-densepose-core) with updated dependencies
-- **28,000+ lines of new Rust code** across 26 modules with 400+ tests
-- **Security hardened** — Bounded buffers, NaN guards, no panics in public APIs, input validation at all boundaries
+- **RuvSense 项目（ADR-029）** —— 多静态组网：TDM 协议、跳频（信道 1/6/11）、多频帧融合、相干门控、带重识别的 17 关键点卡尔曼追踪；新增 10 个信号模块（5,300+ 行）
+- **RuvSense 持久场模型（ADR-030）** —— 7 层特种感知：场正则模态（SVD）、射频层析、长期漂移检测、意图预测、跨房间身份、手势分类、对抗检测
+- **RuView 项目（ADR-031）** —— 带几何偏置的跨视角注意力、几何多样性指数、视角融合编排器；新增 5 个 ruvector 模块（2,200+ 行）
+- **TDM 硬件协议** —— ESP32 感知协调器：同步信标、时隙调度、时钟漂移补偿（±10ppm）、20 Hz 聚合速率
+- **跳频固件** —— ESP32 固件新增跳频表、定时器驱动的信道切换、NDP 注入桩；所有 TDM 参数均可由 NVS 配置；完全向后兼容
+- **DDD 领域模型** —— 6 个限界上下文、统一语言、聚合根、领域事件、完整事件总线规格
+- **`ruvector-crv` 六级 CRV 信号线集成（ADR-033）** —— 把坐标遥视方法映射到 WiFi CSI：完形分类、感官编码、GNN 拓扑、SNN 相干门控、可微搜索、MinCut 划分；用跨会话收敛实现多房间身份连续性
+- **ADR-032 多静态组网安全加固** —— HMAC-SHA256 信标认证、SipHash-2-4 帧完整性、NDP 限流、相干门超时、有界缓冲区、NVS 凭据清零、原子固件状态
+- **ADR-032a QUIC 传输层** —— 为汇聚节点提供 `midstreamer-quic` TLS 1.3 AEAD、双模式安全（ManualCrypto/QuicTransport）、QUIC 流映射、连接迁移、拥塞控制
+- **ADR-033 CRV 信号线感知集成** —— 记录六级 CRV 流水线与 ruvector 组件映射关系的架构决策
+- **时序手势匹配** —— `midstreamer-temporal-compare` 用量化特征比较做 DTW/LCS/编辑距离手势分类
+- **吸引子漂移分析** —— `midstreamer-attractor` 用 Takens 定理做相空间嵌入，并以李雅普诺夫指数识别状态（稳定/周期/混沌）
+- **v0.3.0 发布** —— 工作区全部 15 个 crate 已发布到 [crates.io](https://crates.io/crates/wifi-densepose-core)，依赖同步更新
+- 26 个模块新增 **28,000+ 行 Rust 代码**，配套 400+ 项测试
+- **安全加固** —— 有界缓冲区、NaN 防护、公开 API 不 panic、所有边界都做输入校验
 
 ### v3.0.0 — 2026-03-01
 
-Major release: AETHER contrastive embedding model, AI signal processing backbone, cross-platform adapters, Docker Hub images, and comprehensive README overhaul.
+重要版本：AETHER 对比嵌入模型、AI 信号处理骨架、跨平台适配器、Docker Hub 镜像，以及 README 全面改版。
 
-- **Project AETHER (ADR-024)** — Self-supervised contrastive learning for WiFi CSI fingerprinting, similarity search, and anomaly detection; 55 KB model fits on ESP32
-- **AI Backbone (`wifi-densepose-ruvector`)** — 7 RuVector integration points replacing hand-tuned thresholds with attention, graph algorithms, and smart compression; [published to crates.io](https://crates.io/crates/wifi-densepose-ruvector)
-- **Cross-platform RSSI adapters** — macOS CoreWLAN and Linux `iw` Rust adapters with `#[cfg(target_os)]` gating (ADR-025)
-- **Docker images published** — `ruvnet/wifi-densepose:latest` (132 MB Rust) and `:python` (569 MB)
-- **Project MERIDIAN (ADR-027)** — Cross-environment domain generalization: gradient reversal, geometry-conditioned FiLM, virtual domain augmentation, contrastive test-time training; zero-shot room transfer
-- **10-phase DensePose training pipeline (ADR-023/027)** — Graph transformer, 6-term composite loss, SONA adaptation, RVF packaging, hardware normalization, domain-adversarial training
-- **Vital sign detection (ADR-021)** — FFT-based breathing (6-30 BPM) and heartbeat (40-120 BPM), 11,665 fps
-- **WiFi scan domain layer (ADR-022/025)** — 8-stage signal intelligence pipeline for Windows, macOS, and Linux
-- **700+ Rust tests** — All passing, zero mocks
+- **AETHER 项目（ADR-024）** —— 面向 WiFi CSI 指纹、相似检索与异常检测的自监督对比学习；55 KB 模型可放进 ESP32
+- **AI 骨架（`wifi-densepose-ruvector`）** —— 7 个 RuVector 集成点，用注意力、图算法与智能压缩取代手工阈值；[已发布到 crates.io](https://crates.io/crates/wifi-densepose-ruvector)
+- **跨平台 RSSI 适配器** —— 带 `#[cfg(target_os)]` 门控的 macOS CoreWLAN 与 Linux `iw` Rust 适配器（ADR-025）
+- **Docker 镜像发布** —— `ruvnet/wifi-densepose:latest`（Rust 132 MB）与 `:python`（569 MB）
+- **MERIDIAN 项目（ADR-027）** —— 跨环境域泛化：梯度反转、几何条件 FiLM、虚拟域增强、对比式测试时训练；实现零样本换房间
+- **十阶段 DensePose 训练流水线（ADR-023/027）** —— 图 Transformer、六项复合损失、SONA 自适应、RVF 打包、硬件归一化、域对抗训练
+- **生命体征检测（ADR-021）** —— 基于 FFT 的呼吸（6-30 BPM）与心跳（40-120 BPM），11,665 fps
+- **WiFi 扫描领域层（ADR-022/025）** —— 面向 Windows、macOS、Linux 的八级信号智能流水线
+- **700+ 项 Rust 测试** —— 全部通过，零 mock
 
 ### v2.0.0 — 2026-02-28
 
-Complete Rust sensing server, SOTA signal processing, WiFi-Mat disaster response, ESP32 hardware, RuVector integration, guided installer, and security hardening.
+完整的 Rust 感知服务器、SOTA 信号处理、WiFi-Mat 灾害响应、ESP32 硬件、RuVector 集成、引导式安装器与安全加固。
 
-- **Rust sensing server** — Axum REST API + WebSocket, 810x speedup over Python, 54K fps pipeline
-- **RuVector integration** — 11 vendored crates for HNSW, attention, GNN, temporal compression, min-cut, solver
-- **6 SOTA signal algorithms (ADR-014)** — SpotFi, Hampel, Fresnel, spectrogram, subcarrier selection, BVP
-- **WiFi-Mat disaster response** — START triage, 3D localization, priority alerts — 139 tests
-- **ESP32 CSI hardware** — Binary frame parsing, $54 starter kit, 20 Hz streaming
-- **Guided installer** — 7-step hardware detection, 8 install profiles
-- **Three.js visualization** — 3D body model, 17 joints, real-time WebSocket
-- **Security hardening** — 10 vulnerabilities fixed
+- **Rust 感知服务器** —— Axum REST API + WebSocket，相比 Python 提速 810 倍，54K 帧/秒流水线
+- **RuVector 集成** —— 内置 11 个 crate，覆盖 HNSW、注意力、GNN、时序压缩、最小割、求解器
+- **6 种 SOTA 信号算法（ADR-014）** —— SpotFi、Hampel、菲涅尔、频谱图、子载波筛选、BVP
+- **WiFi-Mat 灾害响应** —— START 分诊、三维定位、分级告警 —— 139 项测试
+- **ESP32 CSI 硬件** —— 二进制帧解析、54 美元入门套件、20 Hz 推流
+- **引导式安装器** —— 7 步硬件检测、8 种安装配置
+- **Three.js 可视化** —— 三维人体模型、17 个关节、实时 WebSocket
+- **安全加固** —— 修复 10 处漏洞
 
 </details>
 
