@@ -1,68 +1,68 @@
-# ADR-027: Project MERIDIAN -- Cross-Environment Domain Generalization for WiFi Pose Estimation
+# ADR-027：MERIDIAN 项目 —— 面向 WiFi 姿态估计的跨环境域泛化
 
-| Field | Value |
+| 字段 | 值 |
 |-------|-------|
-| **Status** | Proposed |
-| **Date** | 2026-03-01 |
-| **Deciders** | ruv |
-| **Codename** | **MERIDIAN** -- Multi-Environment Robust Inference via Domain-Invariant Alignment Networks |
-| **Relates to** | ADR-005 (SONA Self-Learning), ADR-014 (SOTA Signal Processing), ADR-015 (Public Datasets), ADR-016 (RuVector Integration), ADR-023 (Trained DensePose Pipeline), ADR-024 (AETHER Contrastive Embeddings) |
+| **状态** | Proposed |
+| **日期** | 2026-03-01 |
+| **决策者** | ruv |
+| **代号** | **MERIDIAN** -- Multi-Environment Robust Inference via Domain-Invariant Alignment Networks |
+| **关联** | ADR-005（SONA 自学习）、ADR-014（SOTA 信号处理）、ADR-015（公开数据集）、ADR-016（RuVector 集成）、ADR-023（训练式 DensePose 流水线）、ADR-024（AETHER 对比嵌入） |
 
 ---
 
-## 1. Context
+## 1. 背景
 
-### 1.1 The Domain Gap Problem
+### 1.1 域间隙问题
 
-WiFi-based pose estimation models exhibit severe performance degradation when deployed in environments different from their training setting. A model trained in Room A with a specific transceiver layout, wall material composition, and furniture arrangement can lose 40-70% accuracy when moved to Room B -- even in the same building. This brittleness is the single largest barrier to real-world WiFi sensing deployment.
+基于 WiFi 的姿态估计模型一旦部署到与训练环境不同的场景，性能会严重退化。在 Room A 里按特定收发器布局、墙体材质与家具摆放训练出来的模型，搬到 Room B 后可能损失 40-70% 准确率——即使两间房在同一栋楼里。这种脆弱性是 WiFi 感知走向实际部署的最大障碍。
 
-The root cause is three-fold:
+根因有三：
 
-1. **Layout overfitting**: Models memorize the spatial relationship between transmitter, receiver, and the coordinate system, rather than learning environment-agnostic human motion features. PerceptAlign (Chen et al., 2026; arXiv:2601.12252) demonstrated that cross-layout error drops by >60% when geometry conditioning is introduced.
+1. **布局过拟合**：模型记住了发射机、接收机与坐标系之间的空间关系，而没有学到与环境无关的人体运动特征。PerceptAlign（Chen 等，2026；arXiv:2601.12252）证明，引入几何条件化后跨布局误差可下降 >60%。
 
-2. **Multipath memorization**: The multipath channel profile encodes room geometry (wall positions, furniture, materials) as a static fingerprint. Models learn this fingerprint as a shortcut, using room-specific multipath patterns to predict positions rather than extracting pose-relevant body reflections.
+2. **多径记忆**：多径信道剖面把房间几何（墙的位置、家具、材质）编码成静态指纹。模型把这一指纹当成捷径，用房间特有的多径模式预测位置，而不是提取与姿态相关的人体反射。
 
-3. **Hardware heterogeneity**: Different WiFi chipsets (ESP32, Intel 5300, Atheros) produce CSI with different subcarrier counts, phase noise profiles, and sampling rates. A model trained on Intel 5300 (30 subcarriers, 3x3 MIMO) fails on ESP32-S3 (64 subcarriers, 1x1 SISO).
+3. **硬件异构**：不同 WiFi 芯片组（ESP32、Intel 5300、Atheros）产生的 CSI 在子载波数、相位噪声剖面和采样率上各不相同。用 Intel 5300（30 子载波、3x3 MIMO）训练的模型在 ESP32-S3（64 子载波、1x1 SISO）上会失效。
 
-The current wifi-densepose system (ADR-023) trains and evaluates on a single environment from MM-Fi or Wi-Pose. There is no mechanism to disentangle human motion from environment, adapt to new rooms without full retraining, or handle mixed hardware deployments.
+当前的 wifi-densepose 系统（ADR-023）只在 MM-Fi 或 Wi-Pose 的单一环境上训练与评估。系统里没有机制把人体运动与环境解耦，无法在不完全重训的情况下适应新房间，也处理不了混合硬件部署。
 
-### 1.2 SOTA Landscape (2024-2026)
+### 1.2 SOTA 全景（2024-2026）
 
-Five concurrent lines of research have converged on the domain generalization problem:
+当前有五条并行的研究路线汇聚到域泛化问题上：
 
-**Cross-Layout Pose Estimation:**
-- **PerceptAlign** (Chen et al., 2026; arXiv:2601.12252): First geometry-conditioned framework. Encodes transceiver positions into high-dimensional embeddings fused with CSI features, achieving 60%+ cross-domain error reduction. Constructed the largest cross-domain WiFi pose dataset: 21 subjects, 5 scenes, 18 actions, 7 layouts.
-- **AdaPose** (Zhou et al., 2024; IEEE IoT Journal, arXiv:2309.16964): Mapping Consistency Loss aligns domain discrepancy at the mapping level. First to address cross-domain WiFi pose estimation specifically.
-- **Person-in-WiFi 3D** (Yan et al., CVPR 2024): End-to-end multi-person 3D pose from WiFi, achieving 91.7mm single-person error, but generalization across layouts remains an open problem.
+**跨布局姿态估计：**
+- **PerceptAlign**（Chen 等，2026；arXiv:2601.12252）：首个几何条件化框架。把收发器位置编码成高维嵌入并与 CSI 特征融合，跨域误差降低 60%+。构建了规模最大的跨域 WiFi 姿态数据集：21 名受试者、5 个场景、18 种动作、7 种布局。
+- **AdaPose**（Zhou 等，2024；IEEE IoT Journal，arXiv:2309.16964）：用映射一致性损失在映射层面对齐域差异，是首个专门解决跨域 WiFi 姿态估计的工作。
+- **Person-in-WiFi 3D**（Yan 等，CVPR 2024）：端到端从 WiFi 估计多人 3D 姿态，单人误差 91.7mm，但跨布局泛化仍是开放问题。
 
-**Domain Generalization Frameworks:**
-- **DGSense** (Zhou et al., 2025; arXiv:2502.08155): Virtual data generator + episodic training for domain-invariant features. Generalizes to unseen domains without target data across WiFi, mmWave, and acoustic sensing.
-- **Context-Aware Predictive Coding (CAPC)** (2024; arXiv:2410.01825; IEEE OJCOMS): Self-supervised CPC + Barlow Twins for WiFi, with 24.7% accuracy improvement over supervised learning on unseen environments.
+**域泛化框架：**
+- **DGSense**（Zhou 等，2025；arXiv:2502.08155）：虚拟数据生成器 + 情景式训练以提取域不变特征。无需目标域数据即可泛化到未见域，覆盖 WiFi、毫米波与声学感知。
+- **上下文感知预测编码（CAPC）**（2024；arXiv:2410.01825；IEEE OJCOMS）：面向 WiFi 的自监督 CPC + Barlow Twins，在未见环境上比监督学习提升 24.7% 准确率。
 
-**Foundation Models:**
-- **X-Fi** (Chen & Yang, ICLR 2025; arXiv:2410.10167): First modality-invariant foundation model for human sensing. X-fusion mechanism preserves modality-specific features. 24.8% MPJPE improvement on MM-Fi.
-- **AM-FM** (2026; arXiv:2602.11200): First WiFi foundation model, pre-trained on 9.2M unlabeled CSI samples across 20 device types over 439 days. Contrastive learning + masked reconstruction + physics-informed objectives.
+**基础模型：**
+- **X-Fi**（Chen 与 Yang，ICLR 2025；arXiv:2410.10167）：首个人体感知的模态不变基础模型。X-fusion 机制保留各模态特有特征，在 MM-Fi 上 MPJPE 改善 24.8%。
+- **AM-FM**（2026；arXiv:2602.11200）：首个 WiFi 基础模型，用 20 种设备、跨 439 天采集的 920 万条无标注 CSI 样本预训练。采用对比学习 + 掩码重建 + 物理约束目标。
 
-**Generative Approaches:**
-- **LatentCSI** (Ramesh et al., 2025; arXiv:2506.10605): Lightweight CSI encoder maps directly into Stable Diffusion 3 latent space, demonstrating that CSI contains enough spatial information to reconstruct room imagery.
+**生成式方法：**
+- **LatentCSI**（Ramesh 等，2025；arXiv:2506.10605）：轻量 CSI 编码器直接映射到 Stable Diffusion 3 的潜空间，证明 CSI 含有足以重建房间图像的空间信息。
 
-### 1.3 What MERIDIAN Adds to the Existing System
+### 1.3 MERIDIAN 给现有系统带来什么
 
-| Current Capability | Gap | MERIDIAN Addition |
+| 现有能力 | 缺口 | MERIDIAN 的补充 |
 |-------------------|-----|------------------|
-| AETHER embeddings (ADR-024) | Embeddings encode environment identity -- useful for fingerprinting but harmful for cross-environment transfer | Environment-disentangled embeddings with explicit factorization |
-| SONA LoRA adapters (ADR-005) | Adapters must be manually created per environment; no mechanism to generate them from few-shot data | Zero-shot environment adaptation via geometry-conditioned inference |
-| MM-Fi/Wi-Pose training (ADR-015) | Single-environment train/eval; no cross-domain protocol | Multi-domain training protocol with environment augmentation |
-| SpotFi phase correction (ADR-014) | Hardware-specific phase calibration | Hardware-invariant CSI normalization layer |
-| RuVector attention (ADR-016) | Attention weights learn environment-specific patterns | Domain-adversarial attention regularization |
+| AETHER 嵌入（ADR-024） | 嵌入中编码了环境身份——有利于指纹识别，却不利于跨环境迁移 | 带显式因子分解的环境解耦嵌入 |
+| SONA LoRA adapter（ADR-005） | 每个环境都要手工创建 adapter；没有从小样本数据自动生成它们的机制 | 通过几何条件化推理实现零样本环境自适应 |
+| MM-Fi/Wi-Pose 训练（ADR-015） | 单环境训练/评估；没有跨域协议 | 带环境增广的多域训练协议 |
+| SpotFi 相位校正（ADR-014） | 与硬件绑定的相位校准 | 硬件无关的 CSI 归一化层 |
+| RuVector attention（ADR-016） | 注意力权重学到的是环境特有模式 | 域对抗注意力正则化 |
 
 ---
 
-## 2. Decision
+## 2. 决策
 
-### 2.1 Architecture: Environment-Disentangled Dual-Path Transformer
+### 2.1 架构：环境解耦双路径 Transformer
 
-MERIDIAN adds a domain generalization layer between the CSI encoder and the pose/embedding heads. The core insight is explicit factorization: decompose the latent representation into a **pose-relevant** component (invariant across environments) and an **environment** component (captures room geometry, hardware, layout):
+MERIDIAN 在 CSI 编码器与姿态/嵌入头之间加入一层域泛化。核心思路是显式因子分解：把潜在表示拆成**与姿态相关**的分量（跨环境不变）和**环境**分量（刻画房间几何、硬件、布局）：
 
 ```
 CSI Frame(s) [n_pairs x n_subcarriers]
@@ -106,9 +106,9 @@ CSI Frame(s) [n_pairs x n_subcarriers]
      +---> h_env  ---> (discarded at inference; used only for training signal)
 ```
 
-### 2.2 Domain-Adversarial Training with Gradient Reversal
+### 2.2 带梯度反转的域对抗训练
 
-To force `h_pose` to be environment-invariant, we employ domain-adversarial training (Ganin et al., 2016) with a gradient reversal layer (GRL):
+为了强迫 `h_pose` 做到环境不变，我们采用域对抗训练（Ganin 等，2016）并引入梯度反转层（GRL）：
 
 ```
 h_pose [17 x 64]
@@ -130,43 +130,43 @@ Total loss:
                                            + lambda_env * L_env_recon
 ```
 
-The GRL reverses the gradient flowing from `L_domain` into `PoseEncoder`, meaning the PoseEncoder is trained to **maximize** domain classification error -- forcing `h_pose` to shed all environment-specific information.
+GRL 把从 `L_domain` 流回 `PoseEncoder` 的梯度取反，也就是说 PoseEncoder 被训练成**最大化**域分类误差——迫使 `h_pose` 剥离所有环境特有信息。
 
-**Key hyperparameters:**
-- `lambda_adv`: Adversarial weight, annealed from 0.0 to 1.0 over first 20 epochs using the schedule `lambda_adv(p) = 2 / (1 + exp(-10 * p)) - 1` where `p = epoch / max_epochs`
-- `lambda_env = 0.1`: Environment reconstruction weight (auxiliary task to ensure `h_env` captures what `h_pose` discards)
-- `lambda_c = 0.1`: Contrastive loss weight from AETHER (unchanged)
+**关键超参数：**
+- `lambda_adv`：对抗权重，在前 20 个 epoch 内按 `lambda_adv(p) = 2 / (1 + exp(-10 * p)) - 1` 从 0.0 退火到 1.0，其中 `p = epoch / max_epochs`
+- `lambda_env = 0.1`：环境重建权重（辅助任务，确保 `h_env` 捕获 `h_pose` 丢弃的信息）
+- `lambda_c = 0.1`：来自 AETHER 的对比损失权重（保持不变）
 
-### 2.3 Geometry-Conditioned Inference (Zero-Shot Adaptation)
+### 2.3 几何条件化推理（零样本自适应）
 
-Inspired by PerceptAlign, MERIDIAN conditions the pose decoder on the physical transceiver geometry. At deployment time, the user provides AP/sensor positions (known from installation), and the model adjusts its coordinate frame accordingly:
+受 PerceptAlign 启发，MERIDIAN 让姿态解码器以收发器的物理几何为条件。部署时用户提供 AP/传感器位置（安装时已知），模型据此调整坐标系：
 
 ```rust
-/// Encodes transceiver geometry into a conditioning vector.
-/// Positions are in meters relative to an arbitrary room origin.
+/// 把收发器几何编码成条件向量。
+/// 位置以米为单位，相对于任意选定的房间原点。
 pub struct GeometryEncoder {
-    /// Fourier positional encoding of 3D coordinates
+    /// 3D 坐标的傅里叶位置编码
     pos_embed: FourierPositionalEncoding,  // 3 coords -> 64 dims per position
-    /// Aggregates variable-count AP positions into fixed-dim vector
+    /// 把数量可变的 AP 位置聚合为固定维度向量
     set_encoder: DeepSets,                 // permutation-invariant {AP_1..AP_n} -> 64
 }
 
-/// Fourier features: [sin(2^0 * pi * x), cos(2^0 * pi * x), ...,
+/// 傅里叶特征：[sin(2^0 * pi * x), cos(2^0 * pi * x), ...,
 ///                     sin(2^(L-1) * pi * x), cos(2^(L-1) * pi * x)]
-/// L = 10 frequency bands, producing 60 dims per coordinate (+ 3 raw = 63, padded to 64)
+/// L = 10 个频带，每个坐标产出 60 维（+ 3 个原始值 = 63，补齐到 64）
 pub struct FourierPositionalEncoding {
     n_frequencies: usize,  // default: 10
     scale: f32,            // default: 1.0 (meters)
 }
 
-/// DeepSets: phi(x) -> mean-pool -> rho(.) for permutation-invariant set encoding
+/// DeepSets：phi(x) -> 均值池化 -> rho(.)，实现置换不变的集合编码
 pub struct DeepSets {
     phi: Linear,    // 64 -> 64
     rho: Linear,    // 64 -> 64
 }
 ```
 
-The geometry embedding `g` (64-dim) is injected into the pose decoder via FiLM conditioning:
+几何嵌入 `g`（64 维）通过 FiLM 条件化注入姿态解码器：
 
 ```
 g = GeometryEncoder(ap_positions)   [64-dim]
@@ -179,17 +179,17 @@ h_pose_conditioned = gamma * h_pose + beta    [FiLM: Feature-wise Linear Modulat
   xyz_head --> keypoints
 ```
 
-This enables zero-shot deployment: given the positions of WiFi APs in a new room, the model adapts its coordinate prediction without any retraining.
+这带来零样本部署能力：只要给出新房间里 WiFi AP 的位置，模型无需任何重训即可调整坐标预测。
 
-### 2.4 Hardware-Invariant CSI Normalization
+### 2.4 硬件无关的 CSI 归一化
 
 ```rust
-/// Normalizes CSI from heterogeneous hardware to a canonical representation.
-/// Handles ESP32-S3 (64 sub), Intel 5300 (30 sub), Atheros (56 sub).
+/// 把异构硬件产生的 CSI 归一化为规范表示。
+/// 支持 ESP32-S3（64 子载波）、Intel 5300（30 子载波）、Atheros（56 子载波）。
 pub struct HardwareNormalizer {
-    /// Target subcarrier count (project all hardware to this)
+    /// 目标子载波数（所有硬件都投影到这里）
     canonical_subcarriers: usize,  // default: 56 (matches MM-Fi)
-    /// Per-hardware amplitude statistics for z-score normalization
+    /// 各硬件的幅度统计量，用于 z-score 归一化
     hw_stats: HashMap<HardwareType, AmplitudeStats>,
 }
 
@@ -201,321 +201,321 @@ pub enum HardwareType {
 }
 
 impl HardwareNormalizer {
-    /// Normalize a raw CSI frame to canonical form:
-    /// 1. Resample subcarriers to canonical count via cubic interpolation
-    /// 2. Z-score normalize amplitude per-frame
-    /// 3. Sanitize phase: remove hardware-specific linear phase offset
+    /// 把原始 CSI 帧归一化为规范形式：
+    /// 1. 用三次插值把子载波重采样到规范数量
+    /// 2. 逐帧对幅度做 z-score 归一化
+    /// 3. 净化相位：去掉硬件特有的线性相位偏移
     pub fn normalize(&self, frame: &CsiFrame) -> CanonicalCsiFrame { .. }
 }
 ```
 
-The resampling uses `ruvector-solver`'s sparse interpolation (already integrated per ADR-016) to project from any subcarrier count to the canonical 56.
+重采样使用 `ruvector-solver` 的稀疏插值（已按 ADR-016 集成），把任意子载波数投影到规范的 56 个。
 
-### 2.5 Virtual Environment Augmentation
+### 2.5 虚拟环境增广
 
-Following DGSense's virtual data generator concept, MERIDIAN augments training data with synthetic domain shifts:
+沿用 DGSense 虚拟数据生成器的思路，MERIDIAN 用合成域偏移增广训练数据：
 
 ```rust
-/// Generates virtual CSI domains by simulating environment variations.
+/// 通过模拟环境变化生成虚拟 CSI 域。
 pub struct VirtualDomainAugmentor {
-    /// Simulate different room sizes via multipath delay scaling
+    /// 通过缩放多径时延模拟不同房间尺寸
     room_scale_range: (f32, f32),    // default: (0.5, 2.0)
-    /// Simulate wall material via reflection coefficient perturbation
+    /// 通过扰动反射系数模拟墙体材质
     reflection_coeff_range: (f32, f32),  // default: (0.3, 0.9)
-    /// Simulate furniture via random scatterer injection
+    /// 通过随机注入散射体模拟家具
     n_virtual_scatterers: (usize, usize),  // default: (0, 5)
-    /// Simulate hardware differences via subcarrier response shaping
+    /// 通过整形子载波响应模拟硬件差异
     hw_response_filters: Vec<SubcarrierResponseFilter>,
 }
 
 impl VirtualDomainAugmentor {
-    /// Apply a random virtual domain shift to a CSI batch.
-    /// Each call generates a new "virtual environment" for training diversity.
+    /// 对一个 CSI batch 施加随机虚拟域偏移。
+    /// 每次调用都会生成一个新的「虚拟环境」，以提升训练多样性。
     pub fn augment(&self, batch: &CsiBatch, rng: &mut impl Rng) -> CsiBatch { .. }
 }
 ```
 
-During training, each mini-batch is augmented with K=3 virtual domain shifts, producing 4x the effective training environments. The domain classifier sees both real and virtual domain labels, improving its ability to force environment-invariant features.
+训练时每个 mini-batch 都会增广 K=3 次虚拟域偏移，等效训练环境数变为 4 倍。域分类器同时看到真实与虚拟域标签，从而更有力地逼出环境不变特征。
 
-### 2.6 Few-Shot Rapid Adaptation
+### 2.6 小样本快速自适应
 
-For deployment scenarios where a brief calibration period is available (10-60 seconds of CSI data from the new environment, no pose labels needed):
+对于可以提供短暂校准期的部署场景（新环境 10-60 秒的 CSI 数据，不需要姿态标注）：
 
 ```rust
-/// Rapid adaptation to a new environment using unlabeled CSI data.
-/// Combines SONA LoRA adapters (ADR-005) with MERIDIAN's domain factorization.
+/// 用无标注 CSI 数据快速适应新环境。
+/// 把 SONA LoRA adapter（ADR-005）与 MERIDIAN 的域因子分解结合起来。
 pub struct RapidAdaptation {
-    /// Number of unlabeled CSI frames needed for adaptation
+    /// 自适应所需的无标注 CSI 帧数
     min_calibration_frames: usize,  // default: 200 (10 sec @ 20 Hz)
-    /// LoRA rank for environment-specific adaptation
+    /// 环境专属自适应的 LoRA 秩
     lora_rank: usize,               // default: 4
-    /// Self-supervised adaptation loss (AETHER contrastive + entropy min)
+    /// 自监督自适应损失（AETHER 对比损失 + 熵最小化）
     adaptation_loss: AdaptationLoss,
 }
 
 pub enum AdaptationLoss {
-    /// Test-time training with AETHER contrastive loss on unlabeled data
+    /// 用无标注数据做 AETHER 对比损失的测试时训练
     ContrastiveTTT { epochs: usize, lr: f32 },
-    /// Entropy minimization on pose confidence outputs
+    /// 对姿态置信度输出做熵最小化
     EntropyMin { epochs: usize, lr: f32 },
-    /// Combined: contrastive + entropy minimization
+    /// 组合方式：对比损失 + 熵最小化
     Combined { epochs: usize, lr: f32, lambda_ent: f32 },
 }
 ```
 
-This leverages the existing SONA infrastructure (ADR-005) to generate environment-specific LoRA weights from unlabeled CSI alone, bridging the gap between zero-shot geometry conditioning and full supervised fine-tuning.
+这利用了已有的 SONA 基础设施（ADR-005），仅凭无标注 CSI 就生成环境专属的 LoRA 权重，填平了零样本几何条件化与全监督微调之间的空档。
 
 ---
 
-## 3. Comparison: MERIDIAN vs Alternatives
+## 3. 对比：MERIDIAN 与备选方案
 
-| Approach | Cross-Layout | Cross-Hardware | Zero-Shot | Few-Shot | Edge-Compatible | Multi-Person |
+| 方案 | 跨布局 | 跨硬件 | 零样本 | 小样本 | 边缘可部署 | 多人 |
 |----------|-------------|----------------|-----------|----------|-----------------|-------------|
-| **MERIDIAN (this ADR)** | Yes (GRL + geometry FiLM) | Yes (HardwareNormalizer) | Yes (geometry conditioning) | Yes (SONA + contrastive TTT) | Yes (adds ~12K params) | Yes (via ADR-023) |
-| PerceptAlign (2026) | Yes | No | Partial (needs layout) | No | Unknown (20M params) | No |
-| AdaPose (2024) | Partial (2 domains) | No | No | Yes (mapping consistency) | Unknown | No |
-| DGSense (2025) | Yes (virtual aug) | Yes (multi-modality) | Yes | No | No (ResNet backbone) | No |
-| X-Fi (ICLR 2025) | Yes (foundation model) | Yes (multi-modal) | Yes | Yes (pre-trained) | No (large transformer) | Yes |
-| AM-FM (2026) | Yes (439-day pretraining) | Yes (20 device types) | Yes | Yes | No (foundation scale) | Unknown |
-| CAPC (2024) | Partial (transfer learning) | No | No | Yes (SSL fine-tune) | Yes (lightweight) | No |
-| **Current wifi-densepose** | **No** | **No** | **No** | **Partial (SONA manual)** | **Yes** | **Yes** |
+| **MERIDIAN（本 ADR）** | Yes（GRL + geometry FiLM） | Yes（HardwareNormalizer） | Yes（几何条件化） | Yes（SONA + contrastive TTT） | Yes（新增约 12K 参数） | Yes（通过 ADR-023） |
+| PerceptAlign（2026） | Yes | No | Partial（需要布局信息） | No | Unknown（20M 参数） | No |
+| AdaPose（2024） | Partial（2 个域） | No | No | Yes（映射一致性） | Unknown | No |
+| DGSense（2025） | Yes（虚拟增广） | Yes（多模态） | Yes | No | No（ResNet 骨干） | No |
+| X-Fi（ICLR 2025） | Yes（基础模型） | Yes（多模态） | Yes | Yes（预训练） | No（大型 transformer） | Yes |
+| AM-FM（2026） | Yes（439 天预训练） | Yes（20 种设备类型） | Yes | Yes | No（基础模型规模） | Unknown |
+| CAPC（2024） | Partial（迁移学习） | No | No | Yes（自监督微调） | Yes（轻量） | No |
+| **当前 wifi-densepose** | **No** | **No** | **No** | **Partial（SONA 手工配置）** | **Yes** | **Yes** |
 
-### MERIDIAN's Differentiators
+### MERIDIAN 的差异点
 
-1. **Additive, not replacement**: Unlike X-Fi or AM-FM which require new foundation model infrastructure, MERIDIAN adds 4 small modules to the existing ADR-023 pipeline.
-2. **Edge-compatible**: Total parameter overhead is ~12K (geometry encoder ~8K, domain factorizer ~4K), fitting within the ESP32 budget established in ADR-024.
-3. **Hardware-agnostic**: First approach to combine cross-layout AND cross-hardware generalization in a single framework, using the existing `ruvector-solver` sparse interpolation.
-4. **Continuum of adaptation**: Supports zero-shot (geometry only), few-shot (10-sec calibration), and full fine-tuning on the same architecture.
+1. **增量式而非替换式**：X-Fi 与 AM-FM 都需要新的基础模型基础设施，而 MERIDIAN 只在现有 ADR-023 流水线上增加 4 个小模块。
+2. **边缘可部署**：参数总开销约 12K（几何编码器约 8K、域因子分解器约 4K），落在 ADR-024 确立的 ESP32 预算之内。
+3. **硬件无关**：首个在单一框架内同时解决跨布局与跨硬件泛化的方案，且复用已有的 `ruvector-solver` 稀疏插值。
+4. **连续的自适应谱系**：同一套架构同时支持零样本（仅几何）、小样本（10 秒校准）与完整微调。
 
 ---
 
-## 4. Implementation
+## 4. 实现
 
-### 4.1 Phase 1 -- Hardware Normalizer (Week 1)
+### 4.1 阶段 1 —— 硬件归一化器（第 1 周）
 
-**Goal**: Canonical CSI representation across ESP32, Intel 5300, and Atheros hardware.
+**目标**：在 ESP32、Intel 5300 与 Atheros 硬件之间建立统一的规范 CSI 表示。
 
-**Files modified:**
-- `crates/wifi-densepose-signal/src/hardware_norm.rs` (new)
-- `crates/wifi-densepose-signal/src/lib.rs` (export new module)
-- `crates/wifi-densepose-train/src/dataset.rs` (apply normalizer in data pipeline)
+**改动文件：**
+- `crates/wifi-densepose-signal/src/hardware_norm.rs`（新增）
+- `crates/wifi-densepose-signal/src/lib.rs`（导出新模块）
+- `crates/wifi-densepose-train/src/dataset.rs`（在数据流水线中应用归一化器）
 
-**Dependencies**: `ruvector-solver` (sparse interpolation, already vendored)
+**依赖**：`ruvector-solver`（稀疏插值，已 vendored）
 
-**Acceptance criteria:**
-- [ ] Resample any subcarrier count to canonical 56 within 50us per frame
-- [ ] Z-score normalization produces mean=0, std=1 per-frame amplitude
-- [ ] Phase sanitization removes linear trend (validated against SpotFi output)
-- [ ] Unit tests with synthetic ESP32 (64 sub) and Intel 5300 (30 sub) frames
+**验收标准：**
+- [ ] 把任意子载波数重采样到规范的 56 个，每帧耗时不超过 50us
+- [ ] z-score 归一化后逐帧幅度满足 mean=0、std=1
+- [ ] 相位净化去掉线性趋势（与 SpotFi 输出对照验证）
+- [ ] 用合成的 ESP32（64 子载波）与 Intel 5300（30 子载波）帧做单元测试
 
-### 4.2 Phase 2 -- Domain Factorizer + GRL (Week 2-3)
+### 4.2 阶段 2 —— 域因子分解器 + GRL（第 2-3 周）
 
-**Goal**: Disentangle pose-relevant and environment-specific features during training.
+**目标**：训练过程中解耦与姿态相关的特征和环境特有特征。
 
-**Files modified:**
-- `crates/wifi-densepose-train/src/domain.rs` (new: DomainFactorizer, GRL, DomainClassifier)
-- `crates/wifi-densepose-train/src/graph_transformer.rs` (wire factorizer after GNN)
-- `crates/wifi-densepose-train/src/trainer.rs` (add L_domain to composite loss, GRL annealing)
-- `crates/wifi-densepose-train/src/dataset.rs` (add domain labels to DataPipeline)
+**改动文件：**
+- `crates/wifi-densepose-train/src/domain.rs`（新增 DomainFactorizer、GRL、DomainClassifier）
+- `crates/wifi-densepose-train/src/graph_transformer.rs`（在 GNN 之后接入因子分解器）
+- `crates/wifi-densepose-train/src/trainer.rs`（把 L_domain 加入组合损失，实现 GRL 退火）
+- `crates/wifi-densepose-train/src/dataset.rs`（给 DataPipeline 增加域标签）
 
-**Key implementation detail -- Gradient Reversal Layer:**
+**关键实现细节 —— 梯度反转层：**
 
 ```rust
-/// Gradient Reversal Layer: identity in forward pass, negates gradient in backward.
-/// Used to train the PoseEncoder to produce domain-invariant features.
+/// 梯度反转层：前向为恒等，反向时把梯度取反。
+/// 用于训练 PoseEncoder 产出域不变特征。
 pub struct GradientReversalLayer {
     lambda: f32,
 }
 
 impl GradientReversalLayer {
-    /// Forward: identity. Backward: multiply gradient by -lambda.
-    /// In our pure-Rust autograd, this is implemented as:
+    /// 前向：恒等。反向：把梯度乘以 -lambda。
+    /// 在我们的纯 Rust autograd 里实现为：
     ///   forward(x) = x
     ///   backward(grad) = -lambda * grad
     pub fn forward(&self, x: &Tensor) -> Tensor {
-        // Store lambda for backward pass in computation graph
+        // 把 lambda 存入计算图，供反向传播使用
         x.clone_with_grad_fn(GrlBackward { lambda: self.lambda })
     }
 }
 ```
 
-**Acceptance criteria:**
-- [ ] Domain classifier achieves >90% accuracy on source domains (proves signal exists)
-- [ ] After GRL training, domain classifier accuracy drops to near-chance (proves disentanglement)
-- [ ] Pose accuracy on source domains degrades <5% vs non-adversarial baseline
-- [ ] Cross-domain pose accuracy improves >20% on held-out environment
+**验收标准：**
+- [ ] 域分类器在源域上达到 >90% 准确率（证明信号确实存在）
+- [ ] GRL 训练后域分类器准确率降到接近随机（证明已解耦）
+- [ ] 源域姿态精度相对非对抗基线下降 <5%
+- [ ] 留出环境上的跨域姿态精度提升 >20%
 
-### 4.3 Phase 3 -- Geometry Encoder + FiLM Conditioning (Week 3-4)
+### 4.3 阶段 3 —— 几何编码器 + FiLM 条件化（第 3-4 周）
 
-**Goal**: Enable zero-shot deployment given AP positions.
+**目标**：给定 AP 位置即可零样本部署。
 
-**Files modified:**
-- `crates/wifi-densepose-train/src/geometry.rs` (new: GeometryEncoder, FourierPositionalEncoding, DeepSets, FiLM)
-- `crates/wifi-densepose-train/src/graph_transformer.rs` (inject FiLM conditioning before xyz_head)
-- `crates/wifi-densepose-train/src/config.rs` (add geometry fields to TrainConfig)
+**改动文件：**
+- `crates/wifi-densepose-train/src/geometry.rs`（新增 GeometryEncoder、FourierPositionalEncoding、DeepSets、FiLM）
+- `crates/wifi-densepose-train/src/graph_transformer.rs`（在 xyz_head 之前注入 FiLM 条件化）
+- `crates/wifi-densepose-train/src/config.rs`（给 TrainConfig 增加几何字段）
 
-**Acceptance criteria:**
-- [ ] FourierPositionalEncoding produces 64-dim vectors from 3D coordinates
-- [ ] DeepSets is permutation-invariant (same output regardless of AP ordering)
-- [ ] FiLM conditioning reduces cross-layout MPJPE by >30% vs unconditioned baseline
-- [ ] Inference overhead <100us per frame (geometry encoding is amortized per-session)
+**验收标准：**
+- [ ] FourierPositionalEncoding 从 3D 坐标产出 64 维向量
+- [ ] DeepSets 满足置换不变（AP 顺序变化不影响输出）
+- [ ] 相对无条件化基线，FiLM 条件化把跨布局 MPJPE 降低 >30%
+- [ ] 每帧推理开销 <100us（几何编码按会话摊销）
 
-### 4.4 Phase 4 -- Virtual Domain Augmentation (Week 4-5)
+### 4.4 阶段 4 —— 虚拟域增广（第 4-5 周）
 
-**Goal**: Synthetic environment diversity to improve generalization.
+**目标**：用合成的环境多样性提升泛化能力。
 
-**Files modified:**
-- `crates/wifi-densepose-train/src/virtual_aug.rs` (new: VirtualDomainAugmentor)
-- `crates/wifi-densepose-train/src/trainer.rs` (integrate augmentor into training loop)
-- `crates/wifi-densepose-signal/src/fresnel.rs` (reuse Fresnel zone model for scatterer simulation)
+**改动文件：**
+- `crates/wifi-densepose-train/src/virtual_aug.rs`（新增 VirtualDomainAugmentor）
+- `crates/wifi-densepose-train/src/trainer.rs`（把增广器接入训练循环）
+- `crates/wifi-densepose-signal/src/fresnel.rs`（复用菲涅尔区模型模拟散射体）
 
-**Dependencies**: `ruvector-attn-mincut` (attention-weighted scatterer placement)
+**依赖**：`ruvector-attn-mincut`（按注意力加权的散射体布置）
 
-**Acceptance criteria:**
-- [ ] Generate K=3 virtual domains per batch with <1ms overhead
-- [ ] Virtual domains produce measurably different CSI statistics (KL divergence >0.1)
-- [ ] Training with virtual augmentation improves unseen-environment accuracy by >15%
-- [ ] No regression on seen-environment accuracy (within 2%)
+**验收标准：**
+- [ ] 每个 batch 生成 K=3 个虚拟域，开销 <1ms
+- [ ] 虚拟域的 CSI 统计量有可测差异（KL 散度 >0.1）
+- [ ] 使用虚拟增广训练后，未见环境准确率提升 >15%
+- [ ] 已见环境准确率无回退（波动在 2% 以内）
 
-### 4.5 Phase 5 -- Few-Shot Rapid Adaptation (Week 5-6)
+### 4.5 阶段 5 —— 小样本快速自适应（第 5-6 周）
 
-**Goal**: 10-second calibration enables environment-specific fine-tuning without labels.
+**目标**：10 秒校准即可在无标注条件下完成环境专属微调。
 
-**Files modified:**
-- `crates/wifi-densepose-train/src/rapid_adapt.rs` (new: RapidAdaptation)
-- `crates/wifi-densepose-train/src/sona.rs` (extend SonaProfile with MERIDIAN fields)
-- `crates/wifi-densepose-sensing-server/src/main.rs` (add `--calibrate` CLI flag)
+**改动文件：**
+- `crates/wifi-densepose-train/src/rapid_adapt.rs`（新增 RapidAdaptation）
+- `crates/wifi-densepose-train/src/sona.rs`（给 SonaProfile 增加 MERIDIAN 字段）
+- `crates/wifi-densepose-sensing-server/src/main.rs`（增加 `--calibrate` CLI 参数）
 
-**Acceptance criteria:**
-- [ ] 200-frame (10 sec) calibration produces usable LoRA adapter
-- [ ] Adapted model MPJPE within 15% of fully-supervised in-domain baseline
-- [ ] Calibration completes in <5 seconds on x86 (including contrastive TTT)
-- [ ] Adapted LoRA weights serializable to RVF container (ADR-023 Segment type)
+**验收标准：**
+- [ ] 200 帧（10 秒）校准能产出可用的 LoRA adapter
+- [ ] 自适应后模型的 MPJPE 与全监督同域基线相差不超过 15%
+- [ ] 在 x86 上校准耗时 <5 秒（含对比式 TTT）
+- [ ] 自适应后的 LoRA 权重可序列化进 RVF 容器（ADR-023 的 Segment 类型）
 
-### 4.6 Phase 6 -- Cross-Domain Evaluation Protocol (Week 6-7)
+### 4.6 阶段 6 —— 跨域评估协议（第 6-7 周）
 
-**Goal**: Rigorous multi-domain evaluation using MM-Fi's scene/subject splits.
+**目标**：用 MM-Fi 的场景/受试者划分做严格的多域评估。
 
-**Files modified:**
-- `crates/wifi-densepose-train/src/eval.rs` (new: CrossDomainEvaluator)
-- `crates/wifi-densepose-train/src/dataset.rs` (add domain-split loading for MM-Fi)
+**改动文件：**
+- `crates/wifi-densepose-train/src/eval.rs`（新增 CrossDomainEvaluator）
+- `crates/wifi-densepose-train/src/dataset.rs`（为 MM-Fi 增加按域划分的加载方式）
 
-**Evaluation protocol (following PerceptAlign):**
+**评估协议（参照 PerceptAlign）：**
 
-| Metric | Description |
+| 指标 | 说明 |
 |--------|-------------|
-| **In-domain MPJPE** | Mean Per Joint Position Error on training environment |
-| **Cross-domain MPJPE** | MPJPE on held-out environment (zero-shot) |
-| **Few-shot MPJPE** | MPJPE after 10-sec calibration in target environment |
-| **Cross-hardware MPJPE** | MPJPE when trained on one hardware, tested on another |
-| **Domain gap ratio** | cross-domain / in-domain MPJPE (lower = better; target <1.5) |
-| **Adaptation speedup** | Labeled samples saved vs training from scratch (target >5x) |
+| **In-domain MPJPE** | 训练环境上的平均关节位置误差 |
+| **Cross-domain MPJPE** | 留出环境上的 MPJPE（零样本）|
+| **Few-shot MPJPE** | 目标环境 10 秒校准后的 MPJPE |
+| **Cross-hardware MPJPE** | 在一种硬件上训练、在另一种硬件上测试时的 MPJPE |
+| **Domain gap ratio** | 跨域 / 同域 MPJPE（越低越好；目标 <1.5）|
+| **Adaptation speedup** | 相对从头训练节省的标注样本数（目标 >5x）|
 
-### 4.7 Phase 7 -- RVF Container + Deployment (Week 7-8)
+### 4.7 阶段 7 —— RVF 容器与部署（第 7-8 周）
 
-**Goal**: Package MERIDIAN-enhanced models for edge deployment.
+**目标**：把 MERIDIAN 增强后的模型打包用于边缘部署。
 
-**Files modified:**
-- `crates/wifi-densepose-train/src/rvf_container.rs` (add GEOM and DOMAIN segment types)
-- `crates/wifi-densepose-sensing-server/src/inference.rs` (load geometry + domain weights)
-- `crates/wifi-densepose-sensing-server/src/main.rs` (add `--ap-positions` CLI flag)
+**改动文件：**
+- `crates/wifi-densepose-train/src/rvf_container.rs`（增加 GEOM 与 DOMAIN 段类型）
+- `crates/wifi-densepose-sensing-server/src/inference.rs`（加载几何与域权重）
+- `crates/wifi-densepose-sensing-server/src/main.rs`（增加 `--ap-positions` CLI 参数）
 
-**New RVF segments:**
+**新增 RVF 段：**
 
-| Segment | Type ID | Contents | Size |
+| 段 | 类型 ID | 内容 | 大小 |
 |---------|---------|----------|------|
-| `GEOM` | `0x47454F4D` | GeometryEncoder weights + FiLM layers | ~4 KB |
-| `DOMAIN` | `0x444F4D4E` | DomainFactorizer weights (PoseEncoder only; EnvEncoder and GRL discarded) | ~8 KB |
-| `HWSTATS` | `0x48575354` | Per-hardware amplitude statistics for HardwareNormalizer | ~1 KB |
+| `GEOM` | `0x47454F4D` | GeometryEncoder 权重 + FiLM 层 | ~4 KB |
+| `DOMAIN` | `0x444F4D4E` | DomainFactorizer 权重（仅 PoseEncoder；EnvEncoder 与 GRL 丢弃）| ~8 KB |
+| `HWSTATS` | `0x48575354` | 供 HardwareNormalizer 使用的各硬件幅度统计量 | ~1 KB |
 
-**CLI usage:**
+**CLI 用法：**
 
 ```bash
-# Train with MERIDIAN domain generalization
+# 用 MERIDIAN 域泛化进行训练
 cargo run -p wifi-densepose-sensing-server -- \
   --train --dataset data/mmfi/ --epochs 100 \
   --meridian --n-virtual-domains 3 \
   --save-rvf model-meridian.rvf
 
-# Deploy with geometry conditioning (zero-shot)
+# 带几何条件化部署（零样本）
 cargo run -p wifi-densepose-sensing-server -- \
   --model model-meridian.rvf \
   --ap-positions "0,0,2.5;3.5,0,2.5;1.75,4,2.5"
 
-# Calibrate in new environment (few-shot, 10 seconds)
+# 在新环境中校准（小样本，10 秒）
 cargo run -p wifi-densepose-sensing-server -- \
   --model model-meridian.rvf --calibrate --calibrate-duration 10
 ```
 
 ---
 
-## 5. Consequences
+## 5. 影响
 
-### 5.1 Positive
+### 5.1 正面影响
 
-- **Deploy once, work everywhere**: A single MERIDIAN-trained model generalizes across rooms, buildings, and hardware without per-environment retraining
-- **Reduced deployment cost**: Zero-shot mode requires only AP position input; few-shot mode needs 10 seconds of ambient WiFi data
-- **AETHER synergy**: Domain-invariant embeddings (ADR-024) become environment-agnostic fingerprints, enabling cross-building room identification
-- **Hardware freedom**: HardwareNormalizer unblocks mixed-fleet deployments (ESP32 in some rooms, Intel 5300 in others)
-- **Competitive positioning**: No existing open-source WiFi pose system offers cross-environment generalization; MERIDIAN would be the first
+- **一次部署，处处可用**：单个 MERIDIAN 训练出的模型即可跨房间、跨建筑、跨硬件泛化，无需为每个环境重训
+- **降低部署成本**：零样本模式只需输入 AP 位置；小样本模式只需 10 秒环境 WiFi 数据
+- **与 AETHER 协同**：域不变嵌入（ADR-024）成为与环境无关的指纹，可实现跨建筑的房间识别
+- **硬件自由**：HardwareNormalizer 打通混合机队部署（部分房间用 ESP32，部分用 Intel 5300）
+- **竞争定位**：现有开源 WiFi 姿态系统都不具备跨环境泛化能力，MERIDIAN 会是第一个
 
-### 5.2 Negative
+### 5.2 负面影响
 
-- **Training complexity**: Multi-domain training requires CSI data from multiple environments. MM-Fi provides multiple scenes but PerceptAlign's 7-layout dataset is not yet public.
-- **Hyperparameter sensitivity**: GRL lambda annealing schedule and adversarial balance require careful tuning; unstable training is possible if adversarial signal is too strong early.
-- **Geometry input requirement**: Zero-shot mode requires users to input AP positions, which may not always be precisely known. Degradation under inaccurate geometry input needs characterization.
-- **Parameter overhead**: +12K parameters increases total model from 55K to 67K (22% increase), still well within ESP32 budget but notable.
+- **训练复杂度**：多域训练需要来自多个环境的 CSI 数据。MM-Fi 提供多个场景，但 PerceptAlign 的 7 布局数据集尚未公开。
+- **超参数敏感**：GRL lambda 退火调度与对抗平衡需要仔细调参；早期对抗信号过强可能导致训练不稳定。
+- **需要几何输入**：零样本模式要求用户输入 AP 位置，而这些位置未必总能精确已知。几何输入不准时的性能退化还需要刻画。
+- **参数开销**：+12K 参数使模型总量从 55K 增至 67K（增加 22%），仍在 ESP32 预算内但值得注意。
 
-### 5.3 Risks and Mitigations
+### 5.3 风险与缓解措施
 
-| Risk | Probability | Impact | Mitigation |
+| 风险 | 概率 | 影响 | 缓解措施 |
 |------|-------------|--------|------------|
-| GRL training instability | Medium | Training diverges | Lambda annealing schedule; gradient clipping at 1.0; fallback to non-adversarial training |
-| Virtual augmentation unrealistic | Low | No generalization improvement | Validate augmented CSI against real cross-domain data distributions |
-| Geometry encoder overfits to training layouts | Medium | Zero-shot fails on novel geometries | Augment geometry inputs during training (jitter AP positions by +/-0.5m) |
-| MM-Fi scenes insufficient diversity | High | Limited evaluation validity | Supplement with synthetic data; target PerceptAlign dataset when released |
+| GRL 训练不稳定 | Medium | 训练发散 | lambda 退火调度；梯度裁剪到 1.0；回退到非对抗训练 |
+| 虚拟增广不真实 | Low | 泛化能力没有提升 | 用真实跨域数据分布校验增广后的 CSI |
+| 几何编码器过拟合训练布局 | Medium | 新几何下零样本失败 | 训练时增广几何输入（AP 位置抖动 +/-0.5m）|
+| MM-Fi 场景多样性不足 | High | 评估有效性受限 | 补充合成数据；待 PerceptAlign 数据集发布后引入 |
 
 ---
 
-## 6. Relationship to Proposed ADRs (Gap Closure)
+## 6. 与拟议 ADR 的关系（缺口补齐）
 
-ADRs 002-011 were proposed during the initial architecture phase. MERIDIAN directly addresses, subsumes, or enables several of these gaps. This section maps each proposed ADR to its current status and how ADR-027 interacts with it.
+ADR 002-011 是在初始架构阶段提出的。MERIDIAN 直接补齐、吸收或支撑了其中若干缺口。本节把每个拟议 ADR 映射到它的当前状态，并说明 ADR-027 与它的相互作用。
 
-### 6.1 Directly Addressed by MERIDIAN
+### 6.1 由 MERIDIAN 直接补齐
 
-| Proposed ADR | Gap | How MERIDIAN Closes It |
+| 拟议 ADR | 缺口 | MERIDIAN 如何补齐 |
 |-------------|-----|----------------------|
-| **ADR-004**: HNSW Vector Search Fingerprinting | CSI fingerprints are environment-specific — a fingerprint learned in Room A is useless in Room B | MERIDIAN's `DomainFactorizer` produces **environment-disentangled embeddings** (`h_pose`). When fed into ADR-024's `FingerprintIndex`, these embeddings match across rooms because environment information has been factored out. The `h_env` path captures room identity separately, enabling both cross-room matching AND room identification in a single model. |
-| **ADR-005**: SONA Self-Learning for Pose Estimation | SONA LoRA adapters must be manually created per environment with labeled data | MERIDIAN Phase 5 (`RapidAdaptation`) extends SONA with **unsupervised adapter generation**: 10 seconds of unlabeled WiFi data + contrastive test-time training automatically produces a per-room LoRA adapter. No labels, no manual intervention. The existing `SonaProfile` in `sona.rs` gains a `meridian_calibration` field for storing adaptation state. |
-| **ADR-006**: GNN-Enhanced CSI Pattern Recognition | GNN treats each environment's patterns independently; no cross-environment transfer | MERIDIAN's domain-adversarial training regularizes the GCN layers (ADR-023's `GnnStack`) to learn **structure-preserving, environment-invariant** graph features. The gradient reversal layer forces the GCN to shed room-specific multipath patterns while retaining body-pose-relevant spatial relationships between keypoints. |
+| **ADR-004**：HNSW 向量检索指纹 | CSI 指纹与环境绑定——在 Room A 学到的指纹在 Room B 毫无用处 | MERIDIAN 的 `DomainFactorizer` 产出**环境解耦嵌入**（`h_pose`）。送入 ADR-024 的 `FingerprintIndex` 后，由于环境信息已被分解出去，这些嵌入可以跨房间匹配。`h_env` 路径则单独刻画房间身份，使同一个模型既能跨房间匹配，又能识别房间。 |
+| **ADR-005**：面向姿态估计的 SONA 自学习 | SONA LoRA adapter 必须针对每个环境用标注数据手工创建 | MERIDIAN 阶段 5（`RapidAdaptation`）为 SONA 增加**无监督 adapter 生成**：10 秒无标注 WiFi 数据 + 对比式测试时训练即可自动产出每个房间的 LoRA adapter。无需标注，也无需人工干预。`sona.rs` 中已有的 `SonaProfile` 增加 `meridian_calibration` 字段保存自适应状态。 |
+| **ADR-006**：GNN 增强的 CSI 模式识别 | GNN 把每个环境的模式彼此独立看待；没有跨环境迁移 | MERIDIAN 的域对抗训练对 GCN 层（ADR-023 的 `GnnStack`）做正则，使其学到**保持结构、环境不变**的图特征。梯度反转层迫使 GCN 丢弃房间特有的多径模式，同时保留关键点之间与人体姿态相关的空间关系。 |
 
-### 6.2 Superseded (Already Implemented)
+### 6.2 已被取代（已实现）
 
-| Proposed ADR | Original Vision | Current Status |
+| 拟议 ADR | 原始设想 | 当前状态 |
 |-------------|----------------|---------------|
-| **ADR-002**: RuVector RVF Integration Strategy | Integrate RuVector crates into the WiFi-DensePose pipeline | **Fully implemented** by ADR-016 (training pipeline, 5 crates) and ADR-017 (signal + MAT, 7 integration points). The `wifi-densepose-ruvector` crate is published on crates.io. No further action needed. |
+| **ADR-002**：RuVector RVF 集成策略 | 把 RuVector crate 集成进 WiFi-DensePose 流水线 | **Fully implemented** —— 由 ADR-016（训练流水线，5 个 crate）与 ADR-017（信号 + MAT，7 个集成点）完成。`wifi-densepose-ruvector` crate 已发布到 crates.io，无需后续动作。 |
 
-### 6.3 Enabled by MERIDIAN (Future Work)
+### 6.3 由 MERIDIAN 提供支撑（后续工作）
 
-These ADRs remain independent tracks but MERIDIAN creates enabling infrastructure for them:
+这些 ADR 仍是独立路线，但 MERIDIAN 为它们提供了可复用的基础设施：
 
-| Proposed ADR | Gap | How MERIDIAN Enables It |
+| 拟议 ADR | 缺口 | MERIDIAN 如何提供支撑 |
 |-------------|-----|------------------------|
-| **ADR-003**: RVF Cognitive Containers | CSI pipeline stages produce ephemeral data; no persistent cognitive state across sessions | MERIDIAN's RVF container extensions (Phase 7: `GEOM`, `DOMAIN`, `HWSTATS` segments) establish the pattern for **environment-aware model packaging**. A cognitive container could store per-room adaptation history, geometry profiles, and domain statistics — building on MERIDIAN's segment format. The `h_env` embeddings are natural candidates for persistent environment memory. |
-| **ADR-008**: Distributed Consensus for Multi-AP | Multiple APs need coordinated sensing; no agreement protocol for conflicting observations | MERIDIAN's `GeometryEncoder` already models variable-count AP positions via permutation-invariant `DeepSets`. This provides the **geometric foundation** for multi-AP fusion: each AP's CSI is geometry-conditioned independently, then fused. A consensus layer (Raft or BFT) would sit above MERIDIAN to reconcile conflicting pose estimates from different AP vantage points. The `HardwareNormalizer` ensures mixed hardware (ESP32 + Intel 5300 across APs) produces comparable features. |
-| **ADR-009**: RVF WASM Runtime for Edge | Self-contained WASM model execution without server dependency | MERIDIAN's +12K parameter overhead (67K total) remains within the WASM size budget. The `HardwareNormalizer` is critical for WASM deployment: browser-based inference must handle whatever CSI format the connected hardware provides. WASM builds should include the geometry conditioning path so users can specify AP layout in the browser UI. |
+| **ADR-003**：RVF 认知容器 | CSI 流水线各阶段产出的是瞬时数据；跨会话没有持久化的认知状态 | MERIDIAN 对 RVF 容器的扩展（阶段 7：`GEOM`、`DOMAIN`、`HWSTATS` 段）确立了**环境感知模型打包**的范式。认知容器可以基于 MERIDIAN 的段格式保存每个房间的自适应历史、几何剖面与域统计量。`h_env` 嵌入天然适合作为持久化的环境记忆。 |
+| **ADR-008**：多 AP 分布式共识 | 多个 AP 需要协同感知；缺少针对冲突观测的一致性协议 | MERIDIAN 的 `GeometryEncoder` 已经通过置换不变的 `DeepSets` 建模数量可变的 AP 位置，为多 AP 融合提供了**几何基础**：每个 AP 的 CSI 先各自做几何条件化，再融合。共识层（Raft 或 BFT）可架在 MERIDIAN 之上，用来调和不同 AP 视角给出的冲突姿态估计。`HardwareNormalizer` 保证混合硬件（各 AP 上 ESP32 + Intel 5300 并存）产出可比的特征。 |
+| **ADR-009**：面向边缘的 RVF WASM 运行时 | 不依赖服务端、自包含的 WASM 模型执行 | MERIDIAN 增加约 12K 参数（合计 67K）后仍在 WASM 体积预算内。`HardwareNormalizer` 对 WASM 部署至关重要：浏览器里的推理必须能处理所连硬件给出的任意 CSI 格式。WASM 构建应包含几何条件化路径，让用户可以在浏览器 UI 里指定 AP 布局。 |
 
-### 6.4 Independent Tracks (Not Addressed by MERIDIAN)
+### 6.4 独立路线（MERIDIAN 不涉及）
 
-These ADRs address orthogonal concerns and should be pursued separately:
+这些 ADR 处理的是正交的议题，应分别推进：
 
-| Proposed ADR | Gap | Recommendation |
+| 拟议 ADR | 缺口 | 建议 |
 |-------------|-----|----------------|
-| **ADR-007**: Post-Quantum Cryptography | WiFi sensing data reveals presence, health, and activity — quantum computers could break current encryption of sensing streams | **Pursue independently.** MERIDIAN does not address data-in-transit security. PQC should be applied to WebSocket streams (`/ws/sensing`, `/ws/mat/stream`) and RVF model containers (replace Ed25519 signing with ML-DSA/Dilithium). Priority: medium — no imminent quantum threat, but healthcare deployments may require PQC compliance for long-term data retention. |
-| **ADR-010**: Witness Chains for Audit Trail | Disaster triage decisions (ADR-001) need tamper-proof audit trails for legal/regulatory compliance | **Pursue independently.** MERIDIAN's domain adaptation improves triage accuracy in unfamiliar environments (rubble, collapsed buildings), which reduces the need for audit trail corrections. But the audit trail itself — hash chains, Merkle proofs, timestamped triage events — is a separate integrity concern. Priority: high for disaster response deployments. |
-| **ADR-011**: Python Proof-of-Reality (URGENT) | Python v1 contains mock/placeholder code that undermines credibility; `verify.py` exists but mock paths remain | **Pursue independently.** This is a Python v1 code quality issue, not an ML/architecture concern. The Rust port (v2+) has no mock code — all 542+ tests run against real algorithm implementations. Recommendation: either complete the mock elimination in Python v1 or formally deprecate Python v1 in favor of the Rust stack. Priority: high for credibility. |
+| **ADR-007**：后量子密码 | WiFi 感知数据会暴露在场、健康与活动信息——量子计算机可能攻破感知流当前的加密 | **独立推进。** MERIDIAN 不涉及传输中数据的安全。PQC 应作用于 WebSocket 流（`/ws/sensing`、`/ws/mat/stream`）与 RVF 模型容器（用 ML-DSA/Dilithium 替换 Ed25519 签名）。优先级：medium —— 量子威胁并不迫近，但医疗部署可能因长期数据留存而要求 PQC 合规。 |
+| **ADR-010**：用于审计轨迹的见证链 | 灾害检伤分类决策（ADR-001）需要防篡改的审计轨迹以满足法律/监管合规 | **独立推进。** MERIDIAN 的域自适应提升了陌生环境（废墟、倒塌建筑）下的检伤分类精度，从而减少了更正审计轨迹的需求。但审计轨迹本身——哈希链、Merkle 证明、带时间戳的检伤事件——是独立的完整性议题。优先级：high，面向灾害响应部署。 |
+| **ADR-011**：Python 真实性证明（紧急） | Python v1 里有削弱可信度的 mock/占位代码；`verify.py` 已存在但 mock 路径仍在 | **独立推进。** 这是 Python v1 的代码质量问题，不是 ML/架构问题。Rust 移植（v2+）没有 mock 代码——全部 542+ 个测试都跑在真实算法实现上。建议：要么在 Python v1 里彻底清除 mock，要么正式弃用 Python v1 并转向 Rust 技术栈。优先级：high，事关可信度。 |
 
-### 6.5 Gap Closure Summary
+### 6.5 缺口补齐总结
 
 ```
 Proposed ADRs (002-011)          Status After ADR-027
@@ -534,15 +534,15 @@ ADR-011  Proof-of-Reality    ──→ ⏳ Independent (Python v1 issue, high pr
 
 ---
 
-## 7. References
+## 7. 参考资料
 
-1. Chen, L., et al. (2026). "Breaking Coordinate Overfitting: Geometry-Aware WiFi Sensing for Cross-Layout 3D Pose Estimation." arXiv:2601.12252. https://arxiv.org/abs/2601.12252
-2. Zhou, Y., et al. (2024). "AdaPose: Towards Cross-Site Device-Free Human Pose Estimation with Commodity WiFi." IEEE Internet of Things Journal. arXiv:2309.16964. https://arxiv.org/abs/2309.16964
-3. Yan, K., et al. (2024). "Person-in-WiFi 3D: End-to-End Multi-Person 3D Pose Estimation with Wi-Fi." CVPR 2024, pp. 969-978. https://openaccess.thecvf.com/content/CVPR2024/html/Yan_Person-in-WiFi_3D_End-to-End_Multi-Person_3D_Pose_Estimation_with_Wi-Fi_CVPR_2024_paper.html
-4. Zhou, R., et al. (2025). "DGSense: A Domain Generalization Framework for Wireless Sensing." arXiv:2502.08155. https://arxiv.org/abs/2502.08155
-5. CAPC (2024). "Context-Aware Predictive Coding: A Representation Learning Framework for WiFi Sensing." IEEE OJCOMS, Vol. 5, pp. 6119-6134. arXiv:2410.01825. https://arxiv.org/abs/2410.01825
-6. Chen, X. & Yang, J. (2025). "X-Fi: A Modality-Invariant Foundation Model for Multimodal Human Sensing." ICLR 2025. arXiv:2410.10167. https://arxiv.org/abs/2410.10167
-7. AM-FM (2026). "AM-FM: A Foundation Model for Ambient Intelligence Through WiFi." arXiv:2602.11200. https://arxiv.org/abs/2602.11200
-8. Ramesh, S. et al. (2025). "LatentCSI: High-resolution efficient image generation from WiFi CSI using a pretrained latent diffusion model." arXiv:2506.10605. https://arxiv.org/abs/2506.10605
-9. Ganin, Y. et al. (2016). "Domain-Adversarial Training of Neural Networks." JMLR 17(59):1-35. https://jmlr.org/papers/v17/15-239.html
-10. Perez, E. et al. (2018). "FiLM: Visual Reasoning with a General Conditioning Layer." AAAI 2018. arXiv:1709.07871. https://arxiv.org/abs/1709.07871
+1. Chen, L. 等（2026）。"Breaking Coordinate Overfitting: Geometry-Aware WiFi Sensing for Cross-Layout 3D Pose Estimation." arXiv:2601.12252. https://arxiv.org/abs/2601.12252
+2. Zhou, Y. 等（2024）。"AdaPose: Towards Cross-Site Device-Free Human Pose Estimation with Commodity WiFi." IEEE Internet of Things Journal. arXiv:2309.16964. https://arxiv.org/abs/2309.16964
+3. Yan, K. 等（2024）。"Person-in-WiFi 3D: End-to-End Multi-Person 3D Pose Estimation with Wi-Fi." CVPR 2024，969-978 页。https://openaccess.thecvf.com/content/CVPR2024/html/Yan_Person-in-WiFi_3D_End-to-End_Multi-Person_3D_Pose_Estimation_with_Wi-Fi_CVPR_2024_paper.html
+4. Zhou, R. 等（2025）。"DGSense: A Domain Generalization Framework for Wireless Sensing." arXiv:2502.08155. https://arxiv.org/abs/2502.08155
+5. CAPC（2024）。"Context-Aware Predictive Coding: A Representation Learning Framework for WiFi Sensing." IEEE OJCOMS，第 5 卷，6119-6134 页。arXiv:2410.01825. https://arxiv.org/abs/2410.01825
+6. Chen, X. 与 Yang, J.（2025）。"X-Fi: A Modality-Invariant Foundation Model for Multimodal Human Sensing." ICLR 2025. arXiv:2410.10167. https://arxiv.org/abs/2410.10167
+7. AM-FM（2026）。"AM-FM: A Foundation Model for Ambient Intelligence Through WiFi." 见 arXiv:2602.11200. https://arxiv.org/abs/2602.11200
+8. Ramesh, S. 等（2025）。"LatentCSI: High-resolution efficient image generation from WiFi CSI using a pretrained latent diffusion model." arXiv:2506.10605. https://arxiv.org/abs/2506.10605
+9. Ganin, Y. 等（2016）。"Domain-Adversarial Training of Neural Networks." JMLR 17(59):1-35. https://jmlr.org/papers/v17/15-239.html
+10. Perez, E. 等（2018）。"FiLM: Visual Reasoning with a General Conditioning Layer." AAAI 2018. arXiv:1709.07871. https://arxiv.org/abs/1709.07871
