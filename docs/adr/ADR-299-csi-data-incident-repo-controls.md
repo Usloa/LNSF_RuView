@@ -1,52 +1,52 @@
-# ADR-299: Repository CSI data-incident controls — ignore rules and a pre-commit/CI policy check
+# ADR-299：仓库 CSI 数据事故控制 —— 忽略规则与 pre-commit/CI 策略检查
 
-- **Status**: Accepted — controls and current-tree remediation implemented; history coordination pending
-- **Date**: 2026-08-11
-- **Deciders**: ruv
-- **Tags**: privacy, data-governance, ci, security, incident
+- **状态**：Accepted — 控制项与当前树修复已实现；历史协调待办
+- **日期**：2026-08-11
+- **决策者**：ruv
+- **标签**：privacy（隐私）、data-governance（数据治理）、ci（持续集成）、security（安全）、incident（事故）
 
-## Context
+## 背景
 
-The external review found ~64.6 MB of tracked raw CSI recordings under
-`data/recordings/` and `v2/data/recordings/` (largest an ~61.8 MB overnight
-capture). CLAUDE.md explicitly prohibits committing CSI or person data. The
-`.gitignore` rule pointed only at a pre-rename path
-(`rust-port/wifi-densepose-rs/data/recordings/`) and did not cover the active
-directories, which is how the captures were committed. Raw CSI is person data
-(it encodes breathing, movement, presence), so this is a data incident, not a
-formatting nit.
+外部审查发现约 64.6 MB 受版本追踪的原始 CSI 录音位于
+（`data/recordings/` 与 `v2/data/recordings/` 之下，最大的一次是约 61.8 MB 的通宵
+抓录）。CLAUDE.md 明确禁止提交 CSI 或个人信息数据。
+`.gitignore` 规则只指向一个重命名前的路径
+（`rust-port/wifi-densepose-rs/data/recordings/`），并未覆盖当前的
+目录，这些录音正是因此被提交进来的。原始 CSI 属于个人信息数据
+（它编码了呼吸、移动、在场信息），因此这是一起数据事故，而非
+格式上的小瑕疵。
 
-## Decision
+## 决策
 
-**Implemented now (mechanical, no data-ownership judgment):**
+**现已实现（机械性，不涉及数据归属判断）：**
 
-- Fix `.gitignore` to cover `data/recordings/`, `v2/data/recordings/`, the
-  legacy path, and `*.csi.jsonl` / `*.csi.meta.json` globs (done in this PR).
-- Add a policy check (pre-commit hook + CI job) that fails when CSI-format
-  files (`*.csi.jsonl`, `*.csi.meta.json`) or large JSONL captures are staged
-  or present as tracked files, with a message pointing here. Tests may use
-  only synthetic or expressly-consented minimal fixtures.
+- 修复 `.gitignore` 使其覆盖 `data/recordings/`、`v2/data/recordings/`、
+  遗留路径，以及 `*.csi.jsonl` / `*.csi.meta.json` 通配（本 PR 已完成）。
+- 新增一项策略检查（pre-commit 钩子 + CI 任务），当 CSI 格式
+  文件（`*.csi.jsonl`、`*.csi.meta.json`）或大型 JSONL 抓录被暂存
+  或作为受追踪文件存在时失败，并给出指向本 ADR 的提示。测试只能使用
+  合成数据或明确获授权的极简夹具。
 
-**Owner-authorized current-tree remediation (2026-08-15):**
+**数据所有者授权的当前树修复（2026-08-15）：**
 
-- The data owner authorized removal of the six known CSI capture and metadata
-  files from the current tree. The removal is recoverable from Git history and
-  does not claim to erase existing clones, forks, caches, or release artifacts.
-- Any history rewrite remains a separate coordinated incident-response action.
-  It requires an inventory of affected refs and releases, downstream notice,
-  credential and artifact review, and an explicit execution plan.
+- 数据所有者授权从当前树中移除六个已知的 CSI 抓录与元数据
+  文件。该移除可从 Git 历史中恢复，且
+  不声称会抹除既有的克隆、fork、缓存或发布产物。
+- 任何历史重写都是一项独立的、需协调的事故响应行动。
+  它需要清点受影响的引用与发布、向下游发出通知、
+  审查凭据与产物，并制定明确的执行计划。
 
-## Consequences
+## 后果
 
-- No new CSI captures can be committed (ignore + policy check).
-- The six known tracked recordings are absent from the current tree. Historical
-  copies remain until a separately authorized and coordinated history rewrite.
-- CI gains one fast policy job; contributors get a local pre-commit check.
+- 不会再有任何新的 CSI 抓录能被提交（忽略规则 + 策略检查）。
+- 六个已知的受追踪录音已从当前树中消失。历史
+  副本会保留，直到一次单独授权并协调的历史重写完成。
+- CI 获得一个快速的 policy 检查任务；贡献者会得到一个本地的 pre-commit 检查。
 
-## Validation
+## 验证
 
-- Policy-check unit tests: a staged `*.csi.jsonl` fails; a synthetic fixture
-  under an allowed test path passes; the check is deterministic and offline.
-- Manual confirmation that the new ignore globs cover both active directories.
-- `bash scripts/csi-data-policy-check.sh --tracked` passes after the authorized
-  current-tree removal.
+- 策略检查的单元测试：被暂存的 `*.csi.jsonl` 会失败；一个合成夹具
+  在允许的测试路径下则通过；该检查是确定性的且可离线运行。
+- 人工确认新的忽略通配已覆盖两个活动目录。
+- `bash scripts/csi-data-policy-check.sh --tracked` 在授权后的
+  当前树移除之后通过。
