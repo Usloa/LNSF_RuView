@@ -940,101 +940,101 @@ wscat -c ws://localhost:3001/ws/sensing
 
 ---
 
-## Home Assistant + Matter integration
+## Home Assistant + Matter 集成
 
-Full design + operator guide: [`docs/integrations/home-assistant.md`](integrations/home-assistant.md) (ADR-115).
+完整设计与运维指南：[`docs/integrations/home-assistant.md`](integrations/home-assistant.md)（ADR-115）。
 
-### 30-second Mosquitto-add-on flow
+### 30 秒 Mosquitto 插件流程
 
-1. Inside Home Assistant, install the **Mosquitto broker** add-on from the Add-on Store and start it.
-2. In HA, **Settings → Devices & Services → Add Integration → MQTT**, point at the broker.
-3. Start the sensing-server with MQTT:
+1. 在 Home Assistant 内，从插件商店安装 **Mosquitto broker** 插件并启动。
+2. 在 HA 中，**Settings → Devices & Services → Add Integration → MQTT**，指向该 broker。
+3. 以 MQTT 方式启动 sensing-server：
 
    ```bash
    docker run --rm --net=host ruvnet/wifi-densepose:0.7.0 \
        --source esp32 --mqtt --mqtt-host <ha-host-ip>
    ```
-4. Within ~5 seconds HA auto-creates one **device** per RuView node with 21 entities: 11 raw signals (presence, person count, HR, BR, motion, fall, RSSI, zones, pose, …) plus 10 semantic primitives (someone-sleeping, possible-distress, room-active, elderly-inactivity-anomaly, meeting, bathroom, fall-risk, bed-exit, no-movement, multi-room-transition).
+4. 约 5 秒内，HA 会为每个 RuView 节点自动创建一个**设备**，包含 21 个实体：11 个原始信号（存在、人数、心率、呼吸率、运动、跌倒、RSSI、区域、姿态……）以及 10 个语义原语（有人在睡觉、可能遇险、房间活跃、老人久坐异常、会议、浴室、跌倒风险、离床、无运动、多房间转移）。
 
-### Privacy mode for healthcare / AAL
+### 医疗 / 适老化（AAL）场景的隐私模式
 
 ```bash
 sensing-server --mqtt --mqtt-host <broker> --mqtt-tls --privacy-mode
 ```
 
-`--privacy-mode` (env `RUVIEW_PRIVACY_MODE`) is a server-wide flag. It withholds heart rate, breathing rate, and pose keypoints from every output:
+`--privacy-mode`（环境变量 `RUVIEW_PRIVACY_MODE`）是一个服务级开关。它会从所有输出中剔除心率、呼吸率与姿态关键点：
 
-- REST responses: the fields are removed from every JSON body (`/api/v1/sensing/latest`, `/api/v1/vital-signs`, `/api/v1/edge-vitals`, `/api/v1/pose/current`, ...). `/api/v1/pose/current?view=both|refined` returns `403` with `"code": "privacy_mode"`.
-- WebSocket streams: `/ws/sensing` and `/api/v1/stream/pose` frames are filtered the same way.
-- Recordings started with `POST /api/v1/recording/start` are written already filtered.
-- MQTT and Matter: those entities are neither announced nor published.
+- REST 响应：这些字段会从每个 JSON 响应体中移除（`/api/v1/sensing/latest`、`/api/v1/vital-signs`、`/api/v1/edge-vitals`、`/api/v1/pose/current` …）。`/api/v1/pose/current?view=both|refined` 会返回 `403`，附带 `"code": "privacy_mode"`。
+- WebSocket 流：`/ws/sensing` 与 `/api/v1/stream/pose` 帧以同样方式被过滤。
+- 通过 `POST /api/v1/recording/start` 启动的录制，写入时已是被过滤后的内容。
+- MQTT 与 Matter：这些实体既不被宣告也不被发布。
 
-Presence, motion, person count, zones and the coarse posture label are still served, and semantic primitives stay published because they're inferred *states*, not biometric *values*. Some of those states (sleeping, possible distress) are derived from vitals, so they are still health-related information. Privacy mode reduces what leaves the server. It does not by itself make a deployment compliant with any regulation.
+存在、运动、人数、区域以及粗略姿态标签仍会输出，语义原语也照常发布——因为它们推断的是*状态*而非生物特征*数值*。其中部分状态（睡眠、可能遇险）源自生命体征，因此仍属健康相关信息。隐私模式只是减少了离开服务的数据，本身并不能让部署符合任何法规。
 
-### Matter Bridge (Apple Home / Google Home / Alexa / SmartThings)
+### Matter 桥接（Apple Home / Google Home / Alexa / SmartThings）
 
-Not available yet. The `--matter` and `--matter-setup-file` flags from ADR-115 are defined in the crate's library CLI, but the `sensing-server` binary doesn't accept them (`error: unexpected argument '--matter' found`), so there's no way to start the Matter bridge today. Use the MQTT integration above for Home Assistant in the meantime.
+暂不可用。ADR-115 里的 `--matter` 与 `--matter-setup-file` 标志虽在该 crate 的库级 CLI 中定义，但 `sensing-server` 二进制并不接受（`error: unexpected argument '--matter' found`），因此目前无法启动 Matter 桥接。暂请使用上文的 MQTT 集成对接 Home Assistant。
 
-Detailed entity reference, blueprint catalog, troubleshooting recipe matrix: see [`docs/integrations/home-assistant.md`](integrations/home-assistant.md).
+实体详细参考、蓝图目录、排障配方矩阵见 [`docs/integrations/home-assistant.md`](integrations/home-assistant.md)。
 
-### BFLD — privacy-gated WiFi BFI sensing layer (ADR-118)
+### BFLD —— 隐私门控的 WiFi BFI 感知层（ADR-118）
 
-The `wifi-densepose-bfld` crate adds an explicit privacy-gating layer on top of the sensing pipeline. It ingests 802.11ac/ax Beamforming Feedback Information (BFI) and emits bounded, classified sensing events that HA / Matter / MQTT consumers can read **without** leaking identity-discriminative data.
+`wifi-densepose-bfld` crate 在感知流水线上方增加了一层显式的隐私门控。它摄取 802.11ac/ax 波束成形反馈信息（BFI），并输出有界、已分类的感知事件，HA / Matter / MQTT 消费方可在**不泄露**可鉴别身份数据的前提下读取。
 
-Three structural invariants enforced by the type system:
+类型系统强制保证三项结构性不变量：
 
-- **I1** — Raw BFI never exits the node (`Sink` marker-trait hierarchy)
-- **I2** — Identity embedding is in-RAM-only (no `Serialize`/`Clone`/`Copy`; `Drop` zeroizes)
-- **I3** — Cross-site identity correlation is cryptographically impossible (per-site BLAKE3-keyed hash + daily epoch rotation)
+- **I1** —— 原始 BFI 永不离开节点（`Sink` 标记 trait 体系）
+- **I2** —— 身份嵌入仅存于内存（无 `Serialize`/`Clone`/`Copy`；`Drop` 时清零）
+- **I3** —— 跨站点身份关联在密码学上不可能（每站点 BLAKE3 密钥哈希 + 每日周期轮换）
 
-#### Minimal operator quickstart
+#### 运维者最简快速上手
 
-Two runnable examples ship with the crate:
+该 crate 自带两个可运行示例：
 
 ```bash
-# In-process consumer: build pipeline, send one frame, print event JSON
+# 进程内消费方：构建流水线、发送一帧、打印事件 JSON
 cargo run -p wifi-densepose-bfld --example bfld_minimal
 
-# Worker thread + HA-DISCO: full publish lifecycle (availability + discovery + state + LWT)
+# 工作线程 + HA-DISCO：完整发布生命周期（可用性 + 发现 + 状态 + LWT）
 cargo run -p wifi-densepose-bfld --example bfld_handle
 ```
 
-#### Production publish lifecycle (HA-DISCO + MQTT)
+#### 生产发布生命周期（HA-DISCO + MQTT）
 
 ```rust
-// Bootstrap (once at startup, retain=true messages):
+// 引导（启动时执行一次，retain=true 消息）：
 publish_availability_online(&mut retained_pub, "seed-01")?;
 publish_discovery(&mut retained_pub, "seed-01", PrivacyClass::Anonymous)?;
 
-// Per-frame:
+// 每帧：
 let handle = BfldPipelineHandle::spawn(pipeline, state_pub);
 handle.send(PipelineInput { inputs, embedding })?;
 ```
 
-Six HA entities are auto-created per node (`binary_sensor.*_bfld_presence`, `sensor.*_bfld_motion`/`person_count`/`zone_activity`/`confidence`/`identity_risk`). The `identity_risk` entity is **only present at `PrivacyClass::Anonymous`**; class `Restricted` deployments (care homes, regulated environments) drop it entirely from both discovery and state topics.
+每个节点自动创建 6 个 HA 实体（`binary_sensor.*_bfld_presence`、`sensor.*_bfld_motion`/`person_count`/`zone_activity`/`confidence`/`identity_risk`）。`identity_risk` 实体**仅在 `PrivacyClass::Anonymous` 时存在**；`Restricted` 级别部署（养老院、受监管环境）会在发现与状态主题中整体剔除它。
 
-#### Three operator HA blueprints
+#### 三个运维者 HA 蓝图
 
-Under `v2/crates/cog-ha-matter/blueprints/bfld/`:
+位于 `v2/crates/cog-ha-matter/blueprints/bfld/`：
 
-- `presence-lighting.yaml` — `binary_sensor.*_bfld_presence` ⇒ `light.turn_on/off` with configurable hold time
-- `motion-hvac.yaml` — `sensor.*_bfld_motion > threshold` ⇒ `climate.set_temperature` ΔT
-- `identity-risk-anomaly.yaml` — rolling 7-day z-score notification (requires HA Statistics helper)
+- `presence-lighting.yaml` —— `binary_sensor.*_bfld_presence` ⇒ `light.turn_on/off`，保持时长可配置
+- `motion-hvac.yaml` —— `sensor.*_bfld_motion > threshold` ⇒ `climate.set_temperature`，调整 ΔT
+- `identity-risk-anomaly.yaml` —— 滚动 7 天 z-score 告警（需要 HA Statistics 辅助实体）
 
-Import via HA UI: Settings → Automations & Scenes → Blueprints → Import.
+通过 HA 界面导入：Settings → Automations & Scenes → Blueprints → Import。
 
-#### Privacy class deployment matrix
+#### 隐私等级部署矩阵
 
-| Class | Identity fields | Use case |
+| 等级 | 身份字段 | 用途 |
 |-------|-----------------|----------|
-| `Raw` | full BFI matrix | local-only research (never networked) |
-| `Derived` | downsampled angles + risk score | operator-acknowledged LAN research mode |
-| `Anonymous` (default) | aggregate sensing only + risk score + rotating hash | production HA / Matter deployments |
-| `Restricted` | aggregate sensing only, identity fields stripped | care homes, GDPR/HIPAA-style regulated environments |
+| `Raw` | 完整 BFI 矩阵 | 仅本地研究（永不联网） |
+| `Derived` | 降采样角度 + 风险评分 | 运维者确认的局域网研究模式 |
+| `Anonymous`（默认） | 仅聚合感知 + 风险评分 + 轮换哈希 | 生产环境 HA / Matter 部署 |
+| `Restricted` | 仅聚合感知，身份字段已剥离 | 养老院、类 GDPR/HIPAA 受监管环境 |
 
-The `enable_privacy_mode()` runtime toggle on `BfldPipeline` engages `Restricted` from any baseline without restarting the pipeline — useful for security-incident response.
+`BfldPipeline` 上的 `enable_privacy_mode()` 运行时开关，可在不重启流水线的情况下从任意基线切换到 `Restricted`——适用于安全事件响应。
 
-#### MQTT topic tree
+#### MQTT 主题树
 
 ```
 ruview/<node_id>/bfld/availability         online / offline
@@ -1046,15 +1046,15 @@ ruview/<node_id>/bfld/zone_activity/state  "<zone_name>"  (if configured)
 ruview/<node_id>/bfld/identity_risk/state  0.000000..1.000000  (class 2 only)
 ```
 
-The `rumqttc 0.24` (`use-rustls`) backend ships behind the `mqtt` feature; `RumqttPublisher::connect_with_lwt(node_id, opts, capacity)` pre-configures the Last Will and Testament so the broker auto-publishes `"offline"` on session drop.
+`rumqttc 0.24`（`use-rustlis`）后端随 `mqtt` 特性一同提供；`RumqttPublisher::connect_with_lwt(node_id, opts, capacity)` 会预先配置遗嘱（Last Will and Testament），从而在会话断开时由 broker 自动发布 `"offline"`。
 
-Detailed surface: [`v2/crates/wifi-densepose-bfld/README.md`](../v2/crates/wifi-densepose-bfld/README.md), [`docs/research/BFLD/`](research/BFLD/) (11 files, 13,544 words), [ADR-118 through ADR-123](adr/ADR-118-bfld-beamforming-feedback-layer-for-detection.md).
+详见：[`v2/crates/wifi-densepose-bfld/README.md`](../v2/crates/wifi-densepose-bfld/README.md)、[`docs/research/BFLD/`](research/BFLD/)（11 个文件，13,544 词）、[ADR-118 至 ADR-123](adr/ADR-118-bfld-beamforming-feedback-layer-for-detection.md)。
 
-### SENSE-BRIDGE — rvagent MCP server for AI agents (ADR-124)
+### SENSE-BRIDGE —— 面向 AI 智能体的 rvagent MCP 服务（ADR-124）
 
-`@ruvnet/rvagent` is a dual-transport MCP server that makes RuView sensing primitives callable by Claude Code, Cursor, and ruflo swarms without bespoke HTTP client code.
+`@ruvnet/rvagent` 是一个双传输 MCP 服务，让 Claude Code、Cursor 与 ruflo 集群无需定制 HTTP 客户端代码即可调用 RuView 的感知原语。
 
-**Install (Claude Code)**:
+**安装（Claude Code）**：
 
 ```bash
 claude mcp add rvagent -- npx @ruvnet/rvagent stdio
@@ -1062,7 +1062,7 @@ claude mcp add rvagent -- npx @ruvnet/rvagent stdio
 RUVIEW_SENSING_SERVER_URL=http://cognitum-v0:3000 claude mcp add rvagent -- npx @ruvnet/rvagent stdio
 ```
 
-**Available tools (6 of 20 in v0.1.0)**:
+**可用工具（v0.1.0 共 20 个中的 6 个）**：
 
 | Tool | Returns |
 |------|---------|
@@ -1073,134 +1073,134 @@ RUVIEW_SENSING_SERVER_URL=http://cognitum-v0:3000 claude mcp add rvagent -- npx 
 | `ruview.bfld.last_scan` | `identity_risk_score`, `privacy_class`, `n_frames`, `timestamp_ms` |
 | `ruview.bfld.subscribe` | `subscription_id`, `expires_at`, `topic` (MQTT wildcard) |
 
-**Streamable HTTP** (for remote ruflo swarms):
+**可流式 HTTP**（用于远程 ruflo 集群）：
 
 ```bash
 RVAGENT_HTTP_TOKEN=secret npx @ruvnet/rvagent http --port 3001
-# POST JSON-RPC to http://127.0.0.1:3001/mcp
-# Cross-origin requests are rejected with 403; missing/wrong token → 401.
+# 向 http://127.0.0.1:3001/mcp 发送 JSON-RPC
+# 跨域请求会被 403 拒绝；token 缺失或错误 → 401。
 ```
 
-Source: [`tools/ruview-mcp/`](../tools/ruview-mcp/README.md). Tracking issue: [#787](https://github.com/ruvnet/RuView/issues/787). Full ADR: [ADR-124](adr/ADR-124-rvagent-mcp-ruvector-npm-integration.md).
+来源：[`tools/ruview-mcp/`](../tools/ruview-mcp/README.md)。跟踪 issue：[#787](https://github.com/ruvnet/RuView/issues/787)。完整 ADR：[ADR-124](adr/ADR-124-rvagent-mcp-ruvector-npm-integration.md)。
 
 ---
 
 <a id="ruview-npm-toolkit-ruvnetruview"></a>
-## RuView npm toolkit (`@ruvnet/ruview`)
+## RuView npm 工具包（`@ruvnet/ruview`）
 
-`@ruvnet/ruview` is RuView's operator toolkit on npm. It has no runtime
-dependencies and runs on Node 20+. It is tested on Windows and Linux. One tool
-registry serves:
-- a CLI;
-- an MCP server (stdio, or HTTP for ChatGPT);
-- a typed SDK;
-- a Claude Code mod.
+`@ruvnet/ruview` 是 RuView 在 npm 上的运维工具包，无任何运行时
+依赖，可运行于 Node 20+，已在 Windows 与 Linux 上测试。单个工具
+注册表同时提供：
+- 一个 CLI；
+- 一个 MCP 服务（stdio，或面向 ChatGPT 的 HTTP）；
+- 一个带类型的 SDK；
+- 一个 Claude Code 插件。
 
-Every result is honest about what it is:
-- **MEASURED** when it comes from live packets on your machine;
-- **SYNTHETIC** for simulators and self-tests;
-- **device-reported** for values a radar's own firmware computes, which are
-  not validated against a reference.
+所有结果都如实标注其来源：
+- **MEASURED**（来自本机真实数据包时）；
+- **SYNTHETIC**（模拟器与自测时）；
+- **device-reported**（雷达自带固件算出的数值，此类数值
+  未经参照基准校验）。
 
 ```bash
 npx @ruvnet/ruview@0.9.1 --help
 npx @ruvnet/ruview@0.9.1 doctor          # what works on this machine, with fixes
 ```
 
-In a terminal, commands print a formatted view. Pipes and `--json` print JSON,
-for scripts.
+在终端中，命令会打印格式化视图；通过管道或 `--json` 则打印 JSON，
+便于脚本处理。
 
 <a id="hardware-from-the-command-line"></a>
-### Hardware from the command line
+### 通过命令行操作硬件
 
-Run these on the machine the hardware is plugged into.
+请在这些命令所连硬件所在的机器上运行。
 
 ```bash
-# What is plugged in (USB VID:PID → ESP32, Realtek RTL8721Dx, radar, LiDAR)
+# 查看已接入的设备（USB VID:PID → ESP32、Realtek RTL8721Dx、雷达、LiDAR）
 npx @ruvnet/ruview@0.9.1 devices
 
-# CSI nodes streaming to this machine (UDP 5005): ESP32 ADR-018 frames and
-# Realtek RAC1 frames, per node rate, loss, RSSI and CSI shape
+# 向本机推流的 CSI 节点（UDP 5005）：ESP32 的 ADR-018 帧，以及
+# Realtek RAC1 帧，含每节点速率、丢包、RSSI 与 CSI 形态
 npx @ruvnet/ruview@0.9.1 esp32 --seconds 10
 npx @ruvnet/ruview@0.9.1 esp32 --watch                 # live view, redrawn every few seconds
 npx @ruvnet/ruview@0.9.1 esp32 --seconds 45 --analyze  # live CSI through the vitals kernel
 
-# A board's serial console, without resetting it
+# 开发板的串口控制台，且不会复位它
 npx @ruvnet/ruview@0.9.1 monitor --port COM9
 npx @ruvnet/ruview@0.9.1 monitor --port COM10 --baud 1500000   # Realtek Ameba
 
-# 60 GHz / 24 GHz radar: raw UART, or an ESPHome kit on your network
+# 60 GHz / 24 GHz 雷达：原始 UART，或你网络中的 ESPHome 套件
 npx @ruvnet/ruview@0.9.1 mmwave --port COM5 --model auto
 npx @ruvnet/ruview@0.9.1 mmwave --source esphome --host 192.168.1.50
 
-# Flash ESP32 firmware: plan first, then write with --confirm (records boot evidence)
+# 烧录 ESP32 固件：先 plan，再用 --confirm 写入（记录启动证据）
 npx @ruvnet/ruview@0.9.1 flash-plan --port COM16 --bundle firmware/esp32-csi-node/release_bins/c6-adr110 --variant c6
 npx @ruvnet/ruview@0.9.1 flash --port COM16 --bundle firmware/esp32-csi-node/release_bins/c6-adr110 --variant c6 --confirm
 ```
 
-**What the alerts mean:**
+**各告警含义：**
 
-| Alert | Meaning |
+| 告警 | 含义 |
 |---|---|
-| `heartbeat-only sender` | A board is alive but sends no CSI. On a Realtek board, run `monitor --baud 1500000`. If it shows `lack of csi buf`, the board ran out of CSI report buffers (`csi_buffer_starvation`). Reset it. |
-| `port_in_use` | The sensing server already holds UDP 5005. Stop it, or capture on another port your nodes target. |
-| `no_decodable_packets` | Packets arrived, but none were in a known RuView format. Check the sender. |
-| `seqReordered` / `seqStrays` | Out-of-order or stray sequence numbers. These are not counted as loss. |
+| `heartbeat-only sender` | 开发板在线但不发送 CSI。若是 Realtek 板，运行 `monitor --baud 1500000`；若显示 `lack of csi buf`，说明 CSI 报告缓冲区耗尽（`csi_buffer_starvation`）。请复位。 |
+| `port_in_use` | 感知服务已占用 UDP 5005。请停止它，或改用节点指向的其他端口抓包。 |
+| `no_decodable_packets` | 收到了数据包，但没有一个符合已知的 RuView 格式。请检查发送方。 |
+| `seqReordered` / `seqStrays` | 乱序或游离的序列号。这些不计入丢包。 |
 
-**ESPHome radar kits** (for example the Seeed MR60BHA2): the kit's firmware
-owns the radar, so read it over the network with `--source esphome`.
-- If the kit cannot join your WiFi, it starts a fallback hotspot. Join it and
-  set your network in its captive portal, at `http://192.168.4.1`.
-- Only private-network addresses are accepted.
-- Encrypted or password-protected ESPHome APIs are reported as unsupported.
+**ESPHome 雷达套件**（如 Seeed MR60BHA2）：套件固件
+直接掌控雷达，因此需通过 `--source esphome` 经网络读取。
+- 若套件无法接入你的 WiFi，它会启动一个应急热点。连接该热点，
+  在其强制门户 `http://192.168.4.1` 中设置你的网络。
+- 仅接受私有网络地址。
+- 加密或带密码的 ESPHome API 会被报告为不支持。
 
 <a id="mcp-for-agents-chatgpt-and-mcp-apps"></a>
-### MCP for agents, ChatGPT and MCP Apps
+### 面向智能体、ChatGPT 与 MCP 应用的 MCP
 
 ```bash
-# Claude Code, Codex or any MCP client (stdio)
+# Claude Code、Codex 或任意 MCP 客户端（stdio）
 claude mcp add ruview -- npx -y @ruvnet/ruview@0.9.1 mcp start
 
-# HTTP, for ChatGPT and remote clients
+# HTTP，用于 ChatGPT 与远程客户端
 export RUVIEW_MCP_TOKEN="$(node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))")"
 RUVIEW_MCP_GRANTS=device-access npx @ruvnet/ruview@0.9.1 mcp start --http --port 8790
 ```
 
-**Connecting ChatGPT.** Clients that can send headers use
-`Authorization: Bearer <token>`. ChatGPT connectors cannot, so:
-1. Expose the port over HTTPS, with a tunnel or reverse proxy.
-2. Add `https://<your-host>/mcp/<token>` as the connector URL.
+**接入 ChatGPT。** 能发送请求头的客户端使用
+`Authorization: Bearer <token>`。ChatGPT 连接器做不到这一点，因此：
+1. 通过隧道或反向代理以 HTTPS 暴露该端口。
+2. 将 `https://<your-host>/mcp/<token>` 添加为连接器 URL。
 
-**Least authority:**
-- Hardware tools need the `device-access` grant.
-- The HTTP transport binds to localhost by default.
-- It refuses unknown browser origins.
-- It never allows flashing or calibration, whatever grants are set.
+**最小权限原则：**
+- 硬件工具需要 `device-access` 授权。
+- HTTP 传输默认绑定到 localhost。
+- 它会拒绝未知的浏览器来源。
+- 无论授予何种权限，它都绝不允许烧录或校准。
 
-Node captures, radar reads, device scans and doctor results render in the
-**RuView console**: a widget that ChatGPT and other MCP Apps hosts show inline,
-with a Refresh button that re-runs the tool.
+节点抓包、雷达读数、设备扫描与诊断结果都会在
+**RuView 控制台**中渲染：这是 ChatGPT 及其他 MCP 应用以内联方式展示的组件，
+带有一个「刷新」按钮可重新运行该工具。
 
 <a id="claude-code-mod-live-sensing-pane"></a>
-### Claude Code mod: live sensing pane
+### Claude Code 插件：实时感知面板
 
-The package ships `ruview-live`, a Claude Code mod. `/ruview` opens a pane
-beside the conversation, refreshed on a timer, showing:
-- your CSI nodes;
-- an optional ESPHome radar;
-- alerts.
+该包附带 `ruview-live` 这一 Claude Code 插件。`/ruview` 会在对话旁打开一个面板，
+并按计时器刷新，展示：
+- 你的 CSI 节点；
+- 可选的 ESPHome 雷达；
+- 告警信息。
 
-It also keeps a status line such as `RuView · 2 nodes · radar present`.
+它还会维护一行状态，例如 `RuView · 2 nodes · radar present`。
 
-Keys `1`, `2` and `3` switch between three views (ADR-378):
-- **Overview**: the cards.
-- **CSI waterfall**: per-subcarrier amplitude over time, labelled MEASURED or
-  SYNTHETIC; `n` cycles nodes.
-- **Radar**: a range fan with an animated ping, plus heart, breathing and
-  distance charts. The values are device-reported and not validated, and the
-  kit reports range, not bearing.
+按键 `1`、`2`、`3` 在三种视图间切换（ADR-378）：
+- **概览**：卡片视图。
+- **CSI 瀑布图**：各子载波随时间的幅度，标注为 MEASURED 或
+  SYNTHETIC；按 `n` 切换节点。
+- **雷达**：带动态 ping 的距离扇形，外加心率、呼吸与
+  距离图表。这些数值为 device-reported（设备上报），未经校验，且套件
+  报告的是距离而非方位。
 
-The two live views draw in terminal cells and animate in place.
+这两个实时视图在终端单元格中绘制并就地动画。
 
 ```bash
 npx @ruvnet/ruview@0.9.1 mod           # prints the mod's path in your install and how to load it
@@ -1210,164 +1210,164 @@ claude --plugin-dir "<that path>"       # try it for one session
 #   /plugin install ruview-live@ruview
 ```
 
-| In Claude Code | Does |
+| 在 Claude Code 中 | 作用 |
 |---|---|
-| `/ruview` | Open or close the pane |
-| `/ruview refresh` | Run one capture now; the result goes in the status line |
-| `/ruview off` | Close the pane |
-| `/ruview waterfall` / `/ruview radar` | Open on that view |
+| `/ruview` | 打开或关闭面板 |
+| `/ruview refresh` | 立即执行一次抓包，结果进入状态行 |
+| `/ruview off` | 关闭面板 |
+| `/ruview waterfall` / `/ruview radar` | 以对应视图打开 |
 
-**Settings** (`claude plugin configure ruview-live`): `udpPort`, `radarHost`,
-`refreshSeconds`, `captureSeconds` and `liveRefreshSeconds` (live views,
-default 4 s).
+**设置**（`claude plugin configure ruview-live`）：`udpPort`、`radarHost`、
+`refreshSeconds`、`captureSeconds` 与 `liveRefreshSeconds`（实时视图，
+默认 4 秒）。
 
-The mod only runs the package's read-only CLI commands. Mods are early access:
-if `/ruview` is missing, start Claude Code with
-`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`.
+该插件只运行本包的只读 CLI 命令。插件尚处早期访问阶段：
+若 `/ruview` 不可用，请使用以下环境变量启动 Claude Code：
+`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`。
 
 <a id="homecore-and-the-vitals-kernel"></a>
-### Homecore and the vitals kernel
+### Homecore 与生命体征内核
 
 ```bash
 npx homecore@0.1.0 guidance --topic plugins --query Wasmtime   # Homecore developer metaharness
 npx @ruvnet/ruview-kernel@0.1.0 selftest                       # vitals pipeline as WASM (SYNTHETIC self-test)
 ```
 
-`esp32 --analyze` uses the kernel when it is installed. Its heart and breathing
-estimates carry "no reference measurement": they show the signal path works,
-not that the readings are accurate.
+`esp32 --analyze` 在安装了该内核时会调用它。其心率与呼吸
+估计附带「无参照测量」标注：它们只说明信号链路通畅，
+并不意味着读数准确。
 
-Design records:
-- [ADR-373](adr/ADR-373-host-device-access-layer.md): device access;
-- [ADR-375](adr/ADR-375-ruview-mcp-apps-console-http-transport-and-terminal-ui.md):
-  MCP Apps console, HTTP transport and terminal UI;
-- [ADR-376](adr/ADR-376-ruview-umbrella-npm-package.md): the one-install
-  `ruview` package, pending the npm name;
-- [ADR-377](adr/ADR-377-ruview-live-claude-code-mod.md): the Claude Code mod.
-- [ADR-378](adr/ADR-378-ruview-live-showcase-views.md): the mod's CSI waterfall and radar views (keys 1/2/3, `esp32 --spectrum`).
+设计记录：
+- [ADR-373](adr/ADR-373-host-device-access-layer.md)：设备访问；
+- [ADR-375](adr/ADR-375-ruview-mcp-apps-console-http-transport-and-terminal-ui.md)：
+  MCP 应用控制台、HTTP 传输与终端界面；
+- [ADR-376](adr/ADR-376-ruview-umbrella-npm-package.md)：一键安装
+  的 `ruview` 包（npm 名称待定）；
+- [ADR-377](adr/ADR-377-ruview-live-claude-code-mod.md)：Claude Code 插件。
+- [ADR-378](adr/ADR-378-ruview-live-showcase-views.md)：插件的 CSI 瀑布图与雷达视图（按键 1/2/3、`esp32 --spectrum`）。
 
 ---
 
 <a id="web-ui"></a>
-## Web UI
+## Web 界面
 
-The built-in Three.js UI is served at `http://localhost:3000/ui/` (Docker) or the configured HTTP port.
+内置的 Three.js 界面由 `http://localhost:3000/ui/`（Docker）或配置的 HTTP 端口提供。
 
-**Two visualization modes:**
+**两种可视化模式：**
 
-| Page | URL | Purpose |
+| 页面 | URL | 用途 |
 |------|-----|---------|
-| **Dashboard** | `/ui/index.html` | Tabbed monitoring dashboard with body model, signal heatmap, phase plot, vital signs |
-| **Observatory** | `/ui/observatory.html` | Immersive 3D room visualization with cinematic lighting and wireframe figures |
+| **仪表盘** | `/ui/index.html` | 带标签页的监控仪表盘，含人体模型、信号热力图、相位图、生命体征 |
+| **观测台** | `/ui/observatory.html` | 沉浸式 3D 房间可视化，带电影级光照与线框人物 |
 
-**Dashboard panels:**
+**仪表盘面板：**
 
-| Panel | Description |
+| 面板 | 说明 |
 |-------|-------------|
-| 3D Body View | Rotatable wireframe skeleton with 17 COCO keypoints |
-| Signal Heatmap | 56 subcarriers color-coded by amplitude |
-| Phase Plot | Per-subcarrier phase values over time |
-| Doppler Bars | Motion band power indicators |
-| Vital Signs | Live breathing rate (BPM) and heart rate (BPM) |
-| Dashboard | System stats, throughput, connected WebSocket clients |
+| 3D 人体视图 | 可旋转线框骨架，含 17 个 COCO 关键点 |
+| 信号热力图 | 56 个子载波按幅度着色 |
+| 相位图 | 各子载波相位随时间变化 |
+| 多普勒条 | 运动频段能量指示 |
+| 生命体征 | 实时呼吸率（BPM）与心率（BPM） |
+| 仪表盘 | 系统统计、吞吐量、已连接的 WebSocket 客户端 |
 
-Both UIs update in real-time via WebSocket and auto-detect the sensing server on the same origin.
+两个界面都通过 WebSocket 实时更新，并自动发现同源的感知服务。
 
 ---
 
-## Dense Point Cloud (Camera + WiFi CSI Fusion)
+## 稠密点云（摄像头 + WiFi CSI 融合）
 
-RuView can generate real-time 3D point clouds by fusing camera depth estimation with WiFi CSI spatial sensing. This creates a spatial model of the environment that updates in real-time.
+RuView 可通过融合摄像头深度估计与 WiFi CSI 空间感知，生成实时 3D 点云，从而构建一个实时更新的环境空间模型。
 
-### Setup
+### 环境搭建
 
 ```bash
-# Build the pointcloud binary
+# 构建 pointcloud 二进制
 cd v2
 cargo build --release -p wifi-densepose-pointcloud
 
-# Start the server (auto-detects camera + CSI). Loopback-only by default.
+# 启动服务（自动检测摄像头 + CSI）。默认仅回环。
 ./target/release/ruview-pointcloud serve --bind 127.0.0.1:9880
 ```
 
-Open `http://localhost:9880` for the interactive Three.js 3D viewer.
+打开 `http://localhost:9880` 即可使用交互式 Three.js 3D 查看器。
 
-> **Security note.** The server exposes live camera, skeleton, vitals, and occupancy over HTTP. The `--bind` flag defaults to `127.0.0.1:9880` (loopback-only). Exposing on `0.0.0.0` or a LAN IP is opt-in — the server logs a warning when it does, but there is no auth/TLS layer. Put a reverse proxy in front if you need remote access.
+> **安全提示。** 该服务通过 HTTP 暴露实时摄像头、骨架、生命体征与占用信息。`--bind` 默认值为 `127.0.0.1:9880`（仅回环）。绑定到 `0.0.0.0` 或局域网 IP 需显式开启——此时服务会记录一条警告，但没有鉴权/TLS 层。如需远程访问，请在前面加一层反向代理。
 
-> **Brain URL.** Observations are POSTed to `http://127.0.0.1:9876` by default. Override via the `RUVIEW_BRAIN_URL` environment variable or the `--brain <url>` flag on `serve` / `train`.
+> **Brain URL。** 观测数据默认以 POST 方式发往 `http://127.0.0.1:9876`。可通过 `RUVIEW_BRAIN_URL` 环境变量或 `serve` / `train` 的 `--brain <url>` 参数覆盖。
 
-### Sensors
+### 传感器
 
-| Sensor | Auto-detected | Data |
+| 传感器 | 自动检测 | 数据 |
 |--------|--------------|------|
-| Camera (`/dev/video0`) | Yes (Linux UVC) | RGB frames → MiDaS depth → 3D points |
-| ESP32 CSI (UDP:3333) | Yes (if provisioned) | ADR-018 binary → occupancy + pose + vitals |
-| MiDaS depth server (port 9885) | Optional | GPU-accelerated neural depth estimation |
+| 摄像头（`/dev/video0`） | 是（Linux UVC） | RGB 帧 → MiDaS 深度 → 3D 点 |
+| ESP32 CSI（UDP:3333） | 是（若已配网） | ADR-018 二进制 → 占用 + 姿态 + 生命体征 |
+| MiDaS 深度服务（端口 9885） | 可选 | GPU 加速的神经深度估计 |
 
-### Commands
+### 命令
 
-| Command | Description |
+| 命令 | 说明 |
 |---------|-------------|
-| `ruview-pointcloud serve --bind 127.0.0.1:9880` | Start HTTP server + Three.js viewer (loopback-only by default) |
-| `ruview-pointcloud demo` | Generate synthetic point cloud (no hardware needed) |
-| `ruview-pointcloud capture --output room.ply` | Capture single frame to PLY file |
-| `ruview-pointcloud cameras` | List available cameras |
-| `ruview-pointcloud train --data-dir ./data [--brain URL]` | Depth calibration + occupancy training (writes under canonicalized `data-dir`; refuses `..` traversal) |
-| `ruview-pointcloud csi-test --count 100` | Send test CSI frames (no ESP32 needed) |
-| `ruview-pointcloud fingerprint <name> [--seconds 5]` | Record a named CSI room fingerprint for later matching |
+| `ruview-pointcloud serve --bind 127.0.0.1:9880` | 启动 HTTP 服务 + Three.js 查看器（默认仅回环） |
+| `ruview-pointcloud demo` | 生成合成点云（无需硬件） |
+| `ruview-pointcloud capture --output room.ply` | 将单帧捕获为 PLY 文件 |
+| `ruview-pointcloud cameras` | 列出可用摄像头 |
+| `ruview-pointcloud train --data-dir ./data [--brain URL]` | 深度标定 + 占用训练（写入规范化后的 `data-dir`；拒绝 `..` 越界路径） |
+| `ruview-pointcloud csi-test --count 100` | 发送测试 CSI 帧（无需 ESP32） |
+| `ruview-pointcloud fingerprint <name> [--seconds 5]` | 记录带名称的 CSI 房间指纹，供后续匹配 |
 
-### Pipeline Components
+### 流水线组件
 
-1. **ADR-018 Parser** — Decodes ESP32 CSI binary frames from UDP (magic `0xC5110001` raw CSI and `0xC5110006` feature state), extracts I/Q subcarrier amplitudes and phases. Lives in `parser.rs`; unit-tested against hand-rolled test vectors.
-2. **Pose (stub)** — 17 COCO keypoint *layout* generated by `heuristic_pose_from_amplitude` from CSI amplitude energy. This is **not** the trained WiFlow model — it is a placeholder so the viewer has a skeleton to render. Wiring to real Candle/ONNX inference from the `wifi-densepose-nn` crate is a planned follow-up.
-3. **Vital Signs** — Breathing rate from CSI phase analysis (peak counting on stable subcarrier)
-4. **Motion Detection** — CSI amplitude variance over 20 frames, triggers adaptive capture
-5. **RF Tomography** — Backprojection from per-node RSSI to 8×8×4 occupancy grid
-6. **Camera Depth** — MiDaS monocular depth (GPU) with luminance+edge fallback
-7. **Sensor Fusion** — Voxel-grid merging of camera depth + CSI occupancy
-8. **Brain Bridge** — Stores spatial observations in the ruOS brain every 60 seconds
+1. **ADR-018 解析器** —— 从 UDP 解码 ESP32 CSI 二进制帧（原始 CSI 魔数 `0xC5110001`、特征状态 `0xC5110006`），提取 I/Q 子载波幅度与相位。代码位于 `parser.rs`，并针对手写测试向量做了单元测试。
+2. **姿态（占位）** —— 由 `heuristic_pose_from_amplitude` 根据 CSI 幅度能量生成的 17 个 COCO 关键点*布局*。这**不是**训练好的 WiFlow 模型，只是一个占位，让查看器有骨架可渲染。接入 `wifi-densepose-nn` crate 的真实 Candle/ONNX 推理是后续计划。
+3. **生命体征** —— 由 CSI 相位分析得到呼吸率（在稳定子载波上做峰值计数）
+4. **运动检测** —— CSI 幅度在 20 帧内的方差，触发自适应抓拍
+5. **射频层析** —— 由各节点 RSSI 反投影到 8×8×4 占用栅格
+6. **摄像头深度** —— MiDaS 单目深度（GPU），并以亮度+边缘作为回退
+7. **传感器融合** —— 摄像头深度 + CSI 占用的体素栅格合并
+8. **Brain 桥接** —— 每 60 秒将空间观测存入 ruOS brain
 
-### API Endpoints
+### API 端点
 
-| Endpoint | Method | Returns |
+| 端点 | 方法 | 返回 |
 |----------|--------|---------|
 | `/health` | GET | `{"status": "ok"}` |
-| `/api/status` | GET | Camera, CSI, pipeline state, vitals, motion |
-| `/api/cloud` | GET | Point cloud (up to 1000 points) + pipeline data |
-| `/api/splats` | GET | Gaussian splats for Three.js rendering |
-| `/` | GET | Interactive Three.js 3D viewer |
+| `/api/status` | GET | 摄像头、CSI、流水线状态、生命体征、运动 |
+| `/api/cloud` | GET | 点云（最多 1000 点）+ 流水线数据 |
+| `/api/splats` | GET | 供 Three.js 渲染的高斯泼溅 |
+| `/` | GET | 交互式 Three.js 3D 查看器 |
 
-### Training
+### 训练
 
-The training pipeline calibrates depth estimation and occupancy detection:
+训练流水线会标定深度估计与占用检测：
 
 ```bash
 ruview-pointcloud train --data-dir ~/.local/share/ruview/training --brain http://127.0.0.1:9876
 ```
 
-This captures frames, runs depth calibration (grid search over scale/offset/gamma), trains occupancy thresholds, exports DPO preference pairs, and submits results to the ruOS brain.
+它会捕获帧、执行深度标定（对 scale/offset/gamma 做网格搜索）、训练占用阈值、导出 DPO 偏好对，并将结果提交给 ruOS brain。
 
-### Output Formats
+### 输出格式
 
-- **PLY** — Standard 3D point cloud (ASCII, with RGB color)
-- **Gaussian Splats** — JSON format for Three.js rendering
-- **Brain Memories** — Spatial observations stored as `spatial-observation`, `spatial-motion`, `spatial-vitals`
+- **PLY** —— 标准 3D 点云（ASCII，带 RGB 颜色）
+- **高斯泼溅** —— 供 Three.js 渲染的 JSON 格式
+- **Brain 记忆** —— 空间观测，存储为 `spatial-observation`、`spatial-motion`、`spatial-vitals`
 
-### Deep Room Scan
+### 深度房间扫描
 
-Capture a high-quality 3D model of the room:
+捕获房间的高质量 3D 模型：
 
 ```bash
-# Stop the live server first (frees the camera)
-# Then capture 20 frames and process with MiDaS
+# 先停止实时服务（释放摄像头）
+# 再捕获 20 帧并用 MiDaS 处理
 ruview-pointcloud capture --frames 20 --output room_model.ply
 ```
 
-Result: 40,000+ voxels at 5cm resolution, 12,000+ Gaussian splats.
+结果：5cm 分辨率下 40,000+ 体素、12,000+ 高斯泼溅。
 
-### ESP32 Provisioning for CSI
+### ESP32 的 CSI 配网
 
-To send CSI data to the pointcloud server:
+要将 CSI 数据发往 pointcloud 服务：
 
 ```bash
 python3 firmware/esp32-csi-node/provision.py \
@@ -1380,157 +1380,157 @@ python3 firmware/esp32-csi-node/provision.py \
 ---
 
 <a id="vital-sign-detection"></a>
-## Vital Sign Detection
+## 生命体征检测
 
-The system extracts breathing rate and heart rate from CSI signal fluctuations using FFT peak detection.
+系统利用 FFT 峰值检测，从 CSI 信号波动中提取呼吸率与心率。
 
-| Sign | Frequency Band | Range | Method |
+| 体征 | 频带 | 范围 | 方法 |
 |------|---------------|-------|--------|
-| Breathing | 0.1-0.5 Hz | 6-30 BPM | Bandpass filter + FFT peak |
-| Heart rate | 0.8-2.0 Hz | 40-120 BPM | Bandpass filter + FFT peak |
+| 呼吸 | 0.1-0.5 Hz | 6-30 BPM | 带通滤波 + FFT 峰值 |
+| 心率 | 0.8-2.0 Hz | 40-120 BPM | 带通滤波 + FFT 峰值 |
 
-**Requirements:**
-- CSI-capable hardware (ESP32-S3 or research NIC) for accurate readings
-- Subject within ~3-5 meters of an access point (up to ~8 m with multistatic mesh)
-- Relatively stationary subject (large movements mask vital sign oscillations)
+**要求：**
+- 支持 CSI 的硬件（ESP32-S3 或科研级网卡）以获得准确读数
+- 被测者距接入点约 3-5 米（多静态网格下可达约 8 米）
+- 被测者相对静止（大幅度动作会掩盖生命体征振荡）
 
-**Signal smoothing:** Vital sign estimates pass through a three-stage smoothing pipeline (ADR-048): outlier rejection (±8 BPM HR, ±2 BPM BR per frame), 21-frame trimmed mean, and EMA with α=0.02. This produces stable readings that hold steady for 5-10+ seconds instead of jumping every frame. See [Adaptive Classifier](#adaptive-classifier) for details.
+**信号平滑：** 生命体征估计会经过一个三阶段平滑流水线（ADR-048）：离群值剔除（每帧 ±8 BPM 心率、±2 BPM 呼吸率）、21 帧截尾均值，以及 α=0.02 的 EMA。这样得到的读数能稳定保持 5-10 秒以上，而不是逐帧跳动。详见 [自适应分类器](#adaptive-classifier)。
 
-**Simulated mode** produces synthetic vital sign data for testing.
+**模拟模式**会生成合成的生命体征数据用于测试。
 
 ---
 
 <a id="cli-reference"></a>
-## CLI Reference
+## CLI 参考
 
-The Rust sensing server binary accepts the following flags:
+Rust 感知服务二进制接受以下标志：
 
-| Flag | Default | Description |
+| 标志 | 默认值 | 说明 |
 |------|---------|-------------|
-| `--source` | `auto` | Data source: `auto`, `esp32`, `wifi`, `simulated` (alias `simulate`), `mediatek`, `qualcomm`, `realtek`, `realtek_csi`. Other values are rejected at startup |
-| `--http-port` | `8080` | HTTP port for REST API and UI |
-| `--ws-port` | `8765` | WebSocket port |
-| `--udp-port` | `5005` | UDP port for ESP32 CSI frames |
-| `--udp-bind` | `127.0.0.1` | Address the UDP receiver listens on. Use `0.0.0.0` to receive frames from nodes on your network; that also needs `--udp-allow` or `--udp-insecure-lan` |
-| `--udp-allow` | (none) | Comma-separated IPs/CIDRs allowed to send CSI frames, e.g. `192.168.1.0/24` |
-| `--udp-insecure-lan` | off | Accept frames from any source on a routable bind (the UDP data plane is not authenticated) |
-| `--ui-path` | `../ui` | Path to UI static files directory (falls back to `./ui` or `../../ui` if it doesn't exist) |
-| `--tick-ms` | `100` | Simulated frame interval (milliseconds) |
-| `--benchmark` | off | Run vital sign benchmark (1000 frames) and exit |
-| `--train` | off | Train a model from dataset |
-| `--dataset` | (none) | Path to dataset directory (MM-Fi or Wi-Pose) |
-| `--dataset-type` | `mmfi` | Dataset format: `mmfi` or `wipose` |
-| `--epochs` | `100` | Training epochs |
-| `--export-rvf` | (none) | Export a **placeholder** RVF container-format demo and exit — **not a trained model**. For a real model use `--train` (+ `--save-rvf`) or download a pretrained encoder. |
-| `--save-rvf` | (none) | Save model state to RVF on shutdown |
-| `--model` | (none) | Load a trained `.rvf` model for inference |
-| `--load-rvf` | (none) | Load model config from RVF container |
-| `--progressive` | off | Enable progressive 3-layer model loading |
+| `--source` | `auto` | 数据源：`auto`、`esp32`、`wifi`、`simulated`（别名 `simulate`）、`mediatek`、`qualcomm`、`realtek`、`realtek_csi`。其它取值在启动时会被拒绝 |
+| `--http-port` | `8080` | REST API 与 UI 的 HTTP 端口 |
+| `--ws-port` | `8765` | WebSocket 端口 |
+| `--udp-port` | `5005` | 接收 ESP32 CSI 帧的 UDP 端口 |
+| `--udp-bind` | `127.0.0.1` | UDP 接收方监听的地址。用 `0.0.0.0` 可接收来自局域网节点的帧，但还需 `--udp-allow` 或 `--udp-insecure-lan` |
+| `--udp-allow` | （无） | 允许发送 CSI 帧的逗号分隔 IP/CIDR 列表，例如 `192.168.1.0/24` |
+| `--udp-insecure-lan` | off | 在可路由绑定上接受任意来源的帧（UDP 数据面未经鉴权） |
+| `--ui-path` | `../ui` | UI 静态文件目录路径（若不存在则回退到 `./ui` 或 `../../ui`） |
+| `--tick-ms` | `100` | 模拟帧间隔（毫秒） |
+| `--benchmark` | off | 运行生命体征基准测试（1000 帧）后退出 |
+| `--train` | off | 从数据集训练模型 |
+| `--dataset` | （无） | 数据集目录路径（MM-Fi 或 Wi-Pose） |
+| `--dataset-type` | `mmfi` | 数据集格式：`mmfi` 或 `wipose` |
+| `--epochs` | `100` | 训练轮数 |
+| `--export-rvf` | （无） | 导出一个**占位**的 RVF 容器格式演示并退出——**并非训练好的模型**。要得到真实模型，请用 `--train`（+ `--save-rvf`）或下载预训练编码器。 |
+| `--save-rvf` | （无） | 关闭时把模型状态保存到 RVF |
+| `--model` | （无） | 加载训练好的 `.rvf` 模型用于推理 |
+| `--load-rvf` | （无） | 从 RVF 容器加载模型配置 |
+| `--progressive` | off | 启用渐进式三层模型加载 |
 
-### Common Invocations
+### 常见调用方式
 
 ```bash
-# Simulated mode with UI (development)
+# 模拟模式 + UI（开发用）
 ./target/release/sensing-server --source simulate --http-port 3000 --ws-port 3001 --ui-path ../ui
 
-# ESP32 hardware mode
+# ESP32 硬件模式
 ./target/release/sensing-server --source esp32 --udp-port 5005 \
   --udp-bind 0.0.0.0 --udp-allow <node-ip-or-cidr>
 
 # Windows WiFi RSSI
 ./target/release/sensing-server --source wifi --tick-ms 500
 
-# Run benchmark
+# 运行基准测试
 ./target/release/sensing-server --benchmark
 
-# Train and export model
+# 训练并导出模型
 ./target/release/sensing-server --train --dataset data/ --epochs 100 --save-rvf model.rvf
 
-# Load trained model with progressive loading
+# 以渐进式加载方式载入训练好的模型
 ./target/release/sensing-server --model model.rvf --progressive
 ```
 
 ---
 
 <a id="observatory-visualization"></a>
-## Observatory Visualization
+## 观测台可视化
 
-The Observatory is an immersive Three.js visualization that renders WiFi sensing data as a cinematic 3D experience. It features room-scale props, wireframe human figures, WiFi signal animations, and a live data HUD.
+观测台是一个沉浸式 Three.js 可视化，将 WiFi 感知数据渲染成电影级的 3D 体验，包含房间尺度道具、线框人物、WiFi 信号动画以及实时数据 HUD。
 
-**URL:** `http://localhost:3000/ui/observatory.html`
+**URL：** `http://localhost:3000/ui/observatory.html`
 
-**Features:**
+**特性：**
 
 | 特性 | 说明 |
 |---------|-------------|
-| Room scene | Furniture, walls, floor with emissive materials and 6-point lighting |
-| Wireframe figures | Up to 4 human skeletons with joint pulsation synced to breathing |
-| Signal field | Volumetric WiFi wave visualization |
-| Live HUD | Heart rate, breathing rate, confidence, RSSI, motion level |
-| Auto-detect | Automatically connects to live ESP32 data when sensing server is running |
-| Scenario cycling | 6 preset scenarios with smooth transitions (demo mode) |
+| 房间场景 | 家具、墙壁、地板采用自发光材质与 6 点光照 |
+| 线框人物 | 最多 4 个骨架，关节脉动与呼吸同步 |
+| 信号场 | 体素化 WiFi 波可视化 |
+| 实时 HUD | 心率、呼吸率、置信度、RSSI、运动强度 |
+| 自动检测 | 感知服务运行时自动连接实时 ESP32 数据 |
+| 场景循环 | 6 个预设场景平滑切换（演示模式） |
 
-**Keyboard shortcuts:**
+**键盘快捷键：**
 
-| Key | Action |
+| 按键 | 操作 |
 |-----|--------|
-| `1-6` | Switch scenario |
-| `A` | Toggle auto-cycle |
-| `P` | Pause/resume |
-| `S` | Open settings |
-| `R` | Reset camera |
+| `1-6` | 切换场景 |
+| `A` | 切换自动循环 |
+| `P` | 暂停/继续 |
+| `S` | 打开设置 |
+| `R` | 重置相机 |
 
-**Live data auto-detect:** When served by the sensing server, the Observatory probes `/health` on the same origin and automatically connects via WebSocket. The HUD badge switches from `DEMO` to `LIVE`. No configuration needed.
+**实时数据自动检测：** 当由感知服务提供时，观测台会探测同源的 `/health` 并自动通过 WebSocket 连接。HUD 徽标会从 `DEMO` 切换为 `LIVE`，无需任何配置。
 
 ---
 
 <a id="loading-the-pretrained-model-from-hugging-face"></a>
-## Loading the Pretrained Model from Hugging Face
+## 从 Hugging Face 加载预训练模型
 
-A pretrained CSI encoder + presence-detection head is published on Hugging Face at [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained). It was trained on 60,630 frames / 610,615 contrastive triplets (12.2M steps, final loss 0.065) and reports **82.3% held-out temporal-triplet accuracy** (the older "100% presence" figure was measured on a single-class recording and has been retracted) and ~164k embeddings/sec on an Apple M4 Pro.
+一个预训练的 CSI 编码器 + 存在检测头已发布于 Hugging Face 的 [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained)，基于 60,630 帧 / 610,615 组对比三元组训练（12.2M 步，最终 loss 0.065），报告 **82.3% 留出时间三元组准确率**（较早「100% 存在」数字是在单类录音上测得、已被撤回），在 Apple M4 Pro 上约 164k 嵌入/秒。
 
-> **Results & proof.** The SOTA 17-keypoint pose model is published separately at [`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose) — **82.69% torso-PCK@20** on MM-Fi (83.59% ensemble + TTA), beating MultiFormer (72.25%) and CSI2Pose (68.41%). Browse the auditable [AetherArena leaderboard Space](https://huggingface.co/spaces/ruvnet/aether-arena), the full [MM-Fi study](benchmarks/mmfi-wifi-sensing-study.md), and the [efficiency frontier](benchmarks/wifi-pose-efficiency-frontier.md). Reproduce the deterministic pipeline proof with `python archive/v1/data/proof/verify.py` (must print `VERDICT: PASS`; see [ADR-168 benchmark proof](adr/ADR-168-benchmark-proof.md) and [WITNESS-LOG-028](WITNESS-LOG-028.md)).
+> **结果与证据。** 最先进的 17 关键点姿态模型单独发布于 [`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose)——在 MM-Fi 上 **82.69% torso-PCK@20**（83.59% 集成 + TTA），超越 MultiFormer（72.25%）与 CSI2Pose（68.41%）。可查阅可审计的 [AetherArena 排行榜 Space](https://huggingface.co/spaces/ruvnet/aether-arena)、完整的 [MM-Fi 研究](benchmarks/mmfi-wifi-sensing-study.md)，以及 [效率前沿](benchmarks/wifi-pose-efficiency-frontier.md)。用 `python archive/v1/data/proof/verify.py` 复现确定性流水线证明（必须打印 `VERDICT: PASS`；参见 [ADR-168 基准证明](adr/ADR-168-benchmark-proof.md) 与 [WITNESS-LOG-028](WITNESS-LOG-028.md)）。
 
-What it ships (and what it does not):
+它包含什么（以及不包含什么）：
 
-| Capability | Status |
+| 能力 | 状态 |
 |------------|--------|
-| Presence detection (occupied / empty) | ✅ Trained head — v2 encoder reports 82.3% held-out temporal-triplet acc (v1's "100% on validation" was a single-class recording — retracted, [#882](https://github.com/ruvnet/RuView/issues/882)) |
-| 128-dim CSI embeddings (re-ID, similarity, downstream training) | ✅ Trained encoder |
-| Single-person breathing / heart-rate | ⚠️ Server still uses heuristic DSP — model does not replace this yet |
-| 17-keypoint full-body pose | 🔬 This HF bundle ships no keypoint head — but real pose weights exist elsewhere; see the tier table below |
+| 存在检测（有人 / 无人） | ✅ 已训练检测头 —— v2 编码器报告 82.3% 留出时间三元组准确率（v1 的「100% 验证准确率」为单类录音测得，已撤回，[#882](https://github.com/ruvnet/RuView/issues/882)） |
+| 128 维 CSI 嵌入（re-ID、相似度、下游训练） | ✅ 已训练编码器 |
+| 单人呼吸 / 心率 | ⚠️ 服务仍使用启发式 DSP —— 模型尚未取代它 |
+| 17 关键点全身姿态 | 🔬 此 HF 包不含关键点检测头 —— 但真实的姿态权重在别处；见下方层级表 |
 
-### Model weights: what's real, what's not
+### 模型权重：真实与不实
 
-"WiFi → pose" means three different things in this repo, at three different maturity
-levels. Read the label, not the headline ([ADR-187](adr/ADR-187-archive-v1-deprecation-honest-labeling.md)):
+在本仓库中，「WiFi → 姿态」指三种不同的事，处于三种不同的成熟度
+级别。请看标签而非标题（[ADR-187](adr/ADR-187-archive-v1-deprecation-honest-labeling.md)）：
 
-| Tier | Checkpoint(s) | Honest status |
+| 层级 | 检查点 | 如实状态 |
 |------|---------------|---------------|
-| **Real & validated** | [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained) (encoder + presence head) · [`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose) (17-keypoint pose) · `cog-person-count/count_v1` | **MEASURED / published.** Presence = 82.3% held-out temporal-triplet accuracy (the old "100% presence" figure was retracted); MM-Fi pose = 82.69% torso-PCK@20 on the `random_split` protocol. |
-| **Real but weak (honestly labeled)** | committed `v2/crates/cog-pose-estimation/cog/artifacts/pose_v1.safetensors` | First-cut on-device model. **PCK@20 = 3.0% / PCK@50 = 18.5%** on a 217-sample holdout — **below the ADR-079 target of ≥ 35%.** Learns coarse structure (`r_hip` 77% PCK@50); distal/face joints near-random. Its runtime path in `cog-pose-estimation/src/inference.rs` is still a centred-skeleton **stub returning `confidence=0`**. Full disclosure in the [cog README](../v2/crates/cog-pose-estimation/cog/README.md). Do not advertise the live single-ESP32 17-keypoint feature without this caveat. |
-| **Architecture only, no weights** | `archive/v1` `DensePoseHead` | Random `kaiming_normal_` init, **no checkpoint of any kind** (zero `.pth`/`.onnx`/`.safetensors` files under `archive/v1/`). Deprecated and superseded — see [`archive/v1/DEPRECATED.md`](../archive/v1/DEPRECATED.md). Do not expect real pose output from it. |
+| **真实且已验证** | [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained)（编码器 + 存在检测头）· [`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose)（17 关键点姿态）· `cog-person-count/count_v1` | **MEASURED / 已发布。** 存在检测 = 82.3% 留出时间三元组准确率（旧的「100% 存在」数字已撤回）；MM-Fi 姿态 = `random_split` 协议下 82.69% torso-PCK@20。 |
+| **真实但较弱（已如实标注）** | 已提交的 `v2/crates/cog-pose-estimation/cog/artifacts/pose_v1.safetensors` | 第一版设备端模型。在 217 样本留出集上 **PCK@20 = 3.0% / PCK@50 = 18.5%** —— **低于 ADR-079 设定的 ≥ 35% 目标。** 学到了粗略结构（`r_hip` 为 77% PCK@50）；远端/面部关节近乎随机。其在 `cog-pose-estimation/src/inference.rs` 中的运行时路径仍是居中骨架的**占位，返回 `confidence=0`**。完整披露见 [cog README](../v2/crates/cog-pose-estimation/cog/README.md)。宣传实时单 ESP32 17 关键点功能时务必带上此声明。 |
+| **仅架构，无权重** | `archive/v1` `DensePoseHead` | 随机 `kaiming_normal_` 初始化，**无任何检查点**（`archive/v1/` 下零个 `.pth`/`.onnx`/`.safetensors` 文件）。已弃用并被取代 —— 见 [`archive/v1/DEPRECATED.md`](../archive/v1/DEPRECATED.md)。不要期望它输出真实姿态。 |
 
-**Does it actually run, and can a single ESP32 do pose? ([#509](https://github.com/ruvnet/RuView/issues/509), [#1125](https://github.com/ruvnet/RuView/issues/1125))** Yes, it runs, and the results are reproducible: the deterministic signal-pipeline proof (`python archive/v1/data/proof/verify.py`, must print `VERDICT: PASS`), the committed pose training dump (`v2/crates/cog-pose-estimation/cog/artifacts/train_results.json`), and the auditable MM-Fi arena all back specific numbers. But a single-antenna, 56-subcarrier CSI stream at a 20-frame window does *not* carry the fine-grained spatial information the multi-antenna NIC research relies on — so the shippable pose accuracy the project stands behind today is the **MM-Fi benchmark number**, not a live single-ESP32 number. The path to a first reproducible on-device baseline (PCK@20 ≥ 35%) is tracked in [ADR-079](adr/ADR-079-camera-ground-truth-training.md) / [#645](https://github.com/ruvnet/RuView/issues/645).
+**它真的能跑吗？单个 ESP32 能做姿态吗？([#509](https://github.com/ruvnet/RuView/issues/509)、[#1125](https://github.com/ruvnet/RuView/issues/1125))** 能跑，且结果可复现：确定性的信号流水线证明（`python archive/v1/data/proof/verify.py`，必须打印 `VERDICT: PASS`）、已提交的姿态训练转储（`v2/crates/cog-pose-estimation/cog/artifacts/train_results.json`），以及可审计的 MM-Fi arena 都为具体数字提供了支撑。但单天线、56 子载波、20 帧窗口的 CSI 流*并不*携带多天线网卡研究所依赖的细粒度空间信息——因此项目目前背书的可交付姿态精度是 **MM-Fi 基准数字**，而不是实时单 ESP32 数字。通往首个可复现设备端基线（PCK@20 ≥ 35%）的路径记录在 [ADR-079](adr/ADR-079-camera-ground-truth-training.md) / [#645](https://github.com/ruvnet/RuView/issues/645)。
 
 <a id="model-and-capture-compatibility"></a>
-### Model and capture compatibility
+### 模型与采集兼容性
 
-These artifacts share a pose objective, but not an input contract or adapter format. A checkpoint
-is usable only when capture preprocessing, tensor shape, architecture, and runtime all match.
+这些制品共享同一个姿态目标，但输入契约与适配器格式并不相同。一个检查点
+只有在采集预处理、张量形状、架构与运行时全部匹配时才可用。
 
-| Artifact/path | Required input | Measured status | Live ESP32 compatibility |
+| 制品/路径 | 所需输入 | 实测状态 | 实时 ESP32 兼容性 |
 |---------------|----------------|-----------------|--------------------------|
-| MM-Fi flagship and `micro` transformer | `[N,3,114,10]` amplitude | **MEASURED** on MM-Fi `random_split`; calibration reference is Python `.npz` LoRA | No direct S3/C6 path is validated; resampling a 56-tone SISO stream does not recreate three-antenna MM-Fi input |
-| Cog `pose_v1.safetensors` | `[N,56,20]` amplitude | **MEASURED** PCK@20 = 3.0%, below the ≥35% target; cog-format LoRA is `.safetensors` | Shape matches the canonical window, but the documented live runtime remains below-target/stub and is not a reliable pose claim |
-| Viewer `heuristic_pose_from_amplitude` | live canonical amplitude | Skeleton-layout placeholder, not a trained pose model | Renders a demonstrator skeleton only; it is not pose accuracy evidence |
-| MERIDIAN automatic unlabeled calibration | proposed ~200-frame target-room capture | **PROPOSED** in ADR-027; no validated end-to-end command | Not available. The current calibration tools require paired CSI/keypoint labels and model-specific inputs |
+| MM-Fi 旗舰与 `micro` transformer | `[N,3,114,10]` 幅度 | 在 MM-Fi `random_split` 上 **MEASURED**；标定参照为 Python `.npz` LoRA | 未验证任何直接的 S3/C6 路径；对 56 音 SISO 流重采样无法重建三天线 MM-Fi 输入 |
+| Cog `pose_v1.safetensors` | `[N,56,20]` 幅度 | **MEASURED** PCK@20 = 3.0%，低于 ≥35% 目标；cog 格式 LoRA 为 `.safetensors` | 形状与规范窗口匹配，但文档化的实时运行时仍低于目标/为占位，并非可靠的姿态声明 |
+| 查看器 `heuristic_pose_from_amplitude` | 实时规范幅度 | 骨架布局占位，并非训练好的姿态模型 | 仅渲染演示骨架；不构成姿态精度证据 |
+| MERIDIAN 自动无标签标定 | 拟议的约 200 帧目标房间采集 | 在 ADR-027 中 **PROPOSED**；无已验证的端到端命令 | 不可用。当前标定工具需要配对的 CSI/关键点标签以及模型特定输入 |
 
-Calibration files are not interchangeable: `calibrate.py` targets the MM-Fi transformer, while
-`cog_calibrate.py` targets the cog conv+MLP. See the
-[calibration reference](../aether-arena/calibration/README.md) for their exact schemas.
+标定文件不可互换：`calibrate.py` 面向 MM-Fi transformer，而
+`cog_calibrate.py` 面向 cog 的 conv+MLP。参见
+[标定参考](../aether-arena/calibration/README.md) 了解其确切 schema。
 
-### Download
+### 下载
 
 ```bash
 pip install huggingface_hub
@@ -1538,7 +1538,7 @@ huggingface-cli download ruvnet/wifi-densepose-pretrained \
     --local-dir models/wifi-densepose-pretrained
 ```
 
-The download yields a small set of files (the `.rvf.jsonl` is the canonical container the sensing server reads):
+下载会得到少量文件（`.rvf.jsonl` 是感知服务读取的规范容器）：
 
 ```
 models/wifi-densepose-pretrained/
@@ -1549,17 +1549,17 @@ models/wifi-densepose-pretrained/
   config.json           # sona-lora rank=8 alpha=16, target encoder + task_heads
 ```
 
-### Using the weights
+### 使用权重
 
-The HF artifact is in **JSONL RVF** format (one JSON object per line: `metadata`, `encoder`, `lora`). What you can do with it today:
+HF 制品采用 **JSONL RVF** 格式（每行一个 JSON 对象：`metadata`、`encoder`、`lora`）。目前你可以用它做：
 
-| Consumer | Format it reads | Status |
+| 消费方 | 读取格式 | 状态 |
 |----------|-----------------|--------|
-| Python / PyTorch training pipeline | `model.safetensors` | ✅ Works — load with `safetensors.torch.load_file` |
-| RVF JSONL inspection / re-export | `model.rvf.jsonl` | ✅ Works — plain JSONL, parse line-by-line |
-| Sensing-server `--model <PATH>` flag | binary RVF (`RVFS` magic) | ⚠️ Does **not** accept the JSONL file yet — see gap below |
+| Python / PyTorch 训练流水线 | `model.safetensors` | ✅ 可用 —— 用 `safetensors.torch.load_file` 加载 |
+| RVF JSONL 检查 / 再导出 | `model.rvf.jsonl` | ✅ 可用 —— 纯 JSONL，逐行解析 |
+| 感知服务 `--model <PATH>` 标志 | 二进制 RVF（`RVFS` 魔数） | ⚠️ 暂**不**接受 JSONL 文件 —— 见下文缺口 |
 
-**Known gap (tracked):** `v2/crates/wifi-densepose-sensing-server/src/rvf_container.rs` only parses the binary RVF segment format (magic `0x52564653`). Pointing `--model` at `model.rvf.jsonl` causes the progressive loader to error with `invalid magic at offset 0: expected 0x52564653, got 0x7974227B` (`0x7974227B` is the ASCII bytes `{"ty…` from the JSONL header), and the live pipeline degrades to null output rather than falling back to heuristic mode. Until a JSONL adapter lands (or the model is re-published as binary RVF), run the sensing-server **without** `--model` and consume the HF weights from Python or the training pipeline.
+**已知缺口（已跟踪）：** `v2/crates/wifi-densepose-sensing-server/src/rvf_container.rs` 只解析二进制 RVF 段格式（魔数 `0x52564653`）。把 `--model` 指向 `model.rvf.jsonl` 会让渐进式加载器报错 `invalid magic at offset 0: expected 0x52564653, got 0x7974227B`（`0x7974227B` 是 JSONL 头的 ASCII 字节 `{"ty…`），且实时流水线会退化为空输出，而不是回退到启发式模式。在 JSONL 适配器落地（或模型重新发布为二进制 RVF）之前，请**不带** `--model` 运行感知服务，并从 Python 或训练流水线消费 HF 权重。
 
 ```bash
 # Works today — Python side (training, evaluation, embedding extraction):
@@ -1574,66 +1574,66 @@ cargo run -p wifi-densepose-sensing-server --release -- \
     --source esp32 --udp-port 5005 --http-port 3000
 ```
 
-See [RVF Model Containers](#rvf-model-containers) for the binary format the loader expects, and [Training a Model](#training-a-model) for using the encoder as a starting point for environment-specific fine-tuning.
+加载器期望的二进制格式见 [RVF 模型容器](#rvf-model-containers)；把编码器作为环境特定微调起点的方法见 [训练模型](#training-a-model)。
 
 ---
 
 <a id="adaptive-classifier"></a>
-## Adaptive Classifier
+## 自适应分类器
 
-The adaptive classifier (ADR-048) learns your environment's specific WiFi signal patterns from labeled recordings. It replaces static threshold-based classification with a trained logistic regression model that uses 15 features (7 server-computed + 8 subcarrier-derived statistics).
+自适应分类器（ADR-048）从带标签的录音中学习你所在环境特定的 WiFi 信号模式。它用一个训练好的逻辑回归模型取代基于静态阈值的分类，该模型使用 15 个特征（7 个由服务计算 + 8 个由子载波派生的统计量）。
 
-### Signal Smoothing Pipeline
+### 信号平滑流水线
 
-All CSI-derived metrics pass through a three-stage pipeline before reaching the UI:
+所有 CSI 派生的指标在到达 UI 之前，都要经过一个三阶段流水线：
 
-| Stage | What It Does | Key Parameters |
+| 阶段 | 作用 | 关键参数 |
 |-------|-------------|----------------|
-| **Adaptive baseline** | Learns quiet-room noise floor, subtracts drift | α=0.003, 50-frame warm-up |
-| **EMA + median filter** | Smooths motion score and vital signs | Motion α=0.15; Vitals: 21-frame trimmed mean, α=0.02 |
-| **Hysteresis debounce** | Prevents rapid state flickering | 4 frames (~0.4s) required for state transition |
+| **自适应基线** | 学习安静房间的噪声基底，扣除漂移 | α=0.003，50 帧预热 |
+| **EMA + 中值滤波** | 平滑运动分数与生命体征 | 运动 α=0.15；生命体征：21 帧截尾均值，α=0.02 |
+| **滞回去抖** | 防止状态快速闪烁 | 状态切换需 4 帧（约 0.4 秒） |
 
-Vital signs use additional stabilization:
+生命体征另有额外的稳定措施：
 
-| Parameter | Value | Effect |
+| 参数 | 值 | 作用 |
 |-----------|-------|--------|
-| HR dead-band | ±2 BPM | Prevents micro-drift |
-| BR dead-band | ±0.5 BPM | Prevents micro-drift |
-| HR max jump | 8 BPM/frame | Rejects noise spikes |
-| BR max jump | 2 BPM/frame | Rejects noise spikes |
+| 心率死区 | ±2 BPM | 防止微漂移 |
+| 呼吸死区 | ±0.5 BPM | 防止微漂移 |
+| 心率最大跳变 | 8 BPM/帧 | 剔除噪声尖峰 |
+| 呼吸最大跳变 | 2 BPM/帧 | 剔除噪声尖峰 |
 
 <a id="recording-training-data"></a>
-### Recording Training Data
+### 录制训练数据
 
-Record labeled CSI sessions while performing distinct activities. Each recording captures full sensing frames (features + raw subcarrier amplitudes) at ~10-25 FPS.
+在进行不同活动时录制带标签的 CSI 会话。每次录制会以约 10-25 FPS 捕获完整的感知帧（特征 + 原始子载波幅度）。
 
 ```bash
-# 1. Record empty room (leave the room for 30 seconds)
+# 1. 录制空房间（离开房间 30 秒）
 curl -X POST http://localhost:3000/api/v1/recording/start \
   -H "Content-Type: application/json" -d '{"id":"train_empty_room"}'
 # ... wait 30 seconds ...
 curl -X POST http://localhost:3000/api/v1/recording/stop
 
-# 2. Record sitting still (sit near ESP32 for 30 seconds)
+# 2. 录制静坐（在 ESP32 旁坐 30 秒）
 curl -X POST http://localhost:3000/api/v1/recording/start \
   -H "Content-Type: application/json" -d '{"id":"train_sitting_still"}'
 # ... wait 30 seconds ...
 curl -X POST http://localhost:3000/api/v1/recording/stop
 
-# 3. Record walking (walk around the room for 30 seconds)
+# 3. 录制走动（在房间内走动 30 秒）
 curl -X POST http://localhost:3000/api/v1/recording/start \
   -H "Content-Type: application/json" -d '{"id":"train_walking"}'
 # ... wait 30 seconds ...
 curl -X POST http://localhost:3000/api/v1/recording/stop
 
-# 4. Record active movement (jumping jacks, arm waving for 30 seconds)
+# 4. 录制主动运动（开合跳、挥臂 30 秒）
 curl -X POST http://localhost:3000/api/v1/recording/start \
   -H "Content-Type: application/json" -d '{"id":"train_active"}'
 # ... wait 30 seconds ...
 curl -X POST http://localhost:3000/api/v1/recording/stop
 ```
 
-Recordings are saved as JSONL files in `recordings/` under the server's `--data-dir` (default `data`, so `data/recordings/` relative to the directory the server was started from). Filenames must start with `train_` and contain a class keyword:
+录音以 JSONL 文件保存在服务 `--data-dir` 下的 `recordings/` 目录中（默认 `data`，即相对于服务启动目录的 `data/recordings/`）。文件名须以 `train_` 开头并包含类别关键字：
 
 | Filename pattern | Class |
 |-----------------|-------|
@@ -1643,122 +1643,122 @@ Recordings are saved as JSONL files in `recordings/` under the server's `--data-
 | `*active*` or `*exercise*` | active |
 
 <a id="training-the-model"></a>
-### Training the Model
+### 训练模型
 
-Train the adaptive classifier from your labeled recordings:
+用你的带标签录音训练自适应分类器：
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/adaptive/train
 ```
 
-The server trains a multiclass logistic regression on 15 features using mini-batch SGD (200 epochs). Training completes in under 1 second for typical recording sets. The trained model is saved to `adaptive_model.json` in the `--data-dir` (default `data/adaptive_model.json`) and automatically loaded on server restart.
+服务使用 mini-batch SGD（200 轮）在 15 个特征上训练一个多类逻辑回归。对典型录音集，训练在 1 秒内完成。训练好的模型保存到 `--data-dir` 下的 `adaptive_model.json`（默认 `data/adaptive_model.json`），并在服务重启时自动加载。
 
-**Check model status:**
+**查看模型状态：**
 
 ```bash
 curl http://localhost:3000/api/v1/adaptive/status
 ```
 
-**Unload the model (revert to threshold-based classification):**
+**卸载模型（回退到阈值分类）：**
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/adaptive/unload
 ```
 
 <a id="using-the-trained-model"></a>
-### Using the Trained Model
+### 使用训练好的模型
 
-Once trained, the adaptive model runs automatically:
+一旦训练完成，自适应模型会自动运行：
 
-1. Each CSI frame is classified using the learned weights instead of static thresholds
-2. Model confidence is blended with smoothed threshold confidence (70/30 split)
-3. The model persists across server restarts (loaded from `<data-dir>/adaptive_model.json`)
+1. 每帧 CSI 不再使用静态阈值，而是用学习到的权重分类
+2. 模型置信度与平滑后的阈值置信度混合（70/30 分配）
+3. 模型跨服务重启保持存在（从 `<data-dir>/adaptive_model.json` 加载）
 
-**Tips for better accuracy:**
+**提高准确度的建议：**
 
-- Record with clearly distinct activities (actually leave the room for "empty")
-- Record 30-60 seconds per activity (more data = better model)
-- Re-record and retrain if you move the ESP32 or rearrange the room
-- The model is environment-specific — retrain when the physical setup changes
+- 录制活动时要明确区分（“空房间”就真的离开房间）
+- 每项活动录制 30-60 秒（数据越多模型越好）
+- 若移动 ESP32 或重新布置房间，请重新录制并训练
+- 模型与特定环境绑定 —— 物理布置变动时需重新训练
 
-### Adaptive Classifier API
+### 自适应分类器 API
 
-| Method | Endpoint | Description |
+| 方法 | 端点 | 说明 |
 |--------|----------|-------------|
-| `POST` | `/api/v1/adaptive/train` | Train from `train_*` recordings |
-| `GET` | `/api/v1/adaptive/status` | Model status, accuracy, class stats |
-| `POST` | `/api/v1/adaptive/unload` | Unload model, revert to thresholds |
-| `POST` | `/api/v1/recording/start` | Start recording CSI frames |
-| `POST` | `/api/v1/recording/stop` | Stop recording |
-| `GET` | `/api/v1/recording/list` | List recordings |
+| `POST` | `/api/v1/adaptive/train` | 从 `train_*` 录音训练 |
+| `GET` | `/api/v1/adaptive/status` | 模型状态、准确率、类别统计 |
+| `POST` | `/api/v1/adaptive/unload` | 卸载模型，回退到阈值 |
+| `POST` | `/api/v1/recording/start` | 开始录制 CSI 帧 |
+| `POST` | `/api/v1/recording/stop` | 停止录制 |
+| `GET` | `/api/v1/recording/list` | 列出录音 |
 
 ---
 
 <a id="world-model-prediction-occworld"></a>
-## World Model Prediction (OccWorld)
+## 世界模型预测（OccWorld）
 
-RuView integrates [OccWorld](https://github.com/wzzheng/OccWorld) (ECCV 2024) to predict
-future 3D occupancy from WiFi CSI — extending the Kalman tracker's 5-frame horizon to
-15 predicted frames (~7 s). See [ADR-147](adr/ADR-147-nvidia-cosmos-world-foundation-model-integration.md)
-and the [benchmark proof](adr/ADR-168-benchmark-proof.md) for full details.
+RuView 集成了 [OccWorld](https://github.com/wzzheng/OccWorld)（ECCV 2024）来预测
+基于 WiFi CSI 的未来 3D 占用——把 Kalman 跟踪器的 5 帧视野扩展到
+15 个预测帧（约 7 秒）。详见 [ADR-147](adr/ADR-147-nvidia-cosmos-world-foundation-model-integration.md)
+与 [基准证明](adr/ADR-168-benchmark-proof.md) 了解全部细节。
 
-**Hardware requirement:** NVIDIA GPU with ≥4 GB VRAM (validated: RTX 5080 at 209 ms / 3.4 GB).
+**硬件要求：** NVIDIA GPU，显存 ≥4 GB（已验证：RTX 5080 下 209 ms / 3.4 GB）。
 
-**Start the inference server:**
+**启动推理服务：**
 ```bash
 # Requires ml-env with PyTorch 2.7+ and mmcv/mmdet3d installed (see ADR-147 §3)
 ~/ml-env/bin/python3 scripts/occworld_server.py /tmp/occworld.sock
 ```
 
-The Rust crate `wifi-densepose-worldmodel` connects over that Unix socket and injects
-trajectory priors into the pose tracker automatically when the server is running.
+Rust crate `wifi-densepose-worldmodel` 通过该 Unix 套接字连接，并在服务运行时自动向姿态跟踪器注入
+轨迹先验。
 
-**Accumulate training data and fine-tune for your space (improves prediction accuracy):**
+**为你的空间积累训练数据并微调（提升预测精度）：**
 ```bash
-# 1. Record WorldGraph snapshots while people move through the space (~1 hour minimum)
+# 1. 当有人在空间中活动时录制 WorldGraph 快照（至少约 1 小时）
 python3 scripts/occworld_retrain.py record \
     --server http://localhost:8080 \
     --out-dir /tmp/snapshots/scene_live \
     --duration 3600
 
-# 2. Fine-tune VQVAE tokenizer on indoor occupancy
+# 2. 在室内占用上微调 VQVAE tokenizer
 python3 scripts/occworld_retrain.py vqvae \
     --snapshots /tmp/snapshots/ \
     --work-dir out/ruview_vqvae
 
-# 3. Fine-tune autoregressive transformer
+# 3. 微调自回归 transformer
 python3 scripts/occworld_retrain.py transformer \
     --snapshots /tmp/snapshots/ \
     --vqvae-checkpoint out/ruview_vqvae/latest.pth \
     --work-dir out/ruview_occworld
 
-# 4. Restart the server with your checkpoint
+# 4. 用你的检查点重启服务
 ~/ml-env/bin/python3 scripts/occworld_server.py /tmp/occworld.sock out/ruview_occworld/latest.pth
 ```
 
-`scripts/ruview_occ_dataset.py` is the domain adapter used internally by the retraining
-pipeline — it converts WorldGraph JSON snapshots to OccWorld-format tensors with indoor
-class remapping and zero ego-poses. See ADR-147 Phase 3 for details.
+`scripts/ruview_occ_dataset.py` 是重训练流水线内部使用的领域适配器，
+它将 WorldGraph JSON 快照转换为 OccWorld 格式的张量，并做室内
+类别重映射与零 ego-poses。详见 ADR-147 第三阶段。
 
 ---
 
 <a id="training-a-model"></a>
-## Training a Model
+## 训练模型
 
-The training pipeline is implemented in pure Rust (7,832 lines, zero external ML dependencies).
+训练流水线用纯 Rust 实现（7,832 行，零外部 ML 依赖）。
 
-### Step 1: Obtain a Dataset
+### 步骤 1：获取数据
 
-The system supports two public WiFi CSI datasets:
+系统支持两个公开 WiFi CSI 数据集：
 
-| Dataset | Source | Format | Subjects | Environments | Download |
+| 数据集 | 来源 | 格式 | 受试者 | 环境 | 下载 |
 |---------|--------|--------|----------|-------------|----------|
-| [MM-Fi](https://ntu-aiot-lab.github.io/mm-fi) | NeurIPS 2023 | `.npy` | 40 | 4 rooms | [GitHub repo](https://github.com/ybhbingo/MMFi_dataset) (Google Drive / Baidu links inside) |
-| [Wi-Pose](https://github.com/NjtechCVLab/Wi-PoseDataset) | Entropy 2023 | `.mat` | 12 | 1 room | [GitHub repo](https://github.com/NjtechCVLab/Wi-PoseDataset) (Google Drive / Baidu links inside) |
+| [MM-Fi](https://ntu-aiot-lab.github.io/mm-fi) | NeurIPS 2023 | `.npy` | 40 | 4 个房间 | [GitHub 仓库](https://github.com/ybhbingo/MMFi_dataset)（内含 Google Drive / 百度网盘链接） |
+| [Wi-Pose](https://github.com/NjtechCVLab/Wi-PoseDataset) | Entropy 2023 | `.mat` | 12 | 1 个房间 | [GitHub 仓库](https://github.com/NjtechCVLab/Wi-PoseDataset)（内含 Google Drive / 百度网盘链接） |
 
-Download the dataset files and place them in a `data/` directory.
+下载数据集文件并放入 `data/` 目录。
 
-### Step 2: Train
+### 步骤 2：训练
 
 ```bash
 # 从源码运行
@@ -1774,199 +1774,199 @@ docker run --rm \
   --train --dataset /data --epochs 100 --save-rvf /output/model.rvf
 ```
 
-The pipeline runs 10 phases:
-1. Dataset loading (MM-Fi `.npy` or Wi-Pose `.mat`)
-2. Hardware normalization (Intel 5300 / Atheros / ESP32 -> canonical 56 subcarriers)
-3. Subcarrier resampling (114->56 or 30->56 via Catmull-Rom interpolation)
-4. Graph transformer construction (17 COCO keypoints, 16 bone edges)
-5. Cross-attention training (CSI features -> body pose)
-6. Experimental domain-adversarial components (MERIDIAN research modules; not a validated automatic deployment path)
-7. Composite loss optimization (MSE + CE + UV + temporal + bone + symmetry)
-8. SONA adaptation (micro-LoRA + EWC++)
-9. Sparse inference optimization (hot/cold neuron partitioning)
-10. RVF model packaging
+流水线运行 10 个阶段：
+1. 数据集加载（MM-Fi `.npy` 或 Wi-Pose `.mat`）
+2. 硬件归一化（Intel 5300 / Atheros / ESP32 → 规范 56 子载波）
+3. 子载波重采样（通过 Catmull-Rom 插值，114→56 或 30→56）
+4. 图 transformer 构建（17 个 COCO 关键点、16 条骨骼边）
+5. 交叉注意力训练（CSI 特征 → 身体姿态）
+6. 实验性域对抗组件（MERIDIAN 研究模块；非已验证的自动部署路径）
+7. 复合损失优化（MSE + CE + UV + 时序 + 骨骼 + 对称）
+8. SONA 适配（micro-LoRA + EWC++）
+9. 稀疏推理优化（热/冷神经元划分）
+10. RVF 模型打包
 
-### Step 3: Use the Trained Model
+### 步骤 3：使用训练好的模型
 
 ```bash
 ./target/release/sensing-server --model model.rvf --progressive --source esp32 \
   --udp-bind 0.0.0.0 --udp-allow <node-ip-or-cidr>
 ```
 
-Progressive loading enables instant startup (Layer A loads in <5ms with basic inference), with full model loading in the background.
+渐进式加载可实现即时启动（层 A 在 <5ms 内完成基础推理），完整模型在后台加载。
 
-### Cross-Environment Adaptation (MERIDIAN)
+### 跨环境适配（MERIDIAN）
 
-Models trained in one room can lose substantial accuracy in a new room because the multipath
-distribution changes. ADR-027 proposes an automatic adaptation design, and the Rust tree contains
-individual research components, but RuView does **not** currently provide a validated command that
-turns ~200 unlabeled frames into a working room adapter.
+在一个房间训练的模型，到了新房间可能因多径
+分布改变而显著掉点。ADR-027 提出了自动适配设计，Rust 代码树中也包含
+各自独立的研究组件，但 RuView 目前**并未**提供一条已验证的命令，能把
+约 200 帧无标签数据变成一个可用的房间适配器。
 
-Current, testable calibration is the separate **labeled** reference in
-`aether-arena/calibration/`: collect paired CSI/keypoint samples, then fit a model-specific LoRA
-adapter. The MM-Fi transformer expects `[N,3,114,10]`; the cog expects `[N,56,20]`. Neither adapter
-loads into the other model, and neither result establishes live ESP32 pose accuracy without a
-leakage-free held-out capture and mean-pose baseline.
+当前可测试标定是独立的**带标签**参考，位于
+`aether-arena/calibration/`：收集配对的 CSI/关键点样本，再拟合一个模型特定的 LoRA
+适配器。MM-Fi transformer 期望 `[N,3,114,10]`；cog 期望 `[N,56,20]`。两个适配器
+都不能载入对方模型，且在没有无泄漏的留出采集与均值姿态基线的情况下，两者都无法
+确立实时 ESP32 姿态精度。
 
-ADR-027 research components:
+ADR-027 研究组件：
 
-| Component | What it does |
+| 组件 | 作用 |
 |-----------|-------------|
-| Hardware Normalizer | Resamples any WiFi chipset to canonical 56 subcarriers |
-| Domain Factorizer | Separates pose-relevant from room-specific features |
-| Geometry Encoder | Encodes AP positions (FiLM conditioning with DeepSets) |
-| Virtual Augmentor | Generates synthetic environments for robust training |
-| Rapid Adaptation | Proposed unlabeled contrastive TTT; not wired as a validated deployment workflow |
+| 硬件归一化器 | 将任意 WiFi 芯片重采样到规范 56 子载波 |
+| 域分解器 | 分离姿态相关特征与房间特定特征 |
+| 几何编码器 | 编码 AP 位置（基于 DeepSets 的 FiLM 条件化） |
+| 虚拟增强器 | 生成合成环境以增强训练鲁棒性 |
+| 快速适配 | 提出的无标签对比式 TTT；尚未接入已验证的部署流程 |
 
-See [ADR-027](adr/ADR-027-cross-environment-domain-generalization.md) for the full design.
+完整设计见 [ADR-027](adr/ADR-027-cross-environment-domain-generalization.md)。
 
 <a id="crv-signal-line-protocol"></a>
-### CRV Signal-Line Protocol
+### CRV 信号线协议
 
-The CRV (Coordinate Remote Viewing) signal-line protocol (ADR-033) maps a 6-stage cognitive sensing methodology onto WiFi CSI processing. This enables structured anomaly classification and multi-person disambiguation.
+CRV（Coordinate Remote Viewing，坐标式远程感知）信号线协议（ADR-033）将一套 6 阶段认知感知方法论映射到 WiFi CSI 处理上，从而实现结构化的异常分类与多人消歧。
 
-| Stage | CRV Term | WiFi Mapping |
+| 阶段 | CRV 术语 | WiFi 映射 |
 |-------|----------|-------------|
-| I | Gestalt | Detrended autocorrelation → periodicity / chaos / transient classification |
-| II | Sensory | 6-modality CSI feature encoding (texture, temperature, luminosity, etc.) |
-| III | Topology | AP mesh topology graph with link quality weights |
-| IV | Coherence | Phase phasor coherence gate (Accept/PredictOnly/Reject/Recalibrate) |
-| V | Interrogation | Person-specific signal extraction with targeted subcarrier selection |
-| VI | Partition | Multi-person partition with cross-room convergence scoring |
+| I | Gestalt（完形） | 去趋势自相关 → 周期性 / 混沌 / 瞬态分类 |
+| II | Sensory（感官） | 6 模态 CSI 特征编码（纹理、温度、亮度等） |
+| III | Topology（拓扑） | 带链路质量权重的 AP 网格拓扑图 |
+| IV | Coherence（相干） | 相位相量相干门（Accept/PredictOnly/Reject/Recalibrate） |
+| V | Interrogation（探询） | 通过定向子载波选择提取个人特定信号 |
+| VI | Partition（划分） | 多人划分并做跨房间收敛评分 |
 
 ```bash
-# Enable CRV in your Cargo.toml
+# 在你的 Cargo.toml 中启用 CRV
 cargo add wifi-densepose-ruvector --features crv
 ```
 
-See [ADR-033](adr/ADR-033-crv-signal-line-sensing-integration.md) for the full design.
+完整设计见 [ADR-033](adr/ADR-033-crv-signal-line-sensing-integration.md)。
 
 ---
 
 <a id="rvf-model-containers"></a>
-## RVF Model Containers
+## RVF 模型容器
 
-The RuVector Format (RVF) packages a trained model into a single self-contained binary file.
+RuVector 格式（RVF）将训练好的模型打包为单一自包含二进制文件。
 
-### Export
+### 导出
 
 ```bash
 ./target/release/sensing-server --export-rvf model.rvf
 ```
 
-### Load
+### 加载
 
 ```bash
 ./target/release/sensing-server --model model.rvf --progressive
 ```
 
-### Contents
+### 内容
 
-An RVF file contains: model weights, HNSW vector index, quantization codebooks, SONA adaptation profiles, Ed25519 training proof, and vital sign filter parameters.
+RVF 文件包含：模型权重、HNSW 向量索引、量化码本、SONA 适配配置、Ed25519 训练证明，以及生命体征滤波参数。
 
-### Deployment Targets
+### 部署目标
 
-| Target | Quantization | Size | Load Time |
+| 目标 | 量化 | 大小 | 加载时间 |
 |--------|-------------|------|-----------|
 | ESP32 / IoT | int4 | ~0.7 MB | <5ms |
-| Mobile / WASM | int8 | ~6-10 MB | ~200-500ms |
-| Field (WiFi-Mat) | fp16 | ~62 MB | ~2s |
-| Server / Cloud | f32 | ~50+ MB | ~3s |
+| 移动端 / WASM | int8 | ~6-10 MB | ~200-500ms |
+| 现场（WiFi-Mat） | fp16 | ~62 MB | ~2s |
+| 服务 / 云端 | f32 | ~50+ MB | ~3s |
 
 ---
 
-## Perception Certificate Spine (Developer Preview, ADR-300)
+## 感知证书链（开发者预览，ADR-300）
 
-RuView's perception substrate program (ADR-300) is building a `signal → observation →
-calibration → inference → uncertainty → evidence → certificate → policy → governed
-action` pipeline, where a downstream consumer either gets a calibrated, provenance-backed
-answer or an explicit `UNKNOWN` — never a confident-looking guess outside the sensor's
-proven operating envelope.
+RuView 的感知基底程序（ADR-300）正在构建一条 `signal → observation →
+标定 → 推理 → 不确定性 → 证据 → 证书 → 策略 →
+governed action`（受治理动作）流水线，下游消费者要么得到一份经过标定、带溯源背书的
+答案，要么得到明确的 `UNKNOWN`——绝不会在传感器
+既有工作包络之外给出看似可信的猜测。
 
-**Status: developer preview, now wired at the crate level.** Phase 1 shipped nine new
-crates. `ruview-certify` and `ruview-policy` now depend on `ruview-ood` and provide a
-real adapter (`impl From<ruview_ood::DomainState> for _`) plus a composed entry point,
-`ruview_policy::authorize_from_certificate`, that takes a real signed
-`CapabilityCertificate` and a real `ruview_ood::DomainState` and drives them through
-`authorize()` — not a hand-built `AssuranceInputs`. A cross-crate integration test
-(`ruview-policy`'s `acceptance_test_b_real_integration` module) mints an actual signed
-certificate and proves a real post-drift `Unknown` denies a `SafetyCritical` action
-through that one composed pipeline.
+**状态：开发者预览，已于 crate 级别接通。** 第一阶段交付了 9 个新
+crate。`ruview-certify` 与 `ruview-policy` 现在依赖 `ruview-ood`，并提供一个
+真正的适配器（`impl From<ruview_ood::DomainState> for _`）以及一个组合入口点，
+`ruview_policy::authorize_from_certificate`，它接受一个真实签名的
+`CapabilityCertificate` 与一个真实的 `ruview_ood::DomainState`，并驱动它们通过
+`authorize()`——而非手工拼凑的 `AssuranceInputs`。一个跨 crate 集成测试
+（`ruview-policy` 的 `acceptance_test_b_real_integration` 模块）会签发一个真实签名的
+证书，并证明在真实漂移后 `Unknown` 会拒绝一个 `SafetyCritical`（安全关键）动作
+——且是经由那一条组合流水线完成的。
 
-**What's still not done:** none of this runs automatically inside the live
-`sensing-server` request path yet — there is no continuous calibration/OOD-monitoring
-loop wired into the running server that calls this pipeline on live sensor data. Treat
-`authorize_from_certificate` as a real, tested library entry point you can call from your
-own integration today, not something the server invokes for you on every request yet.
-That remaining step is a genuinely separate, larger effort (deciding polling cadence,
-where calibration state lives, what triggers re-certification) — see ADR-300 for the
-phased plan.
+**仍有未竟之事：** 这些都不会在实时
+`sensing-server` 请求路径中自动运行——目前没有一条接入运行中服务、能对实时传感器数据
+调用该流水线的持续标定 / OOD 监控循环。请将
+`authorize_from_certificate` 视为一个真实、经过测试的库级入口点，你今天就可以从自己的
+集成里调用，而不是服务为你每次请求自动调用的东西。
+这剩下的一步是真正独立、更大的工程（决定轮询节奏、
+标定状态存于何处、什么触发重新认证）——详见 ADR-300 的
+分阶段计划。
 
-### The crates
+### 相关 crate
 
-| Crate | Role |
+| Crate | 角色 |
 |---|---|
-| `ruview-ontology` | Canonical `Site → … → Event` types |
-| `ruview-attest` | Signed measurement / RF chain-of-custody |
-| `ruview-evidence` | Append-only per-context ledger (no pooling, no evidence upgrade) |
-| `wifi-densepose-calibration` | Signed, drift-invalidatable calibration certificate |
-| `ruview-ood` | `Known` / `Degraded` / `Unknown` staleness-guard domain gating |
-| `ruview-witness` | Hash-linked staged provenance chain |
-| `ruview-certify` | Capability certificate, conditional on a live domain signature |
-| `ruview-scorecard` | Multi-domain scorecard, worst-domain promotion gate |
-| `ruview-policy` | Fail-closed action authorization gate |
+| `ruview-ontology` | 规范的 `Site → … → Event` 类型 |
+| `ruview-attest` | 签名测量 / RF 监管链 |
+| `ruview-evidence` | 每上下文只追加账本（无合并、无证据升级） |
+| `wifi-densepose-calibration` | 签名、可作废漂移的标定证书 |
+| `ruview-ood` | `Known` / `Degraded` / `Unknown` 过期防护域门控 |
+| `ruview-witness` | 哈希链接的分级溯源链 |
+| `ruview-certify` | 能力证书，以实时域签名为条件 |
+| `ruview-scorecard` | 多域记分卡，最差域晋升门槛 |
+| `ruview-policy` | 失败关闭的动作授权门控 |
 
-### Minting and checking a certificate
+### 签发与校验证书
 
 ```rust
 use ruview_certify::{mint, CapabilityCertificate, DomainState};
 
-// `signer`, `request`, and `evidence_slice` come from your own calibration run —
+// `signer`、`request` 与 `evidence_slice` 来自你自己的标定运行 ——
 // see each crate's README for how to build them.
 let cert = mint(&signer, request, &evidence_slice)?;
 
-// A certificate is only valid at a given instant AND domain state — the same
-// signed certificate is rejected the moment the live domain degrades:
+// 证书只在特定瞬间**且**特定域状态下有效 —— 同一份
+// 签名证书，一旦实时域降级便立即被拒绝：
 assert!(cert.is_valid(now_ms, DomainState::Known));
 assert!(!cert.is_valid(now_ms, DomainState::Degraded));
 assert!(!cert.is_valid(now_ms, DomainState::Unknown));
 ```
 
-### Gating an action from a real certificate + a real OOD reading
+### 基于真实证书 + 真实 OOD 读数门控动作
 
 ```rust
 use ruview_policy::authorize_from_certificate;
 
-// `cert` (ruview_certify::CapabilityCertificate) and `domain`
-// (ruview_ood::DomainState) come from your own certify/OOD calls.
+// `cert`（ruview_certify::CapabilityCertificate）与 `domain`
+// （ruview_ood::DomainState）来自你自己的 certify/OOD 调用。
 let decision = authorize_from_certificate(
     ActionClass::SafetyCritical,
     &cert, &verifier, now_unix_s, domain,
     certificate_class, uncertainty, evidence_level,
 );
-// Deny with a named FailedCondition (e.g. DomainNotKnown) — not a silent
-// false-positive — the moment `domain` degrades, even though `cert` itself
-// is still validly signed and unexpired.
+// 以具名的 FailedCondition（如 DomainNotKnown）拒绝 —— 而非静默的
+// 误报 —— 一旦 `domain` 降级，即便 `cert` 本身
+// 仍有效签名且未过期，也会被拒绝。
 ```
 
-`ruview_certify::DomainState` and `ruview_policy::DomainState` are still each their own
-type (`ruview-ood`'s `Degraded`/`Unknown` additionally carry a `DomainCause`), but the
-conversion between them is no longer something you have to write yourself —
-`authorize_from_certificate` does it via the crates' own `From<ruview_ood::DomainState>`
-impls.
+`ruview_certify::DomainState` 与 `ruview_policy::DomainState` 目前仍各自是独立
+类型（`ruview-ood` 的 `Degraded`/`Unknown` 还额外携带 `DomainCause`），但
+它们之间的转换已不再需要你亲自编写 ——
+`authorize_from_certificate` 会通过各 crate 自带的 `From<ruview_ood::DomainState>`
+实现来完成。
 
-### What's genuinely enforced today, for comparison
+### 当前真正强制执行的项（对比）
 
-Not every ADR-295–296 remediation item is preview-only. Three are live now:
+并非所有 ADR-295–296 的整改项都只是预览。目前已有三项生效：
 
-- **UDP data-plane bind hardening (ADR-296)** — `sensing-server`'s `UdpSourceAllowlist`
-  is checked on every incoming packet (`main.rs`), not just defined.
-- **CSI data-incident repo controls (ADR-299)** — `scripts/csi-data-policy-check.sh`
-  runs in CI on every push/PR and fails the build on a policy violation.
-- **Synthetic-export watermarking (ADR-295)** — `start_recording` stamps a `SYNTHETIC`
-  watermark on a recording's metadata (`GET /api/v1/recordings`, the start-recording
-  response) whenever it captures while the live source is synthetic — an operator
-  browsing or scripting against recordings can't mistake generated data for a capture.
+- **UDP 数据面绑定加固（ADR-296）** —— `sensing-server` 的 `UdpSourceAllowlist`
+  会在每个入站数据包上被检查（`main.rs`），而非仅定义。
+- **CSI 数据事件仓库管控（ADR-299）** —— `scripts/csi-data-policy-check.sh`
+  在每次 push/PR 的 CI 中运行，策略违规即令构建失败。
+- **合成导出水印（ADR-295）** —— `start_recording` 会在录制元数据上加盖 `SYNTHETIC`
+  水印（当实时源为合成数据时，`GET /api/v1/recordings` 的
+  起始录制响应中均会如此）——这样操作员
+  在浏览或脚本处理录音时，就不会把生成数据误当成真实采集。
 
 ---
 
