@@ -1,41 +1,41 @@
-# ADR-036: RVF Model Training Pipeline & UI Integration
+# ADR-036：RVF 模型训练流水线与 UI 集成
 
-## Status
+## 状态
 Proposed
 
-## Date
+## 日期
 2026-03-02
 
-## Context
+## 背景
 
-The wifi-densepose system currently operates in **signal-derived** mode — `derive_pose_from_sensing()` maps aggregate CSI features (motion power, breathing rate, variance) to keypoint positions using deterministic math. This gives whole-body presence and gross motion but cannot track individual limbs.
+wifi-densepose 系统目前运行在 **signal-derived** 模式 —— `derive_pose_from_sensing()` 用确定性数学式把聚合 CSI 特征（运动功率、呼吸速率、方差）映射到关键点位置。这能给出全身存在与粗略运动，但无法跟踪单个肢体。
 
-The infrastructure for **model inference** mode exists but is disconnected:
+**model inference** 模式的基础设施已经存在，但彼此没有连通：
 
-1. **RVF container format** (`rvf_container.rs`, 1,102 lines) — a 64-byte-aligned binary format supporting model weights (`SEG_VEC`), metadata (`SEG_MANIFEST`), quantization (`SEG_QUANT`), LoRA profiles (`SEG_LORA`), contrastive embeddings (`SEG_EMBED`), and witness audit trails (`SEG_WITNESS`). Builder and reader are fully implemented with CRC32 integrity checks.
+1. **RVF 容器格式**（`rvf_container.rs`，1,102 行）—— 一种 64 字节对齐的二进制格式，支持模型权重（`SEG_VEC`）、元数据（`SEG_MANIFEST`）、量化（`SEG_QUANT`）、LoRA 配置（`SEG_LORA`）、对比嵌入（`SEG_EMBED`）与见证审计轨迹（`SEG_WITNESS`）。构建器与读取器均已完整实现，并带 CRC32 完整性校验。
 
-2. **Training crate** (`wifi-densepose-train`) — AdamW optimizer, PCK@0.2/OKS metrics, LR scheduling with warmup, early stopping, CSV logging, and checkpoint export. Supports `CsiDataset` trait with planned MM-Fi (114→56 subcarrier interpolation) and Wi-Pose (30→56 zero-pad) loaders per ADR-015.
+2. **训练 crate**（`wifi-densepose-train`）—— AdamW 优化器、PCK@0.2/OKS 指标、带预热的学习率调度、早停、CSV 日志与检查点导出。按 ADR-015 支持 `CsiDataset` trait，并计划提供 MM-Fi（114→56 子载波插值）与 Wi-Pose（30→56 补零）加载器。
 
-3. **NN inference crate** (`wifi-densepose-nn`) — ONNX Runtime backend with CPU/GPU support, dynamic tensor shapes, thread-safe `OnnxBackend` wrapper, model info inspection, and warmup.
+3. **神经网络推理 crate**（`wifi-densepose-nn`）—— 支持 CPU/GPU 的 ONNX Runtime 后端、动态张量形状、线程安全的 `OnnxBackend` 封装、模型信息检查与预热。
 
-4. **Sensing server CLI** (`--model <path>`, `--train`, `--pretrain`, `--embed`) — flags exist for model loading, training mode, and embedding extraction, but the end-to-end path from raw CSI → trained `.rvf` → live inference is not wired together.
+4. **感知服务器 CLI**（`--model <path>`、`--train`、`--pretrain`、`--embed`）—— 模型加载、训练模式与嵌入抽取的参数都已存在，但从原始 CSI → 训练好的 `.rvf` → 实时推理的端到端路径尚未接通。
 
-5. **UI gaps** — No model management, training progress visualization, LoRA profile switching, or embedding inspection. The Settings panel lacks model configuration. The Live Demo has no way to load a trained model or compare signal-derived vs model-inference output side-by-side.
+5. **UI 缺口** —— 没有模型管理、训练进度可视化、LoRA 配置切换或嵌入检查。设置面板缺少模型配置。实时演示无法加载训练好的模型，也无法并排比较信号推导与模型推理的输出。
 
-### What users need
+### 用户需要什么
 
-- A way to **collect labeled CSI data** from their own environment (self-supervised or teacher-student from camera).
-- A way to **train an .rvf model** from collected data without leaving the UI.
-- A way to **load and switch models** in the live demo, seeing the quality improvement.
-- Visibility into **training progress** (loss curves, validation PCK, early stopping).
-- **Environment adaptation** via LoRA profiles (office → home → warehouse) without full retraining.
+- 一种能在自己的环境中**采集带标签 CSI 数据**的方式（自监督，或以摄像头作教师模型）。
+- 一种无需离开 UI 就能从采集数据**训练 .rvf 模型**的方式。
+- 一种能在实时演示中**加载与切换模型**、直观看到质量提升的方式。
+- 能查看**训练进度**（损失曲线、验证 PCK、早停）。
+- 通过 LoRA 配置实现**环境适配**（办公室 → 家庭 → 仓库），无需完整重训。
 
-## Decision
+## 决策
 
-### Phase 1: Data Collection & Self-Supervised Pretraining
+### 阶段 1：数据采集与自监督预训练
 
-#### 1.1 CSI Recording API
-Add REST endpoints to the sensing server:
+#### 1.1 CSI 录制 API
+在感知服务器中增加 REST 端点：
 ```
 POST /api/v1/recording/start   { duration_secs, label?, session_name }
 POST /api/v1/recording/stop
@@ -43,26 +43,26 @@ GET  /api/v1/recording/list
 GET  /api/v1/recording/download/:id
 DELETE /api/v1/recording/:id
 ```
-- Records raw CSI frames + extracted features to `.csi.jsonl` files.
-- Optional camera-based label overlay via teacher model (Detectron2/MediaPipe on client).
-- Each recording session tagged with environment metadata (room dimensions, node positions, AP count).
+- 把原始 CSI 帧与提取出的特征记录到 `.csi.jsonl` 文件。
+- 可选的基于摄像头的标签叠加，由客户端教师模型（Detectron2/MediaPipe）生成。
+- 每个录制会话都附带环境元数据标签（房间尺寸、节点位置、AP 数量）。
 
-#### 1.2 Contrastive Pretraining (ADR-024 Phase 1)
-- Self-supervised NT-Xent loss learns a 128-dim CSI embedding without pose labels.
-- Positive pairs: adjacent frames from same person; negatives: different sessions/rooms.
-- VICReg regularization prevents embedding collapse.
-- Output: `.rvf` container with `SEG_EMBED` + `SEG_VEC` segments.
-- Training triggered via `POST /api/v1/train/pretrain { dataset_ids[], epochs, lr }`.
+#### 1.2 对比预训练（ADR-024 阶段 1）
+- 自监督 NT-Xent 损失在无需姿态标签的情况下学习 128 维 CSI 嵌入。
+- 正样本对：同一人的相邻帧；负样本：不同会话/房间。
+- VICReg 正则化防止嵌入坍塌。
+- 输出：包含 `SEG_EMBED` + `SEG_VEC` 段的 `.rvf` 容器。
+- 通过 `POST /api/v1/train/pretrain { dataset_ids[], epochs, lr }` 触发训练。
 
-### Phase 2: Supervised Training Pipeline
+### 阶段 2：监督训练流水线
 
-#### 2.1 Dataset Integration
-- **MM-Fi loader**: Parse HDF5 files, 114→56 subcarrier interpolation via `ruvector-solver` sparse least-squares.
-- **Wi-Pose loader**: Parse .mat files, 30→56 zero-padding with Hann window smoothing.
-- **Self-collected**: `.csi.jsonl` from Phase 1 recording + camera-generated labels.
-- All datasets implement `CsiDataset` trait and produce `(amplitude[B,T*links,56], phase[B,T*links,56], keypoints[B,17,2], visibility[B,17])`.
+#### 2.1 数据集集成
+- **MM-Fi 加载器**：解析 HDF5 文件，用 `ruvector-solver` 稀疏最小二乘做 114→56 子载波插值。
+- **Wi-Pose 加载器**：解析 .mat 文件，做 30→56 补零并加 Hann 窗平滑。
+- **自采集数据**：阶段 1 录制的 `.csi.jsonl` + 摄像头生成的标签。
+- 所有数据集实现 `CsiDataset` trait，产出 `(amplitude[B,T*links,56], phase[B,T*links,56], keypoints[B,17,2], visibility[B,17])`。
 
-#### 2.2 Training API
+#### 2.2 训练 API
 ```
 POST /api/v1/train/start {
   dataset_ids: string[],
@@ -82,147 +82,147 @@ GET  /api/v1/train/status        // { epoch, train_loss, val_pck, val_oks, lr, e
 WS   /ws/train/progress          // Real-time streaming of training metrics
 ```
 
-#### 2.3 RVF Export
-On training completion:
-- Best checkpoint exported as `.rvf` with `SEG_VEC` (weights), `SEG_MANIFEST` (metadata), `SEG_WITNESS` (training hash + final metrics), and optional `SEG_QUANT` (INT8 quantization).
-- Stored in `data/models/` directory, indexed by model ID.
-- `GET /api/v1/models` lists available models; `POST /api/v1/models/load { model_id }` hot-loads into inference.
+#### 2.3 RVF 导出
+训练完成时：
+- 最佳检查点导出为 `.rvf`，包含 `SEG_VEC`（权重）、`SEG_MANIFEST`（元数据）、`SEG_WITNESS`（训练哈希 + 最终指标），以及可选的 `SEG_QUANT`（INT8 量化）。
+- 存放在 `data/models/` 目录，按模型 ID 建索引。
+- `GET /api/v1/models` 列出可用模型；`POST /api/v1/models/load { model_id }` 热加载到推理流程。
 
-### Phase 3: LoRA Environment Adaptation
+### 阶段 3：LoRA 环境适配
 
-#### 3.1 LoRA Fine-Tuning
-- Given a base `.rvf` model, fine-tune only LoRA adapter weights (rank 4-16) on environment-specific recordings.
-- 5-10 minutes of labeled data from new environment suffices.
-- New LoRA profile appended to existing `.rvf` via `SEG_LORA` segment.
-- `POST /api/v1/train/lora { base_model_id, dataset_ids[], profile_name, rank: 8, epochs: 20 }`.
+#### 3.1 LoRA 微调
+- 给定一个基础 `.rvf` 模型，只用特定环境的录制数据微调 LoRA 适配器权重（rank 4-16）。
+- 新环境只需 5-10 分钟的带标签数据即可。
+- 新的 LoRA 配置通过 `SEG_LORA` 段追加到已有 `.rvf`。
+- 通过 `POST /api/v1/train/lora { base_model_id, dataset_ids[], profile_name, rank: 8, epochs: 20 }` 触发微调。
 
-#### 3.2 Profile Switching
-- `POST /api/v1/models/lora/activate { model_id, profile_name }` — hot-swap LoRA weights without reloading base model.
-- UI dropdown lists available profiles per loaded model.
+#### 3.2 配置切换
+- `POST /api/v1/models/lora/activate { model_id, profile_name }` —— 热切换 LoRA 权重，无需重新加载基础模型。
+- UI 下拉框列出当前已加载模型可用的配置。
 
-### Phase 4: UI Integration
+### 阶段 4：UI 集成
 
-#### 4.1 Model Management Panel (new: `ui/components/ModelPanel.js`)
-- **Model Library**: List loaded and available `.rvf` models with metadata (version, dataset, PCK score, size, created date).
-- **Model Inspector**: Show RVF segment breakdown — weight count, quantization type, LoRA profiles, embedding config, witness hash.
-- **Load/Unload**: One-click model loading with progress bar.
-- **Compare**: Side-by-side signal-derived vs model-inference toggle in Live Demo.
+#### 4.1 模型管理面板（新增：`ui/components/ModelPanel.js`）
+- **模型库**：列出已加载与可用的 `.rvf` 模型及其元数据（版本、数据集、PCK 得分、大小、创建日期）。
+- **模型检查器**：显示 RVF 分段明细 —— 权重数量、量化类型、LoRA 配置、嵌入配置、见证哈希。
+- **加载/卸载**：一键加载模型并显示进度条。
+- **对比**：在实时演示中并排切换信号推导与模型推理。
 
-#### 4.2 Training Dashboard (new: `ui/components/TrainingPanel.js`)
-- **Recording Controls**: Start/stop CSI recording, session list with duration and frame counts.
-- **Training Progress**: Real-time loss curve (train loss, val loss) and metric charts (PCK@0.2, OKS) via WebSocket streaming.
-- **Epoch Table**: Scrollable table of per-epoch metrics with best-epoch highlighting.
-- **Early Stopping Indicator**: Visual countdown of patience remaining.
-- **Export Button**: Download trained `.rvf` from browser.
+#### 4.2 训练仪表盘（新增：`ui/components/TrainingPanel.js`）
+- **录制控制**：开始/停止 CSI 录制，会话列表含时长与帧数。
+- **训练进度**：通过 WebSocket 流式推送实时损失曲线（训练损失、验证损失）与指标图（PCK@0.2、OKS）。
+- **Epoch 表**：可滚动的逐 epoch 指标表，高亮最佳 epoch。
+- **早停指示器**：可视化显示剩余 patience 倒计时。
+- **导出按钮**：从浏览器下载训练好的 `.rvf`。
 
-#### 4.3 Live Demo Enhancements
-- **Model Selector**: Dropdown in toolbar to switch between signal-derived and loaded `.rvf` models.
-- **LoRA Profile Selector**: Sub-dropdown showing environment profiles for the active model.
-- **Confidence Heatmap Overlay**: Per-keypoint confidence visualization when model is loaded (toggle in render mode dropdown).
-- **Pose Trail**: Ghosted keypoint history showing last N frames of motion trajectory.
-- **A/B Split View**: Left half signal-derived, right half model-inference for quality comparison.
+#### 4.3 实时演示增强
+- **模型选择器**：工具栏下拉框，在信号推导与已加载 `.rvf` 模型之间切换。
+- **LoRA 配置选择器**：二级下拉框，显示当前模型的环境配置。
+- **置信度热力图叠加**：加载模型后按关键点显示置信度（在渲染模式下拉框中切换）。
+- **姿态拖影**：半透明关键点历史，显示最近 N 帧的运动轨迹。
+- **A/B 分屏视图**：左半为信号推导，右半为模型推理，便于比较质量。
 
-#### 4.4 Settings Panel Extensions
-- **Model section**: Default model path, auto-load on startup, GPU/CPU toggle, inference threads.
-- **Training section**: Default hyperparameters, checkpoint directory, auto-export on completion.
-- **Recording section**: Default recording directory, max duration, auto-label with camera.
+#### 4.4 设置面板扩展
+- **模型区**：默认模型路径、启动时自动加载、GPU/CPU 切换、推理线程数。
+- **训练区**：默认超参数、检查点目录、完成时自动导出。
+- **录制区**：默认录制目录、最大时长、用摄像头自动打标签。
 
-#### 4.5 Dark Mode
-All new panels follow the dark mode established in ADR-035 (`#0d1117` backgrounds, `#e0e0e0` text, translucent dark panels with colored accents).
+#### 4.5 深色模式
+所有新面板沿用 ADR-035 确立的深色模式（`#0d1117` 背景、`#e0e0e0` 文字、带彩色强调的半透明深色面板）。
 
-### Phase 5: Inference Pipeline Wiring
+### 阶段 5：推理流水线接线
 
-#### 5.1 Model-Inference Pose Path
-When a `.rvf` model is loaded:
-1. CSI frame arrives (UDP or simulated).
-2. Extract amplitude + phase tensors from subcarrier data.
-3. Feed through ONNX session: `input[1, T*links, 56]` → `output[1, 17, 4]` (x, y, z, conf).
-4. Apply Kalman smoothing from `pose_tracker.rs`.
-5. Broadcast via WebSocket with `pose_source: "model_inference"`.
-6. UI Estimation Mode badge switches from green "SIGNAL-DERIVED" to blue "MODEL INFERENCE".
+#### 5.1 模型推理姿态路径
+加载 `.rvf` 模型时：
+1. CSI 帧到达（UDP 或模拟数据）。
+2. 从子载波数据抽取幅度 + 相位张量。
+3. 送入 ONNX 会话：`input[1, T*links, 56]` → `output[1, 17, 4]`（x, y, z, conf）。
+4. 应用 `pose_tracker.rs` 的卡尔曼平滑。
+5. 通过 WebSocket 广播，附带 `pose_source: "model_inference"`。
+6. UI 的 Estimation Mode 徽标由绿色 "SIGNAL-DERIVED" 切换为蓝色 "MODEL INFERENCE"。
 
-#### 5.2 Progressive Loading (ADR-031 Layer A/B/C)
-- **Layer A** (instant): Signal-derived pose starts immediately.
-- **Layer B** (5-10s): Contrastive embeddings loaded, HNSW index warm.
-- **Layer C** (30-60s): Full pose model loaded, inference active.
-- Transitions seamlessly; UI badge updates automatically.
+#### 5.2 渐进式加载（ADR-031 层 A/B/C）
+- **层 A**（即时）：信号推导姿态立即启动。
+- **层 B**（5-10s）：对比嵌入加载完成，HNSW 索引预热。
+- **层 C**（30-60s）：完整姿态模型加载完成，开始推理。
+- 各层之间无缝过渡；UI 徽标自动更新。
 
-## Consequences
+## 后果
 
-### Positive
-- Users can train a model on **their own environment** without external tools or Python dependencies.
-- LoRA profiles mean a single base model adapts to multiple rooms in minutes, not hours.
-- Training progress is visible in real-time — no black-box waiting.
-- A/B comparison lets users see the quality jump from signal-derived to model-inference.
-- RVF container bundles everything (weights, metadata, LoRA, witness) in one portable file.
-- Self-supervised pretraining requires no labels — just leave ESP32s running.
-- Progressive loading means the UI is never "loading..." — signal-derived kicks in immediately.
+### 正面
+- 用户无需外部工具或 Python 依赖，就能在**自己的环境**上训练模型。
+- LoRA 配置让单个基础模型在几分钟内适配多个房间，而不是几小时。
+- 训练进度实时可见 —— 不再是黑盒等待。
+- A/B 对比让用户看到从信号推导到模型推理的质量跃升。
+- RVF 容器把权重、元数据、LoRA、见证信息打包进一个可移植文件。
+- 自监督预训练不需要标签 —— 让 ESP32 持续运行即可。
+- 渐进式加载让 UI 永远不会停在 "loading..." —— 信号推导立即接上。
 
-### Negative
-- Training requires significant compute: GPU recommended for supervised training (CPU possible but 10-50x slower).
-- MM-Fi and Wi-Pose datasets must be downloaded separately (10-50 GB each) — cannot be bundled.
-- LoRA rank must be tuned per environment; too low loses expressiveness, too high overfits.
-- ONNX Runtime adds ~50 MB to the binary size when GPU support is enabled.
-- Real-time inference at 10 FPS requires ~10ms per frame — tight budget on CPU.
-- Teacher-student labeling (camera → pose labels → CSI training) requires camera access, which may conflict with the privacy-first premise.
+### 负面
+- 训练需要可观的算力：监督训练推荐 GPU（CPU 可行但慢 10-50 倍）。
+- MM-Fi 与 Wi-Pose 数据集需另行下载（各 10-50 GB）—— 无法随包分发。
+- LoRA rank 必须按环境调整；过低损失表达力，过高则过拟合。
+- 启用 GPU 支持时，ONNX Runtime 会让二进制体积增加约 50 MB。
+- 10 FPS 实时推理要求每帧约 10ms —— 在 CPU 上预算很紧。
+- 师生式打标签（摄像头 → 姿态标签 → CSI 训练）需要摄像头权限，可能与「隐私优先」前提冲突。
 
-### Mitigations
-- Provide pre-trained base `.rvf` model downloadable from releases (trained on MM-Fi + Wi-Pose).
-- INT8 quantization (`SEG_QUANT`) reduces model size 4x and speeds inference ~2x on CPU.
-- Camera-based labeling is **optional** — self-supervised pretraining works without camera.
-- Training API validates VRAM availability before starting GPU training; falls back to CPU with warning.
+### 缓解措施
+- 提供可从 releases 下载的预训练基础 `.rvf` 模型（在 MM-Fi + Wi-Pose 上训练）。
+- INT8 量化（`SEG_QUANT`）把模型体积缩小 4 倍，CPU 推理提速约 2 倍。
+- 基于摄像头的打标签是**可选的** —— 自监督预训练无需摄像头即可工作。
+- 训练 API 在启动 GPU 训练前校验显存；不足时回退到 CPU 并给出警告。
 
-## Implementation Order
+## 实施顺序
 
-| Phase | Effort | Dependencies | Priority |
+| 阶段 | 工作量 | 依赖 | 优先级 |
 |-------|--------|-------------|----------|
-| 1.1 CSI Recording API | 2-3 days | sensing server | High |
-| 1.2 Contrastive Pretraining | 3-5 days | ADR-024, recording API | High |
-| 2.1 Dataset Integration | 3-5 days | ADR-015, CsiDataset trait | High |
-| 2.2 Training API | 2-3 days | training crate, dataset loaders | High |
-| 2.3 RVF Export | 1-2 days | RvfBuilder | Medium |
-| 3.1 LoRA Fine-Tuning | 3-5 days | base trained model | Medium |
-| 3.2 Profile Switching | 1 day | LoRA in RVF | Medium |
-| 4.1 Model Panel UI | 2-3 days | models API | High |
-| 4.2 Training Dashboard UI | 3-4 days | training API + WS | High |
-| 4.3 Live Demo Enhancements | 2-3 days | model loading | Medium |
-| 4.4 Settings Extensions | 1 day | model/training APIs | Low |
-| 4.5 Dark Mode | 0.5 days | new panels | Low |
-| 5.1 Inference Wiring | 3-5 days | ONNX backend, pose tracker | High |
-| 5.2 Progressive Loading | 2-3 days | ADR-031 | Medium |
+| 1.1 CSI 录制 API | 2-3 天 | 感知服务器 | High |
+| 1.2 对比预训练 | 3-5 天 | ADR-024、录制 API | High |
+| 2.1 数据集集成 | 3-5 天 | ADR-015、CsiDataset trait | High |
+| 2.2 训练 API | 2-3 天 | 训练 crate、数据集加载器 | High |
+| 2.3 RVF 导出 | 1-2 天 | RvfBuilder | Medium |
+| 3.1 LoRA 微调 | 3-5 天 | 已训练的基础模型 | Medium |
+| 3.2 配置切换 | 1 天 | RVF 中的 LoRA | Medium |
+| 4.1 模型面板 UI | 2-3 天 | 模型 API | High |
+| 4.2 训练仪表盘 UI | 3-4 天 | 训练 API + WS | High |
+| 4.3 实时演示增强 | 2-3 天 | 模型加载 | Medium |
+| 4.4 设置扩展 | 1 天 | 模型/训练 API | Low |
+| 4.5 深色模式 | 0.5 天 | 新面板 | Low |
+| 5.1 推理接线 | 3-5 天 | ONNX 后端、姿态跟踪器 | High |
+| 5.2 渐进式加载 | 2-3 天 | ADR-031 | Medium |
 
-**Total estimate: 4-6 weeks** (phases can overlap; 1+2 parallel with 4).
+**总估算：4-6 周**（各阶段可重叠；1+2 与 4 并行）。
 
-## Files to Create/Modify
+## 待新建/修改的文件
 
-### New Files
-- `ui/components/ModelPanel.js` — Model library, inspector, load/unload controls
-- `ui/components/TrainingPanel.js` — Recording controls, training progress, metric charts
-- `v2/.../sensing-server/src/recording.rs` — CSI recording API handlers
-- `v2/.../sensing-server/src/training_api.rs` — Training API handlers + WS progress stream
-- `v2/.../sensing-server/src/model_manager.rs` — Model loading, hot-swap, 32LoRA activation
-- `data/models/` — Default model storage directory
+### 新建文件
+- `ui/components/ModelPanel.js` —— 模型库、检查器、加载/卸载控件
+- `ui/components/TrainingPanel.js` —— 录制控制、训练进度、指标图
+- `v2/.../sensing-server/src/recording.rs` —— CSI 录制 API 处理器
+- `v2/.../sensing-server/src/training_api.rs` —— 训练 API 处理器 + WS 进度流
+- `v2/.../sensing-server/src/model_manager.rs` —— 模型加载、热切换、32LoRA 激活
+- `data/models/` —— 默认模型存储目录
 
-### Modified Files
-- `v2/.../sensing-server/src/main.rs` — Wire recording, training, and model APIs
-- `v2/.../train/src/trainer.rs` — Add WebSocket progress callback, LoRA training mode
-- `v2/.../train/src/dataset.rs` — MM-Fi and Wi-Pose dataset loaders
-- `v2/.../nn/src/onnx.rs` — LoRA weight injection, INT8 quantization support
-- `ui/components/LiveDemoTab.js` — Model selector, LoRA dropdown, A/B spsplit view
-- `ui/components/SettingsPanel.js` — Model and training configuration sections
-- `ui/components/PoseDetectionCanvas.js` — Pose trail rendering, confidence heatmap overlay
-- `ui/services/pose.service.js` — Model-inference keypoint processing
-- `ui/index.html` — Add Training tabhee
-- `ui/style.css` — Styles for new panels 
+### 修改的文件
+- `v2/.../sensing-server/src/main.rs` —— 接通录制、训练与模型 API
+- `v2/.../train/src/trainer.rs` —— 增加 WebSocket 进度回调、LoRA 训练模式
+- `v2/.../train/src/dataset.rs` —— MM-Fi 与 Wi-Pose 数据集加载器
+- `v2/.../nn/src/onnx.rs` —— LoRA 权重注入、INT8 量化支持
+- `ui/components/LiveDemoTab.js` —— 模型选择器、LoRA 下拉框、A/B spsplit 视图
+- `ui/components/SettingsPanel.js` —— 模型与训练配置区
+- `ui/components/PoseDetectionCanvas.js` —— 姿态拖影渲染、置信度热力图叠加
+- `ui/services/pose.service.js` —— 模型推理关键点处理
+- `ui/index.html` —— 增加 Training tabhee
+- `ui/style.css` —— 新面板样式
 
-## References
-- ADR-015: MM-Fi + Wi-Pose training datasets
-- ADR-016: RuVector training pipeline integration
-- ADR-024: Project AETHER — contrastive CSI embedding model
-- ADR-029: RuvSense multistatic sensing mode
-- ADR-031: RuView sensing-first RF mode (progressive loading)
-- ADR-035: Live sensing UI accuracy & data source transparency
-- Issue: https://github.com/ruvnet/wifi-densepose/issues/92
-- RVF format: `crates/wifi-densepose-sensing-server/src/rvf_container.rs`
-- Training crate: `crates/wifi-densepose-train/src/trainer.rs`
-- NN inference: `crates/wifi-densepose-nn/src/onnx.rs`
+## 参考资料
+- ADR-015：MM-Fi + Wi-Pose 训练数据集
+- ADR-016：RuVector 训练流水线集成
+- ADR-024：Project AETHER —— 对比 CSI 嵌入模型
+- ADR-029：RuvSense 多基地感知模式
+- ADR-031：RuView 感知优先 RF 模式（渐进式加载）
+- ADR-035：实时感知 UI 准确性与数据源透明度
+- 问题：https://github.com/ruvnet/wifi-densepose/issues/92
+- RVF 格式：`crates/wifi-densepose-sensing-server/src/rvf_container.rs`
+- 训练 crate：`crates/wifi-densepose-train/src/trainer.rs`
+- 神经网络推理：`crates/wifi-densepose-nn/src/onnx.rs`

@@ -1,121 +1,121 @@
-# ADR-037: Multi-Person Pose Detection from Single ESP32 CSI Stream
+# ADR-037：基于单路 ESP32 CSI 流的多人姿态检测
 
-- **Status**: Proposed
-- **Date**: 2026-03-02
-- **Issue**: [#97](https://github.com/ruvnet/wifi-densepose/issues/97)
-- **Deciders**: @ruvnet
-- **Supersedes**: None
-- **Related**: ADR-014 (SOTA signal processing), ADR-024 (AETHER re-ID), ADR-029 (multistatic sensing), ADR-036 (RVF training pipeline)
+- **状态**：Proposed
+- **日期**：2026-03-02
+- **问题**：[#97](https://github.com/ruvnet/wifi-densepose/issues/97)
+- **决策者**：@ruvnet
+- **取代**：None
+- **相关**：ADR-014（SOTA 信号处理）、ADR-024（AETHER 重识别）、ADR-029（多基地感知）、ADR-036（RVF 训练流水线）
 
-## Context
+## 背景
 
-The current signal-derived pose estimation pipeline (`derive_pose_from_sensing()` in the sensing server) generates at most one skeleton per frame from aggregate CSI features. When multiple people are present, only a single blended skeleton is produced. Live testing with ESP32 hardware confirmed: 2 people in the room yields 1 detected person.
+当前的信号推导姿态估计流水线（感知服务器中的 `derive_pose_from_sensing()`）从聚合 CSI 特征每帧最多生成一个骨架。多人在场时，只会得到一个混合骨架。ESP32 硬件实测确认：房间内有 2 人时只检测到 1 人。
 
-A single ESP32 node provides 1 TX × 1 RX × 56 subcarriers of CSI data per frame. While this is limited spatial resolution compared to camera-based systems, the signal contains composite reflections from all scatterers in the environment. The challenge is decomposing these composite signals into per-person contributions.
+单个 ESP32 节点每帧提供 1 TX × 1 RX × 56 子载波的 CSI 数据。相比摄像头系统其空间分辨率有限，但信号中包含环境中所有散射体的复合反射。难点在于把这些复合信号分解为每个人的贡献。
 
-## Decision
+## 决策
 
-Implement multi-person pose detection in four phases, progressively improving accuracy from heuristic to neural approaches.
+分四个阶段实现多人姿态检测，从启发式方法逐步过渡到神经网络方法，持续提升准确率。
 
-### Phase 1: Person Count Estimation
+### 阶段 1：人数估计
 
-Estimate occupancy count from CSI signal statistics without decomposition.
+不做分解，直接从 CSI 信号统计量估计在场人数。
 
-**Approach**: Eigenvalue analysis of the CSI covariance matrix across subcarriers.
+**方案**：对跨子载波的 CSI 协方差矩阵做特征值分析。
 
-- Compute the 56×56 covariance matrix of CSI amplitudes over a sliding window (e.g., 50 frames / 5 seconds)
-- Count eigenvalues above a noise threshold — each significant eigenvalue corresponds to an independent scatterer (person or static object)
-- Subtract the static environment baseline (estimated during calibration or from the field model's SVD eigenstructure)
-- The residual significant eigenvalue count estimates person count
+- 在滑动窗口（例如 50 帧 / 5 秒）上计算 CSI 幅度的 56×56 协方差矩阵
+- 统计高于噪声阈值的特征值 —— 每个显著特征值对应一个独立散射体（人或静止物体）
+- 扣除静态环境基线（校准时估计，或取自场模型的 SVD 特征结构）
+- 剩余显著特征值的个数即为人数估计值
 
-**Accuracy target**: > 80% for 0-3 people with single ESP32 node.
+**准确率目标**：单 ESP32 节点、0-3 人场景下 > 80%。
 
-**Integration point**: `signal/src/ruvsense/field_model.rs` already computes SVD eigenstructure. Extend with a `estimate_occupancy()` method.
+**集成点**：`signal/src/ruvsense/field_model.rs` 已计算 SVD 特征结构，扩展一个 `estimate_occupancy()` 方法即可。
 
-### Phase 2: Signal Decomposition
+### 阶段 2：信号分解
 
-Separate per-person signal contributions using blind source separation.
+用盲源分离把各人的信号贡献分开。
 
-**Approach**: Non-negative Matrix Factorization (NMF) on the CSI spectrogram.
+**方案**：对 CSI 频谱图做非负矩阵分解（NMF）。
 
-- Construct a time-frequency matrix from CSI amplitudes: rows = subcarriers (56), columns = time frames
-- Apply NMF with k components (k = estimated person count from Phase 1)
-- Each component's frequency profile maps to a person's motion pattern
-- NMF is preferred over ICA because CSI amplitudes are non-negative
+- 由 CSI 幅度构造时频矩阵：行 = 子载波（56），列 = 时间帧
+- 以 k 个分量做 NMF（k = 阶段 1 估计出的人数）
+- 每个分量的频率剖面映射到一人的运动模式
+- 选 NMF 而非 ICA，因为 CSI 幅度非负
 
-**Alternative**: Independent Component Analysis (ICA) on complex CSI (amplitude + phase). More powerful but requires phase calibration (see `ruvsense/phase_align.rs`).
+**备选方案**：对复数 CSI（幅度 + 相位）做独立成分分析（ICA）。能力更强，但需要相位校准（见 `ruvsense/phase_align.rs`）。
 
-**Integration point**: New module `signal/src/ruvsense/separation.rs`.
+**集成点**：新增模块 `signal/src/ruvsense/separation.rs`。
 
-### Phase 3: Multi-Skeleton Generation
+### 阶段 3：多骨架生成
 
-Generate distinct pose skeletons per decomposed component.
+为每个分解出的分量生成各自独立的姿态骨架。
 
-**Approach**: Per-component feature extraction → per-person skeleton synthesis.
+**方案**：逐分量特征提取 → 逐人骨架合成。
 
-- Extract motion features (dominant frequency, energy, spectral centroid) per NMF component
-- Map each component to a spatial position using subcarrier phase gradient (Fresnel zone model)
-- Generate 17-keypoint COCO skeleton per person with position offset
-- Assign person IDs using the existing Kalman tracker (`ruvsense/pose_tracker.rs`) with AETHER re-ID embeddings (ADR-024)
+- 对每个 NMF 分量提取运动特征（主频、能量、谱质心）
+- 用子载波相位梯度（菲涅尔区模型）把每个分量映射到空间位置
+- 为每人生成带位置偏移的 17 关键点 COCO 骨架
+- 用现有卡尔曼跟踪器（`ruvsense/pose_tracker.rs`）结合 AETHER 重识别嵌入（ADR-024）分配人员 ID
 
-**Integration point**: Modify `derive_pose_from_sensing()` in `sensing-server/src/main.rs` to return `Vec<Person>` with length > 1.
+**集成点**：修改 `sensing-server/src/main.rs` 中的 `derive_pose_from_sensing()`，使其返回长度 > 1 的 `Vec<Person>`。
 
-### Phase 4: Neural Multi-Person Model
+### 阶段 4：神经多人模型
 
-Train a dedicated multi-person model using the RVF pipeline (ADR-036).
+用 RVF 流水线（ADR-036）训练专用的多人模型。
 
-- Use MM-Fi dataset (ADR-015) multi-person scenarios for training data
-- Architecture: shared CSI encoder → person count head + per-person pose heads
-- LoRA fine-tuning profile for multi-person specialization
-- Inference via the model manager in the sensing server
+- 使用 MM-Fi 数据集（ADR-015）中的多人场景作为训练数据
+- 架构：共享 CSI 编码器 → 人数头 + 逐人姿态头
+- 用 LoRA 微调配置做多人场景特化
+- 通过感知服务器中的模型管理器进行推理
 
-**Accuracy target**: PCK@0.2 > 60% for 2-person scenarios.
+**准确率目标**：2 人场景下 PCK@0.2 > 60%。
 
-## Consequences
+## 后果
 
-### Positive
+### 正面
 
-- Enables room occupancy counting (Phase 1 alone is useful)
-- Distinct pose tracking per person enables activity recognition per individual
-- Progressive approach — each phase delivers incremental value
-- Reuses existing infrastructure (field model SVD, Kalman tracker, AETHER, RVF pipeline)
+- 支持房间人数统计（仅阶段 1 就有实用价值）
+- 逐人独立姿态跟踪支持按个体做活动识别
+- 渐进式方案 —— 每个阶段都交付增量价值
+- 复用既有基础设施（场模型 SVD、卡尔曼跟踪器、AETHER、RVF 流水线）
 
-### Negative
+### 负面
 
-- Single ESP32 node has fundamental spatial resolution limits — separating 2 people standing close together (< 0.5m) will be unreliable
-- NMF decomposition adds ~5-10ms latency per frame
-- Person count estimation will have false positives from large moving objects (pets, fans)
-- Phase 4 neural model requires multi-person training data collection
+- 单 ESP32 节点存在固有的空间分辨率限制 —— 两人相距很近（< 0.5m）时分离不可靠
+- NMF 分解每帧增加约 5-10ms 延迟
+- 人数估计会被大型移动物体（宠物、风扇）造成误报
+- 阶段 4 的神经模型需要采集多人训练数据
 
-### Neutral
+### 中性
 
-- Multi-node multistatic mesh (ADR-029) dramatically improves multi-person separation but is a separate effort
-- UI already supports multi-person rendering — no frontend changes needed for the `persons[]` array
+- 多节点多基地组网（ADR-029）能显著改善多人分离，但属于另一项独立工作
+- UI 已支持多人渲染 —— `persons[]` 数组无需前端改动
 
-## Affected Components
+## 受影响组件
 
-| Component | Phase | Change |
+| 组件 | 阶段 | 变更 |
 |-----------|-------|--------|
-| `signal/src/ruvsense/field_model.rs` | 1 | Add `estimate_occupancy()` |
-| `signal/src/ruvsense/separation.rs` | 2 | New module: NMF decomposition |
-| `sensing-server/src/main.rs` | 3 | `derive_pose_from_sensing()` multi-person output |
-| `signal/src/ruvsense/pose_tracker.rs` | 3 | Multi-target tracking |
-| `nn/` | 4 | Multi-person inference head |
-| `train/` | 4 | Multi-person training pipeline |
+| `signal/src/ruvsense/field_model.rs` | 1 | 新增 `estimate_occupancy()` |
+| `signal/src/ruvsense/separation.rs` | 2 | 新模块：NMF 分解 |
+| `sensing-server/src/main.rs` | 3 | `derive_pose_from_sensing()` 输出多人 |
+| `signal/src/ruvsense/pose_tracker.rs` | 3 | 多目标跟踪 |
+| `nn/` | 4 | 多人推理头 |
+| `train/` | 4 | 多人训练流水线 |
 
-## Performance Budget
+## 性能预算
 
-| Operation | Budget | Phase |
+| 操作 | 预算 | 阶段 |
 |-----------|--------|-------|
-| Person count estimation | < 2ms | 1 |
-| NMF decomposition (k=3) | < 10ms | 2 |
-| Multi-skeleton synthesis | < 3ms | 3 |
-| Neural inference (multi-person) | < 50ms | 4 |
-| **Total pipeline** | **< 65ms** (15 FPS) | All |
+| 人数估计 | < 2ms | 1 |
+| NMF 分解 (k=3) | < 10ms | 2 |
+| 多骨架合成 | < 3ms | 3 |
+| 神经网络推理（多人） | < 50ms | 4 |
+| **流水线总计** | **< 65ms**（15 FPS） | All |
 
-## Alternatives Considered
+## 已考虑的备选方案
 
-1. **Camera fusion**: Use a camera for person detection and WiFi for pose — rejected because the project goal is camera-free sensing.
-2. **Multiple single-person models**: Run N independent pose estimators — rejected because they would produce correlated outputs from the same CSI data.
-3. **Spatial filtering (beamforming)**: Use antenna array beamforming to isolate directions — rejected because single ESP32 has only 1 antenna; viable with multistatic mesh (ADR-029).
-4. **Skip signal-derived, go straight to neural**: Train an end-to-end multi-person model — rejected because signal-derived provides faster iteration and interpretability for the early phases.
+1. **摄像头融合**：用摄像头做人员检测、用 WiFi 做姿态 —— 已否决，因为项目目标是无摄像头感知。
+2. **多个单人模型**：并行运行 N 个独立姿态估计器 —— 已否决，因为它们会从同一份 CSI 数据中产出高度相关的结果。
+3. **空间滤波（波束成形）**：用天线阵列波束成形隔离来波方向 —— 已否决，因为单个 ESP32 只有 1 根天线；在多基地组网（ADR-029）下可行。
+4. **跳过信号推导，直接上神经网络**：训练端到端多人模型 —— 已否决，因为信号推导在早期阶段迭代更快、可解释性更好。
