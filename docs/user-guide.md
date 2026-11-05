@@ -1,121 +1,125 @@
-# WiFi DensePose User Guide
+# WiFi DensePose 用户指南
 
-WiFi DensePose turns commodity WiFi signals into real-time human pose estimation, vital sign monitoring, and presence detection. This guide walks you through installation, first run, API usage, hardware setup, and model training.
-
----
-
-## Table of Contents
-
-1. [Prerequisites](#prerequisites)
-2. [Installation](#installation)
-   - [Docker (Recommended)](#docker-recommended)
-   - [From Source (Rust)](#from-source-rust)
-   - [From crates.io](#from-cratesio-individual-crates)
-   - [From Source (Python)](#from-source-python)
-   - [Guided Installer](#guided-installer)
-3. [Quick Start](#quick-start)
-   - [30-Second Demo (Docker)](#30-second-demo-docker)
-   - [Verify the System Works](#verify-the-system-works)
-4. [Data Sources](#data-sources)
-   - [Simulated Mode (No Hardware)](#simulated-mode-no-hardware)
-   - [Windows WiFi (RSSI Only)](#windows-wifi-rssi-only)
-   - [ESP32-S3 (Full CSI)](#esp32-s3-full-csi)
-   - [ESP32-C5 (Experimental CSI target)](#esp32-c5-experimental-csi-target)
-   - [ESP32 Multistatic Mesh (Advanced)](#esp32-multistatic-mesh-advanced)
-   - [MediaTek Router CSI (Experimental)](#mediatek-router-csi-experimental)
-   - [Connect Mesh Data to the Dashboard and Observatory](#connect-mesh-data-to-the-dashboard-and-observatory)
-   - [Cognitum Spaces activation](#cognitum-spaces-activation)
-   - [Cognitum Seed Integration (ADR-069)](#cognitum-seed-integration-adr-069)
-5. [REST API Reference](#rest-api-reference)
-6. [WebSocket Streaming](#websocket-streaming)
-7. [RuView npm toolkit (`@ruvnet/ruview`)](#ruview-npm-toolkit-ruvnetruview)
-   - [Hardware from the command line](#hardware-from-the-command-line)
-   - [MCP for agents, ChatGPT and MCP Apps](#mcp-for-agents-chatgpt-and-mcp-apps)
-   - [Claude Code mod: live sensing pane](#claude-code-mod-live-sensing-pane)
-   - [Homecore and the vitals kernel](#homecore-and-the-vitals-kernel)
-8. [Web UI](#web-ui)
-8. [Vital Sign Detection](#vital-sign-detection)
-9. [CLI Reference](#cli-reference)
-10. [Observatory Visualization](#observatory-visualization)
-11. [Loading the Pretrained Model from Hugging Face](#loading-the-pretrained-model-from-hugging-face)
-12. [Adaptive Classifier](#adaptive-classifier)
-    - [Recording Training Data](#recording-training-data)
-    - [Training the Model](#training-the-model)
-    - [Using the Trained Model](#using-the-trained-model)
-13. [World Model Prediction (OccWorld)](#world-model-prediction-occworld)
-14. [Training a Model](#training-a-model)
-    - [CRV Signal-Line Protocol](#crv-signal-line-protocol)
-14. [RVF Model Containers](#rvf-model-containers)
-14. [Perception Certificate Spine (Developer Preview, ADR-300)](#perception-certificate-spine-developer-preview-adr-297)
-14. [Hardware Setup](#hardware-setup)
-    - [ESP32-S3 Mesh](#esp32-s3-mesh)
-    - [Intel 5300 / Atheros NIC](#intel-5300--atheros-nic)
-15. [Camera-Free Pose Training](#camera-free-pose-training)
-16. [ruvllm Training Pipeline](#ruvllm-training-pipeline)
-17. [Docker Compose (Multi-Service)](#docker-compose-multi-service)
-16. [Testing Firmware Without Hardware (QEMU)](#testing-firmware-without-hardware-qemu)
-    - [What You Need](#what-you-need)
-    - [Your First Test Run](#your-first-test-run)
-    - [Understanding the Test Output](#understanding-the-test-output)
-    - [Testing Multiple Nodes at Once (Swarm)](#testing-multiple-nodes-at-once-swarm)
-    - [Swarm Presets](#swarm-presets)
-    - [Writing Your Own Swarm Config](#writing-your-own-swarm-config)
-    - [Debugging Firmware in QEMU](#debugging-firmware-in-qemu)
-    - [Running the Full Test Suite](#running-the-full-test-suite)
-17. [Troubleshooting](#troubleshooting)
-18. [FAQ](#faq)
+WiFi DensePose 把普通 WiFi 信号转换成实时人体姿态估计、生命体征监测与在场检测。本指南带你完成安装、首次运行、API 使用、硬件配置与模型训练。
 
 ---
 
-## Prerequisites
+## 目录
 
-| Requirement | Minimum | Recommended |
+1. [前置条件](#prerequisites)
+2. [安装](#installation)
+   - [Docker（推荐）](#docker-recommended)
+   - [从源码构建（Rust）](#from-source-rust)
+   - [从 crates.io 安装（单个 crate）](#from-cratesio-individual-crates)
+   - [从源码安装（Python）](#from-source-python)
+   - [引导式安装器](#guided-installer)
+3. [快速上手](#quick-start)
+   - [30 秒演示（Docker）](#30-second-demo-docker)
+   - [确认系统正常工作](#verify-the-system-works)
+4. [数据源](#data-sources)
+   - [模拟模式（无需硬件）](#simulated-mode-no-hardware)
+   - [Windows WiFi（仅 RSSI）](#windows-wifi-rssi-only)
+   - [ESP32-S3（完整 CSI）](#esp32-s3-full-csi)
+   - [ESP32-C5（实验性 CSI 目标）](#esp32-c5-experimental-csi-target)
+   - [ESP32 多静态组网（进阶）](#esp32-multistatic-mesh-advanced)
+   - [MediaTek 路由器 CSI（实验性）](#mediatek-router-csi-experimental)
+   - [把组网数据接到仪表盘与观测站](#connect-mesh-data-to-the-dashboard-and-observatory)
+   - [启用 Cognitum Spaces](#cognitum-spaces-activation)
+   - [Cognitum Seed 集成（ADR-069）](#cognitum-seed-integration-adr-069)
+5. [REST API 参考](#rest-api-reference)
+6. [WebSocket 数据流](#websocket-streaming)
+7. [RuView npm 工具包（`@ruvnet/ruview`）](#ruview-npm-toolkit-ruvnetruview)
+   - [用命令行查看硬件](#hardware-from-the-command-line)
+   - [面向智能体、ChatGPT 与 MCP 应用的 MCP](#mcp-for-agents-chatgpt-and-mcp-apps)
+   - [Claude Code 扩展：实时感知面板](#claude-code-mod-live-sensing-pane)
+   - [Homecore 与生命体征内核](#homecore-and-the-vitals-kernel)
+8. [Web 界面](#web-ui)
+8. [生命体征检测](#vital-sign-detection)
+9. [命令行参考](#cli-reference)
+10. [观测站可视化](#observatory-visualization)
+11. [从 Hugging Face 加载预训练模型](#loading-the-pretrained-model-from-hugging-face)
+12. [自适应分类器](#adaptive-classifier)
+    - [录制训练数据](#recording-training-data)
+    - [训练模型](#training-the-model)
+    - [使用训练好的模型](#using-the-trained-model)
+13. [世界模型预测（OccWorld）](#world-model-prediction-occworld)
+14. [训练模型](#training-a-model)
+    - [CRV 信号线协议](#crv-signal-line-protocol)
+14. [RVF 模型容器](#rvf-model-containers)
+14. [感知证书链（开发者预览，ADR-300）](#perception-certificate-spine-developer-preview-adr-297)
+14. [硬件配置](#hardware-setup)
+    - [ESP32-S3 组网](#esp32-s3-mesh)
+    - [Intel 5300 / Atheros 网卡](#intel-5300--atheros-nic)
+15. [无摄像头姿态训练](#camera-free-pose-training)
+16. [ruvllm 训练流水线](#ruvllm-training-pipeline)
+17. [Docker Compose（多服务）](#docker-compose-multi-service)
+16. [无硬件测试固件（QEMU）](#testing-firmware-without-hardware-qemu)
+    - [需要准备什么](#what-you-need)
+    - [第一次测试运行](#your-first-test-run)
+    - [看懂测试输出](#understanding-the-test-output)
+    - [一次测试多个节点（集群）](#testing-multiple-nodes-at-once-swarm)
+    - [集群预设](#swarm-presets)
+    - [编写自己的集群配置](#writing-your-own-swarm-config)
+    - [在 QEMU 中调试固件](#debugging-firmware-in-qemu)
+    - [运行完整测试套件](#running-the-full-test-suite)
+17. [排障](#troubleshooting)
+18. [常见问题](#faq)
+
+---
+
+<a id="prerequisites"></a>
+## 前置条件
+
+| 项目 | 最低要求 | 推荐配置 |
 |-------------|---------|-------------|
-| **OS** | Windows 10/11, macOS 10.15, Ubuntu 18.04 | Latest stable |
-| **RAM** | 4 GB | 8 GB+ |
-| **Disk** | 2 GB free | 5 GB free |
-| **Docker** (for Docker path) | Docker 20+ | Docker 24+ |
-| **Rust** (for source build) | 1.70+ | 1.85+ |
-| **Python** (for legacy v1) | 3.10+ | 3.13+ |
+| **操作系统** | Windows 10/11、macOS 10.15、Ubuntu 18.04 | 最新稳定版 |
+| **内存** | 4 GB | 8 GB 以上 |
+| **磁盘** | 可用 2 GB | 可用 5 GB |
+| **Docker**（走 Docker 路线时） | Docker 20+ | Docker 24+ |
+| **Rust**（从源码构建时） | 1.70+ | 1.85+ |
+| **Python**（旧版 v1） | 3.10+ | 3.13+ |
 
-**Hardware for live sensing (optional):**
+**实时感知所需硬件（可选）：**
 
-| Option | Cost | Capabilities |
+| 方案 | 成本 | 能力 |
 |--------|------|-------------|
-| ESP32-S3 mesh (3-6 boards) | ~$54 | CSI capture for presence, motion, and vital-sign heuristics; live 17-keypoint pose remains below-target and is not a validated capability |
-| Intel 5300 / Atheros AR9580 | $50-100 | Full CSI with 3x3 MIMO (Linux only) |
-| Any WiFi laptop | $0 | RSSI-only: coarse presence and motion detection |
+| ESP32-S3 组网（3-6 块板） | ~$54 | 采集 CSI 用于在场、运动与生命体征的启发式判断；实时 17 关键点姿态尚未达标，不属于已验证能力 |
+| Intel 5300 / Atheros AR9580 | $50-100 | 完整 CSI，3x3 MIMO（仅 Linux） |
+| 任意带 WiFi 的笔记本 | $0 | 仅 RSSI：粗粒度的在场与运动检测 |
 
-No hardware? The system runs in **simulated mode** with synthetic CSI data.
+没有硬件？系统可以用合成的 CSI 数据运行在**模拟模式**下。
 
 ---
 
-## Installation
+<a id="installation"></a>
+## 安装
 
-### Docker (Recommended)
+<a id="docker-recommended"></a>
+### Docker（推荐）
 
-The fastest path. No toolchain installation needed.
+最快的路径，不需要安装任何工具链。
 
 ```bash
 docker pull ruvnet/wifi-densepose:latest
 ```
 
-Multi-architecture image (amd64 + arm64). Works on Intel/AMD and Apple Silicon Macs. Contains the Rust sensing server, Three.js UI, and all signal processing.
+多架构镜像（amd64 + arm64），可用于 Intel/AMD 与 Apple Silicon Mac。内含 Rust 感知服务器、Three.js 界面和全部信号处理功能。
 
-**Data source selection:** Use the `CSI_SOURCE` environment variable to select the sensing mode:
+**选择数据源：** 用 `CSI_SOURCE` 环境变量选择感知模式：
 
-| Value | Description |
+| 取值 | 说明 |
 |-------|-------------|
-| `auto` | (default) Probe for ESP32 on UDP 5005, fall back to simulation |
-| `esp32` | Receive real CSI frames from ESP32 devices over UDP |
-| `simulated` | Generate synthetic CSI frames (no hardware required) |
-| `wifi` | Host Wi-Fi RSSI (not available inside containers) |
+| `auto` | （默认）探测 UDP 5005 上的 ESP32，找不到就回退到模拟 |
+| `esp32` | 通过 UDP 接收 ESP32 设备的真实 CSI 帧 |
+| `simulated` | 生成合成 CSI 帧（无需硬件） |
+| `wifi` | 宿主机 Wi-Fi RSSI（容器内不可用） |
 
-Example: `docker run -e RUVIEW_API_TOKEN -e CSI_SOURCE=esp32 -e RUVIEW_UDP_ALLOW=<node-ip-or-cidr> -p 127.0.0.1:3000:3000 -p 5005:5005/udp ruvnet/wifi-densepose:latest`. The container exits with code 64 unless `RUVIEW_API_TOKEN` is set, and receives no ESP32 frames until a UDP source guard is set; see [Receiving ESP32 frames in Docker](#receiving-esp32-frames-in-docker).
+示例：`docker run -e RUVIEW_API_TOKEN -e CSI_SOURCE=esp32 -e RUVIEW_UDP_ALLOW=<node-ip-or-cidr> -p 127.0.0.1:3000:3000 -p 5005:5005/udp ruvnet/wifi-densepose:latest`。未设置 `RUVIEW_API_TOKEN` 时容器会以退出码 64 结束；未配置 UDP 来源防护时也收不到任何 ESP32 帧，参见[在 Docker 中接收 ESP32 帧](#receiving-esp32-frames-in-docker)。
 
-### From Source (Rust)
+<a id="from-source-rust"></a>
+### 从源码构建（Rust）
 
-On Debian/Ubuntu-based Linux systems, install the native desktop prerequisites before the first Rust release build:
+在基于 Debian/Ubuntu 的 Linux 上，首次做 Rust release 构建前，先装好桌面端所需的原生依赖：
 
 ```bash
 sudo apt update
@@ -127,65 +131,66 @@ sudo apt install -y \
   libwebkit2gtk-4.1-dev
 ```
 
-This prepares the native GTK/WebKit dependencies used by the desktop/Tauri crates in this workspace.
+这一步用于准备本工作区 desktop/Tauri crate 所需的 GTK/WebKit 原生依赖。
 
 ```bash
 git clone https://github.com/ruvnet/RuView.git
 cd RuView/v2
 
-# Build
+# 构建
 cargo build --release
 
-# Verify (runs 1,400+ tests)
+# 验证（运行 1,400+ 项测试）
 cargo test --workspace --no-default-features
 ```
 
-The compiled binary is at `target/release/sensing-server`.
+编译产物位于 `target/release/sensing-server`。
 
-### From crates.io (Individual Crates)
+<a id="from-cratesio-individual-crates"></a>
+### 从 crates.io 安装（单个 crate）
 
-The workspace's crates publish independently, so versions vary crate to crate (`wifi-densepose-core` is at 0.3.2, `wifi-densepose-signal` at 0.3.6, etc. as of this writing) — `cargo add` resolves each to its own latest by default, so you don't need to track exact numbers yourself. Add individual crates to your own Rust project:
+工作区里的 crate 各自独立发布，因此版本互不相同（撰写本文时 `wifi-densepose-core` 为 0.3.2、`wifi-densepose-signal` 为 0.3.6 等）—— `cargo add` 默认会为每个 crate 解析到各自的最新版，你不必自己记准确版本号。把需要的 crate 加到自己的 Rust 项目里：
 
 ```bash
-# Core types and traits
+# 核心类型与 trait
 cargo add wifi-densepose-core
 
-# Signal processing (includes RuvSense multistatic sensing)
+# 信号处理（含 RuvSense 多静态感知）
 cargo add wifi-densepose-signal
 
-# Neural network inference
+# 神经网络推理
 cargo add wifi-densepose-nn
 
-# Mass Casualty Assessment Tool
+# 大规模伤员评估工具
 cargo add wifi-densepose-mat
 
-# ESP32 hardware + TDM protocol + QUIC transport
+# ESP32 硬件 + TDM 协议 + QUIC 传输
 cargo add wifi-densepose-hardware
 
-# RuVector integration (add --features crv for CRV signal-line protocol)
+# RuVector 集成（加 --features crv 启用 CRV 信号线协议）
 cargo add wifi-densepose-ruvector --features crv
 
-# WebAssembly bindings
+# WebAssembly 绑定
 cargo add wifi-densepose-wasm
 
-# WASM edge runtime (lightweight, for embedded/IoT)
+# WASM 边缘运行时（轻量，面向嵌入式/IoT）
 cargo add wifi-densepose-wasm-edge
 
-# Coherent wideband RF tomography research crate (ADR-287) — synthetic
-# stepped-frequency backprojection reconstruction. SYNTHETIC/L0 evidence
-# only; not wired into any sensing pipeline above. See its own README.
+# 相干宽带射频层析研究 crate（ADR-287）—— 合成
+# 步进频率反投影重建。仅 SYNTHETIC/L0 证据
+# 等级；未接入上述任何感知流水线。见其自身 README。
 cargo add wifi-densepose-sar
 ```
 
-See the full crate list and dependency order in [CLAUDE.md](../CLAUDE.md#crate-publishing-order).
+完整 crate 清单与依赖顺序见 [CLAUDE.md](../CLAUDE.md#crate-publishing-order)。
 
-### Python wheel (pip) — ADR-117
+### Python wheel（pip）—— ADR-117
 
-The Python API ships as **two interchangeable PyPI packages** — same
-compiled PyO3 wheel under both names; pick whichever import name
-reads better in your code:
+Python API 以**两个可互换的 PyPI 包**发布 —— 两者是同一个
+编译好的 PyO3 wheel，只是名字不同；按你代码里读起来更顺的
+导入名挑一个即可：
 
-| PyPI | Install | Latest | Import |
+| PyPI | 安装命令 | 最新版 | 导入方式 |
 |---|---|---|---|
 | [`ruview`](https://pypi.org/project/ruview/) | `pip install ruview` | `2.0.0a1` | `from ruview import ...` |
 | [`wifi-densepose`](https://pypi.org/project/wifi-densepose/) | `pip install wifi-densepose` | `2.0.0a1` | `from wifi_densepose import ...` |
@@ -196,35 +201,35 @@ pip install "ruview[client]"              # + asyncio WebSocket + paho-mqtt
 ```
 
 ```python
-# vitals
+# 生命体征
 from ruview import BreathingExtractor, HeartRateExtractor
 br = BreathingExtractor.esp32_default()   # 56 subcarriers @ 100 Hz, 30s window
 
-# live sensing-server stream
+# 实时感知服务器数据流
 from ruview.client import SensingClient, EdgeVitalsMessage
 async with SensingClient("ws://localhost:8765/ws/sensing") as c:
     async for msg in c.stream():
         if isinstance(msg, EdgeVitalsMessage):
             print(msg.breathing_rate_bpm, msg.heartrate_bpm)
 
-# Home Assistant semantic primitives (ADR-115 HA-MIND)
+# Home Assistant 语义原语（ADR-115 HA-MIND）
 from ruview.client import (
     RuViewMqttClient, SemanticPrimitive, SemanticPrimitiveListener,
 )
 ```
 
-The wheels ship for Linux (x86_64, aarch64 via sdist), macOS (sdist),
-and Windows (amd64 wheel). Stable ABI (`abi3-py310`) — one binary
-covers Python 3.10+. Multi-arch native wheels are produced by the
-[pip-release.yml](../.github/workflows/pip-release.yml) cibuildwheel
-matrix on each `v*-pip` tag.
+wheel 覆盖 Linux（x86_64；aarch64 走 sdist）、macOS（sdist）
+与 Windows（amd64 wheel）。采用稳定 ABI（`abi3-py310`）—— 一个二进制
+即可覆盖 Python 3.10+。多架构原生 wheel 由
+[pip-release.yml](../.github/workflows/pip-release.yml) 的 cibuildwheel
+矩阵在每个 `v*-pip` 标签上产出。
 
-> **Migrating from v1.x?** The legacy `wifi-densepose==1.1.0` FastAPI
-> server is end-of-life. `wifi-densepose==1.99.0` is a tombstone that
-> raises `ImportError` with a migration URL; upgrade to `>=2.0.0a1`
-> (or switch to `ruview`).
+> **从 v1.x 迁移？** 旧版 `wifi-densepose==1.1.0` 的 FastAPI
+> 服务已停止维护。`wifi-densepose==1.99.0` 是墓碑版本，会
+> 抛出带迁移链接的 `ImportError`；请升级到 `>=2.0.0a1`
+> （或改用 `ruview`）。
 
-To build the wheel from source (e.g. for a local change):
+从源码构建 wheel（例如本地改动后）：
 
 ```bash
 git clone https://github.com/ruvnet/RuView.git
@@ -235,13 +240,14 @@ pytest tests/                              # 183 tests
 pytest bench/ --benchmark-only             # 12 hot-path benchmarks
 ```
 
-Full API + tests breakdown is on the PyPI front page:
-[wifi-densepose on PyPI](https://pypi.org/project/wifi-densepose/) ·
-[ruview on PyPI](https://pypi.org/project/ruview/).
+完整 API 与测试说明见 PyPI 首页：
+[wifi-densepose 的 PyPI 页面](https://pypi.org/project/wifi-densepose/) ·
+[ruview 的 PyPI 页面](https://pypi.org/project/ruview/)。
 
-### Guided Installer
+<a id="guided-installer"></a>
+### 引导式安装器
 
-An interactive installer that detects your hardware and recommends a profile:
+交互式安装器会检测你的硬件并推荐一套配置：
 
 ```bash
 git clone https://github.com/ruvnet/RuView.git
@@ -249,150 +255,158 @@ cd RuView
 ./install.sh
 ```
 
-Available profiles: `verify`, `python`, `rust`, `browser`, `iot`, `docker`, `field`, `full`.
+可选配置：`verify`、`python`、`rust`、`browser`、`iot`、`docker`、`field`、`full`。
 
-Non-interactive:
+非交互模式：
 ```bash
 ./install.sh --profile rust --yes
 ```
 
 ---
 
-## Quick Start
+<a id="quick-start"></a>
+## 快速上手
 
-### 30-Second Demo (Docker)
+<a id="30-second-demo-docker"></a>
+### 30 秒演示（Docker）
 
 ```bash
-# Pull and run (the container exits with code 64 without an API token)
+# 拉取并运行（未设 API 令牌时容器以退出码 64 结束）
 export RUVIEW_API_TOKEN=$(openssl rand -hex 32)
 docker run -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 -e RUVIEW_API_TOKEN ruvnet/wifi-densepose:latest
 
-# Open the UI in your browser
+# 在浏览器中打开界面
 # http://localhost:3000
 ```
 
-You will see a Three.js visualization with:
-- 3D body skeleton (17 COCO keypoints)
-- Signal amplitude heatmap
-- Phase plot
-- Vital signs panel (breathing + heartbeat)
+你会看到一个 Three.js 可视化界面，包含：
+- 三维人体骨架（17 个 COCO 关键点）
+- 信号幅度热力图
+- 相位图
+- 生命体征面板（呼吸 + 心跳）
 
-### Verify the System Works
+<a id="verify-the-system-works"></a>
+### 确认系统正常工作
 
-Open a second terminal and test the API:
+另开一个终端测试 API：
 
 ```bash
-# Health check
+# 健康检查
 curl http://localhost:3000/health
-# Expected: {"status":"ok","source":"simulated","clients":0}
+# 预期：{"status":"ok","source":"simulated","clients":0}
 
-# Latest sensing frame
+# 最新感知帧
 curl http://localhost:3000/api/v1/sensing/latest
 
-# Vital signs
+# 生命体征
 curl http://localhost:3000/api/v1/vital-signs
 
-# Pose estimation (17 COCO keypoints)
+# 姿态估计（17 个 COCO 关键点）
 curl http://localhost:3000/api/v1/pose/current
 
-# Server build info
+# 服务构建信息
 curl http://localhost:3000/api/v1/info
 ```
 
-All endpoints return JSON. In simulated mode, data is generated from a deterministic reference signal.
+所有接口都返回 JSON。模拟模式下，数据由一份确定性的参考信号生成。
 
 ---
 
-## Data Sources
+<a id="data-sources"></a>
+## 数据源
 
-The `--source` flag controls where CSI data comes from. Valid values are
-`auto`, `esp32`, `wifi`, and `simulated` (alias `simulate`), plus the vendor
-feeds `mediatek`, `qualcomm`, `realtek` (RTL8720F radar), and `realtek_csi`
-(RTL8721Dx CSI), which bind the UDP receiver like `esp32`. Any other value
-stops the server at startup with an error that lists them.
+`--source` 参数决定 CSI 数据来自哪里。可用取值有
+`auto`、`esp32`、`wifi` 与 `simulated`（别名 `simulate`），另外还有厂商
+数据源 `mediatek`、`qualcomm`、`realtek`（RTL8720F 雷达）与 `realtek_csi`
+（RTL8721Dx CSI），它们和 `esp32` 一样会绑定 UDP 接收端。填其他值
+会让服务在启动时报错退出，错误信息里会列出所有合法取值。
 
-### Simulated Mode (No Hardware)
+<a id="simulated-mode-no-hardware"></a>
+### 模拟模式（无需硬件）
 
-Default in Docker. Generates synthetic CSI data exercising the full pipeline.
+Docker 下的默认值。生成合成 CSI 数据，把整条流水线跑通。
 
 ```bash
 # Docker
 docker run -p 3000:3000 ruvnet/wifi-densepose:latest
 # (--source auto is the default; falls back to simulate when no hardware detected)
 
-# From source
+# 从源码运行
 ./target/release/sensing-server --source simulate --http-port 3000 --ws-port 3001
 ```
 
-### Windows WiFi (RSSI Only)
+<a id="windows-wifi-rssi-only"></a>
+### Windows WiFi（仅 RSSI）
 
-Uses `netsh wlan` to capture RSSI from nearby access points. No special hardware needed. Supports presence detection, motion classification, and coarse breathing rate estimation. No pose estimation (requires CSI).
+用 `netsh wlan` 采集附近接入点的 RSSI，不需要专用硬件。支持在场检测、运动分类与粗粒度呼吸率估计，不支持姿态估计（那需要 CSI）。
 
 ```bash
-# From source (Windows only)
+# 从源码运行（仅 Windows）
 ./target/release/sensing-server --source wifi --http-port 3000 --ws-port 3001 --tick-ms 500
 
-# Docker (requires --network host on Windows)
+# Docker（Windows 上需要 --network host）
 docker run --network host ruvnet/wifi-densepose:latest --source wifi --tick-ms 500
 ```
 
-> **Community verified:** Tested on Windows 10 (10.0.26200) with Intel Wi-Fi 6 AX201 160MHz, Python 3.14, StormFiber 5 GHz network. All 7 tutorial steps passed with stable RSSI readings at -48 dBm. See [Tutorial #36](https://github.com/ruvnet/RuView/issues/36) for the full walkthrough and test results.
+> **社区已验证：** 在 Windows 10 (10.0.26200)、Intel Wi-Fi 6 AX201 160MHz、Python 3.14、StormFiber 5 GHz 网络环境下实测，教程 7 个步骤全部通过，RSSI 读数稳定在 -48 dBm。完整操作过程与测试结果见[教程 #36](https://github.com/ruvnet/RuView/issues/36)。
 
-**Vital signs from RSSI:** The sensing server now supports breathing rate estimation from RSSI variance patterns (requires stationary subject near AP) and motion classification with confidence scoring. RSSI-based vital sign detection has lower fidelity than ESP32 CSI — it is best for presence detection and coarse motion classification.
+**用 RSSI 测生命体征：** 感知服务器现在支持由 RSSI 方差模式估计呼吸率（需要受试者在 AP 附近保持静止），也能做带置信度评分的运动分类。基于 RSSI 的生命体征检测精度低于 ESP32 CSI —— 更适合做在场检测与粗粒度运动分类。
 
-### macOS WiFi (RSSI Only)
+### macOS WiFi（仅 RSSI）
 
-Uses CoreWLAN via a Swift helper binary. macOS Sonoma 14.4+ redacts real BSSIDs; the adapter generates deterministic synthetic MACs so the multi-BSSID pipeline still works. On macOS, `--source wifi` selects the CoreWLAN scanner; there is no separate `macos` value.
+通过一个 Swift 辅助程序调用 CoreWLAN。macOS Sonoma 14.4+ 会隐去真实 BSSID，适配器会生成确定性的合成 MAC，让多 BSSID 流水线仍能工作。在 macOS 上 `--source wifi` 就是选用 CoreWLAN 扫描器，没有单独的 `macos` 取值。
 
 ```bash
-# Compile the Swift helper (once)
+# 编译 Swift 辅助程序（只需一次）
 swiftc -O archive/v1/src/sensing/mac_wifi.swift -o mac_wifi
 
-# Run natively
+# 直接运行
 ./target/release/sensing-server --source wifi --http-port 3000 --ws-port 3001 --tick-ms 500
 ```
 
-See [ADR-025](adr/ADR-025-macos-corewlan-wifi-sensing.md) for details.
+细节见 [ADR-025](adr/ADR-025-macos-corewlan-wifi-sensing.md)。
 
-### Linux WiFi (RSSI Only)
+### Linux WiFi（仅 RSSI）
 
-The sensing server does not have a Linux RSSI source yet. `--source wifi`
-on Linux runs the Windows `netsh` scanner, which is not present there, and
-`--source linux` is rejected at startup. Use an ESP32 node (`--source esp32`)
-on Linux.
+感知服务器目前还没有 Linux RSSI 数据源。`--source wifi`
+在 Linux 上会去调用 Windows 的 `netsh` 扫描器，而那里并没有这个命令；
+`--source linux` 会在启动时被拒绝。在 Linux 上请改用 ESP32 节点（`--source esp32`）。
 
-### ESP32-S3 (Full CSI)
 
-Real Channel State Information at 20 Hz with 56-192 subcarriers. Required for pose estimation, vital signs, and through-wall sensing.
+<a id="esp32-s3-full-csi"></a>
+### ESP32-S3（完整 CSI）
+
+20 Hz 的真实信道状态信息，含 56-192 个子载波。姿态估计、生命体征与穿墙感知都需要它。
 
 ```bash
-# From source
+# 从源码运行
 ./target/release/sensing-server --source esp32 --udp-port 5005 --http-port 3000 --ws-port 3001 \
   --udp-bind 0.0.0.0 --udp-allow <node-ip-or-cidr>
 
-# Docker (use CSI_SOURCE environment variable)
+# Docker（用 CSI_SOURCE 环境变量）
 docker run -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 -p 5005:5005/udp \
   -e RUVIEW_API_TOKEN -e CSI_SOURCE=esp32 -e RUVIEW_UDP_ALLOW=<node-ip-or-cidr> \
   ruvnet/wifi-densepose:latest
 ```
 
-The ESP32 nodes stream binary CSI frames over UDP to port 5005. See [Hardware Setup](#esp32-s3-mesh) for flashing instructions.
+ESP32 节点通过 UDP 把二进制 CSI 帧推送到 5005 端口。烧录步骤见[硬件配置](#esp32-s3-mesh)。
 
-The server only listens for those frames on `127.0.0.1` unless you tell it otherwise (ADR-296), so a native run needs `--udp-bind 0.0.0.0` to hear nodes on your network, plus `--udp-allow` with their IP or subnet (for example `192.168.1.0/24`). Without them the server starts fine but no node ever shows up. If you'd rather accept frames from any source on a trusted network, use `--udp-insecure-lan` instead of `--udp-allow`.
+除非另行指定，服务只在 `127.0.0.1` 上监听这些帧（ADR-296）。因此直接运行二进制时要加 `--udp-bind 0.0.0.0` 才能收到局域网里节点的数据，还要用 `--udp-allow` 写明它们的 IP 或网段（例如 `192.168.1.0/24`）。少了这些参数，服务能正常启动，但永远看不到节点。如果你在可信网络里想接受任意来源，可以用 `--udp-insecure-lan` 代替 `--udp-allow`。
 
-#### Receiving ESP32 frames in Docker
+<a id="receiving-esp32-frames-in-docker"></a>
+#### 在 Docker 中接收 ESP32 帧
 
-The sensing server binds its UDP receiver to `127.0.0.1` by default (ADR-296). Inside a container that address cannot receive anything from a published `5005/udp` port, so no node ever appears. The image's entrypoint binds UDP on `0.0.0.0` only when you set a source guard, and prints a note at startup when you have not:
+感知服务器默认把 UDP 接收端绑在 `127.0.0.1`（ADR-296）。容器里这个地址收不到从 `5005/udp` 映射进来的数据，所以节点一直不出现。镜像的入口脚本只有在你设置了来源防护时才会把 UDP 绑到 `0.0.0.0`；没设置的话启动时会打印一条提示：
 
-| Variable | Effect |
+| 变量 | 作用 |
 |----------|--------|
-| `RUVIEW_API_TOKEN` | Required. Without it (or `RUVIEW_ALLOW_UNAUTHENTICATED=1`) the container exits with code 64. |
-| `RUVIEW_UDP_ALLOW=<ip-or-cidr>` | Accept frames only from these sources. Preferred. |
-| `RUVIEW_UDP_INSECURE_LAN=true` | Accept frames from any source. The UDP data plane is not authenticated, so only use this on a trusted network. |
-| `RUVIEW_UDP_BIND` | Explicit UDP bind address. Overrides the entrypoint's choice. |
-| `SENSING_ALLOWED_HOSTS=<host-ip>` | Needed to open the UI from another machine; otherwise the server answers 421. That also requires publishing the TCP ports beyond `127.0.0.1`. |
+| `RUVIEW_API_TOKEN` | 必填。缺少它（或 `RUVIEW_ALLOW_UNAUTHENTICATED=1`）时容器以退出码 64 结束。 |
+| `RUVIEW_UDP_ALLOW=<ip-or-cidr>` | 只接受来自这些来源的帧。推荐做法。 |
+| `RUVIEW_UDP_INSECURE_LAN=true` | 接受任意来源的帧。UDP 数据面没有认证，请只在可信网络中使用。 |
+| `RUVIEW_UDP_BIND` | 显式指定 UDP 绑定地址，覆盖入口脚本的选择。 |
+| `SENSING_ALLOWED_HOSTS=<host-ip>` | 从别的机器打开界面时需要，否则服务返回 421。同时还要把 TCP 端口映射到 `127.0.0.1` 之外。 |
 
-**macOS (Docker Desktop, OrbStack):** datagrams reach the container from the Docker bridge gateway, not from the node's LAN address, so an allowlist that names your LAN subnet drops every frame. Allow the gateway instead:
+**macOS（Docker Desktop、OrbStack）：** 数据报是从 Docker 网桥网关进入容器的，而不是节点的局域网地址，所以白名单里只写局域网网段会把所有帧都丢掉。请改成允许网关：
 
 ```bash
 export RUVIEW_API_TOKEN=$(openssl rand -hex 32)
@@ -404,77 +418,81 @@ docker run --rm -d --name ruview \
 curl -s -H "Authorization: Bearer $RUVIEW_API_TOKEN" localhost:3000/api/v1/nodes
 ```
 
-Allowing the gateway admits anything that can reach the published port, so keep `5005/udp` off untrusted networks. Node identity still comes from the frame payload. With Docker Compose the service runs on the project network (`<project>_default`), so inspect that network's gateway rather than `bridge`. Docker Desktop on Windows has a related source-address problem; see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+允许网关等于放开了所有能访问该端口的来源，因此不要在不信任的网络里暴露 `5005/udp`。节点身份仍由帧内容决定。使用 Docker Compose 时服务跑在项目网络（`<project>_default`）上，要查看的是该网络的网关而不是 `bridge`。Windows 上的 Docker Desktop 有类似的源地址问题，见 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。
 
-### ESP32-C5 (Experimental CSI target)
+<a id="esp32-c5-experimental-csi-target"></a>
+### ESP32-C5（实验性 CSI 目标）
 
-The C5 profile is headless: 2.4 GHz association, 240 MHz application CPU,
-8 Hz edge DSP and a 4 MB OTA layout. Use the `c5` variant, ESP-IDF 6.0.2
-for the reproducible build, and esptool 5.3 or newer. This profile does not
-enable 5 GHz or PSRAM. No C5 speedup or sensing-accuracy claim is established.
-C5 also skips default mmWave probing: S3's GPIO17/18 sensor pair conflicts
-with C5 flash/PSRAM. Do not reuse S3 sensor pin assignments on C5.
-Real-board tests confirmed boot and decoded CSI transport, but the tested AP
-did not consistently sustain the 20 packets/s acceptance target, including
-with additional traffic. Check cadence in your deployment; a successful install alone
-does not qualify sensing accuracy or long-run reliability.
+C5 配置是无外设的：2.4 GHz 关联、240 MHz 应用 CPU、
+8 Hz 边缘 DSP 与 4 MB OTA 分区布局。做可复现构建请用 `c5` 变体、
+ESP-IDF 6.0.2 以及 esptool 5.3 以上版本。该配置不启用
+5 GHz 与 PSRAM。目前没有确立任何 C5 提速或感知精度的结论。
+C5 也跳过了默认的毫米波探测：S3 的 GPIO17/18 传感器引脚对
+与 C5 的 flash/PSRAM 冲突。不要把 S3 的传感器引脚分配照搬到 C5。
+真实板卡测试确认了启动与 CSI 传输解码，但测试用的 AP
+未能持续稳定达到每秒 20 包的验收目标，即便
+加了额外流量也一样。部署时请自行核对节奏；仅安装成功
+并不能证明感知精度或长期可靠性。
 
-Identify the exact board and production chip, confirm at least 4 MB flash,
-and save a private full-flash backup before installation. C5's bootloader
-address is **`0x2000`**, unlike S3/C6. Verify checksums and inspect the plan:
+确认具体的板型与量产芯片，核实 flash 至少 4 MB，
+并在安装前私下保存一份完整 flash 备份。C5 的 bootloader
+地址是 **`0x2000`**，与 S3/C6 不同。校验哈希并查看烧录方案：
 
 ```sh
 node harness/ruview/bin/cli.js flash-plan --port COM8 --bundle ./c5-bundle --variant c5
 ```
 
-Choose your board's actual port. A CP210x listing identifies the USB bridge,
-not the ESP chip. If identification receives no serial data, hold BOOT, tap
-RESET, release BOOT, then retry. After flashing and provisioning, require
-positive `CSI cb #1` (or later) callbacks and sustained valid sink packets.
-Initialization messages alone are not hardware validation. Keep credentials
-and raw captures private.
+选你自己板子实际的串口。看到 CP210x 只说明识别到了 USB 转串口芯片，
+不代表认出了 ESP 芯片。若识别时收不到串口数据，按住 BOOT、点一下
+RESET、松开 BOOT，再重试。烧录与配置完成后，必须取得
+`CSI cb #1`（或更晚）的正向回调，以及持续有效的接收端数据包。
+只有初始化信息不算硬件验证。凭据与
+原始采集数据请勿外传。
 
-See the [C5 installation instructions](../firmware/esp32-csi-node/README.md#esp32-c5-candidate-installation-and-qualification)
-and [comparison and qualification record](validation/2026-10-28-esp32-c5-candidate.md).
+参见 [C5 安装说明](../firmware/esp32-csi-node/README.md#esp32-c5-candidate-installation-and-qualification)
+与[对比及认证记录](validation/2026-10-28-esp32-c5-candidate.md)。
 
-### ESP32 Multistatic Mesh (Advanced)
+<a id="esp32-multistatic-mesh-advanced"></a>
+### ESP32 多静态组网（进阶）
 
-For higher accuracy with through-wall tracking, deploy 3-6 ESP32-S3 nodes in a **multistatic mesh** configuration. Each node acts as both transmitter and receiver, creating multiple sensing paths through the environment.
+想让穿墙追踪更准，可以部署 3-6 个 ESP32-S3 节点组成**多静态组网**。每个节点既发射又接收，在环境中形成多条感知路径。
 
 ```bash
-# Start the aggregator with multistatic mode
+# 以多静态模式启动汇聚端
 ./target/release/sensing-server --source esp32 --udp-port 5005 --http-port 3000 --ws-port 3001 \
   --udp-bind 0.0.0.0 --udp-allow <node-ip-or-cidr>
 ```
 
-The mesh uses a **Time-Division Multiplexing (TDM)** protocol so nodes take turns transmitting, avoiding self-interference. Key features:
+组网使用**时分复用（TDM）**协议，让节点轮流发射以避免自干扰。主要特性：
 
-| Feature | Description |
+| 特性 | 说明 |
 |---------|-------------|
-| TDM coordination | Nodes cycle through TX/RX slots (configurable guard intervals) |
-| Channel hopping | Automatic 2.4/5 GHz band cycling for multiband fusion |
-| QUIC transport | TLS 1.3-encrypted streams on aggregator nodes (ADR-032a) |
-| Manual crypto fallback | HMAC-SHA256 beacon auth on constrained ESP32-S3 nodes |
-| Attention-weighted fusion | Cross-viewpoint attention with geometric diversity bias |
+| TDM 协调 | 节点按收发时隙轮转（保护间隔可配） |
+| 跳频 | 自动在 2.4/5 GHz 频段间切换，用于多频融合 |
+| QUIC 传输 | 汇聚节点上使用 TLS 1.3 加密流（ADR-032a） |
+| 手工加密回退 | 资源受限的 ESP32-S3 节点用 HMAC-SHA256 信标认证 |
+| 注意力加权融合 | 带几何多样性偏置的跨视角注意力 |
 
-See [ADR-029](adr/ADR-029-ruvsense-multistatic-sensing-mode.md) and [ADR-032](adr/ADR-032-multistatic-mesh-security-hardening.md) for the full design.
+完整设计见 [ADR-029](adr/ADR-029-ruvsense-multistatic-sensing-mode.md) 与 [ADR-032](adr/ADR-032-multistatic-mesh-security-hardening.md)。
 
-### MediaTek Router CSI (Experimental)
+<a id="mediatek-router-csi-experimental"></a>
+### MediaTek 路由器 CSI（实验性）
 
-An OpenWrt router with an MT7981B + MT7976C radio (tested on a Wavlink WL-WN586X3 Rev A) can report CSI through MediaTek's vendor CSI patch. A host-side bridge converts it to MTC1 (ADR-267) for the sensing server:
+搭载 MT7981B + MT7976C 射频芯片的 OpenWrt 路由器（在 Wavlink WL-WN586X3 Rev A 上测过）打上 MediaTek 厂商 CSI 补丁后即可上报 CSI。主机侧的桥接程序把它转成 MTC1（ADR-267）交给感知服务器：
 
 ```bash
 ./target/release/sensing-server --source mediatek --udp-port 5005 --http-port 3000 --ws-port 3001
 ```
 
-Frames are labelled `mediatek:physical-unvalidated`. The presence and activity outputs on this source are uncalibrated heuristics with no sensing-quality validation. CSI exists only while associated clients transmit. See the [MediaTek Router CSI guide](mediatek-router-csi.md) for the OpenWrt build, arming CSI, the bridge, and limitations.
+这些帧带有 `mediatek:physical-unvalidated` 标签。该数据源上的在场与活动输出是未校准的启发式结果，没有做过感知质量验证。只有已关联客户端在发送数据时才有 CSI。OpenWrt 构建、启用 CSI、桥接与限制见 [MediaTek 路由器 CSI 指南](mediatek-router-csi.md)。
 
-### Connect Mesh Data to the Dashboard and Observatory
+<a id="connect-mesh-data-to-the-dashboard-and-observatory"></a>
+### 把组网数据接到仪表盘与观测站
 
-If a standalone `aggregator` command prints live packets, the ESP32 fleet is already reaching that host. To visualize the same data, stop the standalone aggregator and run `sensing-server` on that same host and UDP port. The sensing server is the aggregator used by the REST API, WebSocket stream, dashboard, and Observatory.
+如果独立的 `aggregator` 命令能打印实时数据包，说明 ESP32 设备群已经能到达那台主机。要把同一份数据可视化，先停掉独立汇聚端，再在同一台主机、同一个 UDP 端口上运行 `sensing-server`。REST API、WebSocket 流、仪表盘与观测站用的汇聚端就是这个感知服务器。
 
 ```bash
-# From a source build
+# 从源码构建运行
 cd v2
 cargo run -p wifi-densepose-sensing-server -- \
   --source esp32 \
@@ -496,16 +514,16 @@ docker run --rm \
   ruvnet/wifi-densepose:latest
 ```
 
-On macOS Docker the allowlist must name the bridge gateway; see [Receiving ESP32 frames in Docker](#receiving-esp32-frames-in-docker).
+在 macOS 的 Docker 上，白名单必须写网桥网关，见[在 Docker 中接收 ESP32 帧](#receiving-esp32-frames-in-docker)。
 
-Open the UI from the sensing server, not from a local file:
+请从感知服务器打开界面，不要用本地文件方式：
 
-| View | URL |
+| 视图 | 地址 |
 |------|-----|
-| Dashboard | `http://localhost:3000/ui/index.html` |
-| Observatory | `http://localhost:3000/ui/observatory.html` |
+| 仪表盘 | `http://localhost:3000/ui/index.html` |
+| 观测站 | `http://localhost:3000/ui/observatory.html` |
 
-Use these checks before debugging the browser:
+排查浏览器问题前先做这几项检查：
 
 ```bash
 curl http://localhost:3000/health
@@ -514,25 +532,26 @@ curl http://localhost:3000/api/v1/nodes
 curl http://localhost:3000/api/v1/sensing/latest
 ```
 
-`/api/v1/status` reports whether frames are actually arriving:
+`/api/v1/status` 会说明帧是否真的在到达：
 
-| `source_state` | Meaning |
+| `source_state` | 含义 |
 |---|---|
-| `disconnected` | A live source is configured but no frame has arrived yet. `waiting_for_frames` is `true` and `last_frame_age_ms` is `null`. |
-| `live_unverified` | Frames are arriving. `last_frame_age_ms` is under 5000. |
-| `stale` | Frames arrived, then stopped for more than 5 seconds. For a hardware source, `source` gains an `:offline` suffix (for example `esp32:offline`). |
-| `synthetic` | Simulated data. Never shown as live. |
+| `disconnected` | 配了实时数据源，但还没有帧到达。此时 `waiting_for_frames` 为 `true`，`last_frame_age_ms` 为 `null`。 |
+| `live_unverified` | 帧正在到达，`last_frame_age_ms` 小于 5000。 |
+| `stale` | 曾有帧到达，随后中断超过 5 秒。硬件数据源的 `source` 会加上 `:offline` 后缀（例如 `esp32:offline`）。 |
+| `synthetic` | 模拟数据，永远不会显示为实时。 |
 
-If the ESP32 nodes are provisioned with `--target-ip <AGGREGATOR_HOST>`, that IP must be the machine running `sensing-server`. Only one process can receive UDP `:5005` at a time, so leave the standalone hardware `aggregator` off while the dashboard or Observatory is live.
+如果 ESP32 节点用 `--target-ip <AGGREGATOR_HOST>` 配置过，这个 IP 必须是运行 `sensing-server` 的机器。同一时刻只能有一个进程接收 UDP `:5005`，所以仪表盘或观测站开着时，请关掉独立的硬件 `aggregator`。
 
-### Cognitum Spaces activation
+<a id="cognitum-spaces-activation"></a>
+### 启用 Cognitum Spaces
 
-Cognitum Spaces gives RuView a tenant/workspace-scoped semantic world model
-without uploading raw RF/CSI, recordings, pose frames, vital waveforms, or
-identity observations. It represents sites, buildings, floors, bounded
-rooms/spaces, zones, anonymous entities, semantic events, and alerts.
+Cognitum Spaces 为 RuView 提供按租户/工作区隔离的语义世界模型，
+不需要上传原始射频/CSI、录制文件、姿态帧、生命体征波形，
+也不需要上传身份观测数据。它描述站点、建筑、楼层、有界的
+房间/空间、区域、匿名实体、语义事件与告警。
 
-Activate the public RuView OAuth client with Authorization Code + PKCE:
+用授权码 + PKCE 激活公开的 RuView OAuth 客户端：
 
 ```bash
 wifi-densepose login --spaces
@@ -541,96 +560,97 @@ wifi-densepose spaces --resource sites --limit 50
 wifi-densepose spaces --resource events --limit 25
 ```
 
-The login requests `sensing:read spaces:read`. That consent is read-only: it
-does not grant publication, pairing, policy approval, command, or actuator
-authority. Versioned collections are `sites`, `buildings`, `floors`,
-`spaces`, `zones`, `entities`, `events`, and `alerts`. A returned
-`nextCursor` is opaque and valid only for the same collection.
+登录会申请 `sensing:read spaces:read`。该授权是只读的，
+不授予发布、配对、策略批准、命令或执行器
+权限。带版本的集合包括 `sites`、`buildings`、`floors`、
+`spaces`、`zones`、`entities`、`events` 与 `alerts`。返回的
+`nextCursor` 是不透明值，且只对同一集合有效。
 
-The dependency-free contributor harness exposes the same read path:
+零依赖的贡献者工具也提供同样的读取路径：
 
 ```bash
 npx @ruvnet/ruview@0.9.1 spaces --resource alerts --limit 25
 npx @ruvnet/ruview@0.9.1 mcp start
 ```
 
-Its MCP tool is `ruview_spaces_list`. MCP reads are OAuth-only, use the fixed
-Cognitum API origin, and require the explicit guarded-tool opt-in. The harness
-does not accept an arbitrary credential path or API origin.
+它的 MCP 工具是 `ruview_spaces_list`。MCP 读取只走 OAuth，使用固定的
+Cognitum API 来源，并要求显式开启受保护工具。该工具
+不接受任意指定的凭据路径或 API 来源。
 
-For service compatibility, `wifi-densepose spaces` can read
-`COGNITUM_SPACES_API` at request time. API-key access to a versioned collection
-also requires `--workspace <uuid>`; OAuth derives the workspace from the
-signed token. Never print or commit either credential.
+为兼容服务端，`wifi-densepose spaces` 可在请求时读取
+`COGNITUM_SPACES_API`。用 API key 访问带版本的集合时，
+还需要 `--workspace <uuid>`；OAuth 则从签名令牌里
+推导工作区。两种凭据都不要打印或提交。
 
-Every response is bounded and revalidated. Raw-sensing aliases, malformed
-hierarchy, non-anonymous person/track entities, invalid timestamps, stale
-confidence, and oversized structures fail closed. Empty data means no
-authorized state is present; it does not prove that a physical site is empty.
+每个响应都有大小限制并会重新校验。原始感知别名、格式错误的
+层级、非匿名的人员/轨迹实体、无效时间戳、过期的
+置信度，以及超大的结构都会按失败关闭处理。空数据只表示没有
+已授权的状态，并不能证明某个物理站点是空的。
 
-RuVector spatial memory remains physically separated by tenant and workspace.
-Agents observe or recommend by default. Any consequential execution requires a
-separate policy/grant/approval decision and produces a signed, hash-chained
-receipt; the Spaces read token can never satisfy that gate.
+RuVector 的空间记忆在物理上按租户与工作区隔离。
+智能体默认只能观察或建议。任何有实际后果的执行都需要
+单独一次策略/授权/批准决策，并产生带签名、哈希链式的
+回执；Spaces 的只读令牌永远无法通过这道门槛。
 
-See ADR-325, ADR-326, and ADR-327 for the activation, memory, and governed-action
-decisions.
+启用、记忆与受治理动作的决策见 ADR-325、ADR-326、ADR-327
+三份 ADR。
 
-### Cognitum Seed Integration (ADR-069)
+<a id="cognitum-seed-integration-adr-069"></a>
+### Cognitum Seed 集成（ADR-069）
 
-Connect an ESP32-S3 to a [Cognitum Seed](https://cognitum.one) (Pi Zero 2 W, ~$15) for persistent vector storage, kNN similarity search, cryptographic witness chain, and AI-accessible sensing via MCP proxy.
+把 ESP32-S3 接到 [Cognitum Seed](https://cognitum.one)（Pi Zero 2 W，约 $15），即可获得持久化向量存储、kNN 相似检索、密码学见证链，以及通过 MCP 代理供 AI 访问的感知能力。
 
-**What the Seed adds:**
-- **RVF vector store** — Persistent 8-dim feature vectors with content-addressed IDs and kNN search (cosine, L2, dot product)
-- **Witness chain** — SHA-256 tamper-evident audit trail for every ingest operation
-- **Ed25519 custody** — Device-bound keypair for cryptographic attestation of sensing data
-- **Sensor fusion** — BME280 (temp/humidity/pressure), PIR motion, reed switch, 4-ch ADC provide environmental ground truth
-- **MCP proxy** — 114 tools via JSON-RPC 2.0 so AI assistants (Claude, GPT) can query sensing state directly
-- **Reflex rules** — Automatic alarm triggers based on fragility, drift, and anomaly thresholds
+**Seed 带来了什么：**
+- **RVF 向量库** —— 持久化 8 维特征向量，带内容寻址 ID 与 kNN 检索（余弦、L2、点积）
+- **见证链** —— 每次写入操作都有 SHA-256 防篡改审计轨迹
+- **Ed25519 保管** —— 设备绑定的密钥对，用于感知数据的密码学证明
+- **传感器融合** —— BME280（温湿度/气压）、PIR 运动、干簧管、4 通道 ADC 提供环境真值
+- **MCP 代理** —— 通过 JSON-RPC 2.0 暴露 114 个工具，让 AI 助手（Claude、GPT）直接查询感知状态
+- **反射规则** —— 按脆弱度、漂移与异常阈值自动触发告警
 
-**Setup:**
+**配置步骤：**
 
 ```bash
-# 1. Plug in the Cognitum Seed via USB — appears as a network adapter at 169.254.42.1
+# 1. 用 USB 接上 Cognitum Seed —— 会显示为 169.254.42.1 的网络适配器
 
-# 2. Pair your client (opens a 30-second window, USB-only for security)
+# 2. 配对客户端（开启 30 秒窗口，出于安全只走 USB）
 curl -sk -X POST https://169.254.42.1:8443/api/v1/pair/window
 curl -sk -X POST https://169.254.42.1:8443/api/v1/pair \
   -H 'Content-Type: application/json' -d '{"client_name":"my-laptop"}'
-# Save the returned token — it is shown only once
+# 保存返回的令牌 —— 只显示一次
 
-# 3. Provision ESP32 to send features to your laptop (where the bridge runs)
+# 3. 配置 ESP32，把特征发到运行桥接程序的笔记本
 python firmware/esp32-csi-node/provision.py --port COM9 \
   --ssid "YourWiFi" --password "secret" \
   --target-ip 192.168.1.20 --target-port 5006 --node-id 1
 
-# 4. Run the bridge (receives ESP32 UDP, ingests into Seed via HTTPS)
+# 4. 运行桥接（接收 ESP32 的 UDP 数据，经 HTTPS 写入 Seed）
 export SEED_TOKEN="your-pairing-token"
 python scripts/seed_csi_bridge.py \
   --seed-url https://169.254.42.1:8443 --token "$SEED_TOKEN" \
   --udp-port 5006 --batch-size 10 --validate
 
-# 5. Check Seed status
+# 5. 查看 Seed 状态
 python scripts/seed_csi_bridge.py --token "$SEED_TOKEN" --stats
 
-# 6. Trigger compaction (reclaim disk space from deleted vectors)
+# 6. 触发压缩（回收已删除向量占用的磁盘空间）
 python scripts/seed_csi_bridge.py --token "$SEED_TOKEN" --compact
 ```
 
-**Feature vector dimensions (magic `0xC5110003`, 48 bytes, 1 Hz):**
+**特征向量各维（magic `0xC5110003`，48 字节，1 Hz）：**
 
-| Dim | Feature | Range | Source |
+| 维度 | 特征 | 范围 | 来源 |
 |-----|---------|-------|--------|
-| 0 | Presence score | 0.0–1.0 | `s_presence_score / 10.0` |
-| 1 | Motion energy | 0.0–1.0 | `s_motion_energy / 10.0` |
-| 2 | Breathing rate | 0.0–1.0 | `s_breathing_bpm / 30.0` |
-| 3 | Heart rate | 0.0–1.0 | `s_heartrate_bpm / 120.0` |
-| 4 | Phase variance | 0.0–1.0 | Mean Welford variance of top-K subcarriers |
-| 5 | Person count | 0.0–1.0 | Active persons / 4 |
-| 6 | Fall detected | 0.0 or 1.0 | Binary fall flag |
+| 0 | 在场得分 | 0.0–1.0 | `s_presence_score / 10.0` |
+| 1 | 运动能量 | 0.0–1.0 | `s_motion_energy / 10.0` |
+| 2 | 呼吸率 | 0.0–1.0 | `s_breathing_bpm / 30.0` |
+| 3 | 心率 | 0.0–1.0 | `s_heartrate_bpm / 120.0` |
+| 4 | 相位方差 | 0.0–1.0 | top-K 子载波的 Welford 方差均值 |
+| 5 | 人数 | 0.0–1.0 | 活跃人数 / 4 |
+| 6 | 检测到跌倒 | 0.0 或 1.0 | 二值跌倒标志 |
 | 7 | RSSI | 0.0–1.0 | `(rssi + 100) / 100` |
 
-**Architecture:**
+**架构：**
 
 ```
 ESP32-S3 ($9)  ──UDP:5006──>  Host (bridge)  ──HTTPS──>  Cognitum Seed ($15)
@@ -640,68 +660,69 @@ ESP32-S3 ($9)  ──UDP:5006──>  Host (bridge)  ──HTTPS──>  Cognitu
                               Source IP filtering           114-tool MCP proxy
 ```
 
-See [ADR-069](adr/ADR-069-cognitum-seed-csi-pipeline.md) for the complete design, validation results, and security analysis.
+完整设计、验证结果与安全分析见 [ADR-069](adr/ADR-069-cognitum-seed-csi-pipeline.md)。
 
 ---
 
-## REST API Reference
+<a id="rest-api-reference"></a>
+## REST API 参考
 
-Base URL: `http://localhost:3000` (Docker) or `http://localhost:8080` (binary default).
+基础地址：Docker 为 `http://localhost:3000`，直接运行二进制时默认 `http://localhost:8080`。
 
-| Method | Endpoint | Description | Example Response |
+| 方法 | 接口 | 说明 | 响应示例 |
 |--------|----------|-------------|-----------------|
-| `GET` | `/health` | Server health check | `{"status":"ok","source":"simulated","clients":0}` |
-| `GET` | `/api/v1/sensing/latest` | Latest CSI sensing frame (amplitude, phase, motion) | JSON with subcarrier arrays |
-| `GET` | `/api/v1/vital-signs` | Breathing rate + heart rate + confidence | `{"breathing_bpm":16.2,"heart_bpm":72.1,"confidence":0.87}` |
-| `GET` | `/api/v1/pose/current` | 17 COCO keypoints (x, y, z, confidence) | Array of 17 joint positions |
-| `GET` | `/api/v1/info` | Server version, build info, uptime | JSON metadata |
-| `GET` | `/api/v1/bssid` | Multi-BSSID WiFi registry | List of detected access points |
-| `GET` | `/api/v1/model/layers` | Progressive model loading status | Layer A/B/C load state |
-| `GET` | `/api/v1/model/sona/profiles` | SONA adaptation profiles | List of environment profiles |
-| `POST` | `/api/v1/model/sona/activate` | Activate a SONA profile for a specific room | `{"profile":"kitchen"}` |
-| `GET` | `/api/v1/models` | List available RVF model files | `{"models":[...],"count":0}` |
-| `GET` | `/api/v1/models/active` | Currently loaded model (or null) | `{"model":null}` |
-| `POST` | `/api/v1/models/load` | Load a model by ID | `{"status":"loaded","model_id":"..."}` |
-| `POST` | `/api/v1/models/unload` | Unload the active model | `{"status":"unloaded"}` |
-| `DELETE` | `/api/v1/models/:id` | Delete a model file from disk | `{"status":"deleted"}` |
-| `GET` | `/api/v1/models/lora/profiles` | List LoRA adapter profiles | `{"profiles":[]}` |
-| `POST` | `/api/v1/models/lora/activate` | Activate a LoRA profile | `{"status":"activated"}` |
-| `GET` | `/api/v1/recording/list` | List CSI recording sessions | `{"recordings":[...],"count":0}` |
-| `POST` | `/api/v1/recording/start` | Start recording CSI frames to JSONL | `{"status":"recording","session_id":"..."}` |
-| `POST` | `/api/v1/recording/stop` | Stop the active recording | `{"status":"stopped","duration_secs":...}` |
-| `DELETE` | `/api/v1/recording/:id` | Delete a recording file | `{"status":"deleted"}` |
-| `GET` | `/api/v1/train/status` | Training run status | `{"phase":"idle"}` |
-| `POST` | `/api/v1/train/start` | Start a training run | `{"status":"started"}` |
-| `POST` | `/api/v1/train/stop` | Stop the active training run | `{"status":"stopped"}` |
-| `POST` | `/api/v1/adaptive/train` | Train adaptive classifier from recordings | `{"success":true,"accuracy":0.85}` |
-| `GET` | `/api/v1/adaptive/status` | Adaptive model status and accuracy | `{"loaded":true,"accuracy":0.85}` |
-| `POST` | `/api/v1/adaptive/unload` | Unload adaptive model | `{"success":true}` |
-| `GET` | `/api/v1/mesh` | ADR-110 fleet-wide mesh sync map ([iter 29](adr/ADR-110-esp32-c6-firmware-extension.md)) | `{"nodes":{"9":{...},"12":{...}},"total":2}` |
-| `GET` | `/api/v1/nodes/:id/sync` | Single-node mesh sync snapshot (or 404) | `{"offset_us":1163565,"is_leader":false,...}` |
-| `GET` | `/api/v1/mesh/metrics` | ADR-110 mesh state in Prometheus exposition format ([iter 36](adr/ADR-110-esp32-c6-firmware-extension.md)) | `wifi_densepose_mesh_offset_us{node="9"} 1163565\n…` |
-| `GET` | `/api/field` | ADR-262 P3 — latest **signed RuField `FieldEvent`s** from the live sensing cycle, plus the signer pubkey + a `dev_signing_key` flag. Only egress-safe (P1/P2) events are surfaced; identity/biometric (P4/P5) and raw (P0) are held edge-local | `{"spec":"rufield","signer_pubkey_hex":"…","dev_signing_key":true,"events":[…]}` |
+| `GET` | `/health` | 服务健康检查 | `{"status":"ok","source":"simulated","clients":0}` |
+| `GET` | `/api/v1/sensing/latest` | 最新 CSI 感知帧（幅度、相位、运动） | 含子载波数组的 JSON |
+| `GET` | `/api/v1/vital-signs` | 呼吸率 + 心率 + 置信度 | `{"breathing_bpm":16.2,"heart_bpm":72.1,"confidence":0.87}` |
+| `GET` | `/api/v1/pose/current` | 17 个 COCO 关键点（x、y、z、置信度） | 17 个关节位置的数组 |
+| `GET` | `/api/v1/info` | 服务版本、构建信息、运行时长 | JSON 元数据 |
+| `GET` | `/api/v1/bssid` | 多 BSSID WiFi 登记表 | 检测到的接入点列表 |
+| `GET` | `/api/v1/model/layers` | 模型渐进加载状态 | A/B/C 各层加载情况 |
+| `GET` | `/api/v1/model/sona/profiles` | SONA 自适应配置档 | 环境配置档列表 |
+| `POST` | `/api/v1/model/sona/activate` | 为指定房间启用某个 SONA 配置档 | `{"profile":"kitchen"}` |
+| `GET` | `/api/v1/models` | 列出可用的 RVF 模型文件 | `{"models":[...],"count":0}` |
+| `GET` | `/api/v1/models/active` | 当前加载的模型（或 null） | `{"model":null}` |
+| `POST` | `/api/v1/models/load` | 按 ID 加载模型 | `{"status":"loaded","model_id":"..."}` |
+| `POST` | `/api/v1/models/unload` | 卸载当前模型 | `{"status":"unloaded"}` |
+| `DELETE` | `/api/v1/models/:id` | 从磁盘删除模型文件 | `{"status":"deleted"}` |
+| `GET` | `/api/v1/models/lora/profiles` | 列出 LoRA 适配器配置档 | `{"profiles":[]}` |
+| `POST` | `/api/v1/models/lora/activate` | 启用某个 LoRA 配置档 | `{"status":"activated"}` |
+| `GET` | `/api/v1/recording/list` | 列出 CSI 录制会话 | `{"recordings":[...],"count":0}` |
+| `POST` | `/api/v1/recording/start` | 开始把 CSI 帧录制为 JSONL | `{"status":"recording","session_id":"..."}` |
+| `POST` | `/api/v1/recording/stop` | 停止当前录制 | `{"status":"stopped","duration_secs":...}` |
+| `DELETE` | `/api/v1/recording/:id` | 删除录制文件 | `{"status":"deleted"}` |
+| `GET` | `/api/v1/train/status` | 训练任务状态 | `{"phase":"idle"}` |
+| `POST` | `/api/v1/train/start` | 启动一次训练 | `{"status":"started"}` |
+| `POST` | `/api/v1/train/stop` | 停止当前训练 | `{"status":"stopped"}` |
+| `POST` | `/api/v1/adaptive/train` | 用录制数据训练自适应分类器 | `{"success":true,"accuracy":0.85}` |
+| `GET` | `/api/v1/adaptive/status` | 自适应模型状态与准确率 | `{"loaded":true,"accuracy":0.85}` |
+| `POST` | `/api/v1/adaptive/unload` | 卸载自适应模型 | `{"success":true}` |
+| `GET` | `/api/v1/mesh` | ADR-110 全设备组网同步图（[第 29 轮](adr/ADR-110-esp32-c6-firmware-extension.md)） | `{"nodes":{"9":{...},"12":{...}},"total":2}` |
+| `GET` | `/api/v1/nodes/:id/sync` | 单节点组网同步快照（或 404） | `{"offset_us":1163565,"is_leader":false,...}` |
+| `GET` | `/api/v1/mesh/metrics` | Prometheus 文本格式的 ADR-110 组网状态（[第 36 轮](adr/ADR-110-esp32-c6-firmware-extension.md)） | `wifi_densepose_mesh_offset_us{node="9"} 1163565\n…` |
+| `GET` | `/api/field` | ADR-262 P3 —— 实时感知周期里最新的**已签名 RuField `FieldEvent`**，外加签名者公钥与 `dev_signing_key` 标志。只暴露可外发的（P1/P2）事件；身份/生物特征（P4/P5）与原始（P0）数据留在边缘端 | `{"spec":"rufield","signer_pubkey_hex":"…","dev_signing_key":true,"events":[…]}` |
 
-Recording and model files live under the server's `--data-dir` (env `RUVIEW_DATA_DIR`, default `data`, resolved against the directory the server was started from): recordings in `<data-dir>/recordings/`, `.rvf` models in `<data-dir>/models/` unless `MODELS_DIR` is set, and the adaptive classifier in `<data-dir>/adaptive_model.json`.
+录制与模型文件都放在服务的 `--data-dir` 下（环境变量 `RUVIEW_DATA_DIR`，默认 `data`，相对于服务启动时所在目录解析）：录制文件在 `<data-dir>/recordings/`，`.rvf` 模型在 `<data-dir>/models/`（除非设置了 `MODELS_DIR`），自适应分类器在 `<data-dir>/adaptive_model.json`。
 
-### RuField surface (ADR-262 P3)
+### RuField 接口（ADR-262 P3）
 
-RuView's live WiFi-CSI sensing now also speaks the standalone **RuField MFS** wire format. Each governed sensing cycle is converted (via the `wifi-densepose-rufield` anti-corruption bridge) into a **signed** `FieldEvent` (`Modality::WifiCsi`, ed25519 `ProvenanceRef`) and surfaced on two additive endpoints:
+RuView 的实时 WiFi-CSI 感知现在也支持独立的 **RuField MFS** 线上格式。每个受治理的感知周期都会经 `wifi-densepose-rufield` 防腐层转换成**带签名的** `FieldEvent`（`Modality::WifiCsi`、ed25519 `ProvenanceRef`），并通过两个新增接口暴露：
 
-- `GET /api/field` — the most recent signed events (JSON).
-- `GET /ws/field` — a WebSocket that streams each cycle's signed event (mirrors `/ws/sensing`).
+- `GET /api/field` —— 最近的已签名事件（JSON）。
+- `GET /ws/field` —— 按周期推送已签名事件的 WebSocket（与 `/ws/sensing` 对应）。
 
 ```bash
-curl -s http://localhost:3000/api/field | python -m json.tool          # latest signed FieldEvents
-python -c "import asyncio,websockets; asyncio.run((lambda: websockets.connect('ws://localhost:8765/ws/field'))())"  # stream
+curl -s http://localhost:3000/api/field | python -m json.tool          # 最近的已签名 FieldEvent
+python -c "import asyncio,websockets; asyncio.run((lambda: websockets.connect('ws://localhost:8765/ws/field'))())"  # 数据流
 ```
 
-Privacy is fail-closed: only egress-safe **P1/P2** events leave the box — raw (P0) and identity/biometric/aggregate (P3–P5) cycles are held **edge-local** and never appear on these endpoints; a no-presence cycle emits **no event**.
+隐私按失败关闭设计：只有可外发的 **P1/P2** 事件会离开设备 —— 原始（P0）与身份/生物特征/聚合（P3–P5）周期都留在**边缘端**，绝不会出现在这些接口上；无人周期**不产生任何事件**。
 
-**Signing key:** the surface signs with a **dedicated dev/sensing key**, seeded from `WDP_RUFIELD_SIGNING_SEED` (a 64-char hex string or a ≥32-byte value); when unset it falls back to a deterministic dev default and logs a `WARN` (the `dev_signing_key` flag in `/api/field` reflects this). This is a standalone key pending the ADR-262 §8 Q1 key-ownership decision — set `WDP_RUFIELD_SIGNING_SEED` for any real deployment.
+**签名密钥：** 该接口用一把**专用的开发/感知密钥**签名，种子来自 `WDP_RUFIELD_SIGNING_SEED`（64 字符十六进制串，或不少于 32 字节的值）；未设置时回退到确定性的开发默认值并打印一条 `WARN`（`/api/field` 里的 `dev_signing_key` 标志会反映这一点）。在 ADR-262 §8 Q1 确定密钥归属之前，这是一把临时独立密钥 —— 任何真实部署都应设置 `WDP_RUFIELD_SIGNING_SEED`。
 
-> **Honesty (ADR-262 §0/§6):** this is real plumbing on a live endpoint, **not an accuracy claim.** It is the single-link CSI sensing with its existing caveats (no validated room-coordinate accuracy — positions are the "strongest field peak", not calibrated triangulation).
+> **如实说明（ADR-262 §0/§6）：** 这是跑在真实接口上的实际链路，**不是精度宣称**。它仍是单链路 CSI 感知，原有局限都在（房间坐标精度未经验证 —— 位置取的是「最强的场峰」，并非校准过的三角定位）。
 
-### Example: Get fleet mesh state (ADR-110)
+### 示例：获取全设备组网状态（ADR-110）
 
 ```bash
 curl -s http://localhost:3000/api/v1/mesh | python -m json.tool
@@ -733,25 +754,25 @@ curl -s http://localhost:3000/api/v1/mesh | python -m json.tool
 }
 ```
 
-Empty `{"nodes": {}, "total": 0}` means no mesh peers reachable.
-Nodes that haven't emitted a sync packet yet are omitted from the map.
+返回空的 `{"nodes": {}, "total": 0}` 表示没有可达的组网节点。
+尚未发出同步包的节点不会出现在图里。
 
-### Example: Get one node's sync state
+### 示例：获取单个节点的同步状态
 
 ```bash
 curl -s http://localhost:3000/api/v1/nodes/9/sync | python -m json.tool
 ```
 
-200 → same `NodeSyncSnapshot` shape as inside `/api/v1/mesh` or the
-WebSocket `sync` field. Field meanings are documented under
-[Per-node mesh sync (ADR-110)](#per-node-mesh-sync-adr-110).
+200 → 结构与 `/api/v1/mesh` 里的 `NodeSyncSnapshot` 或
+WebSocket 的 `sync` 字段相同。各字段含义见
+[逐节点组网同步（ADR-110）](#per-node-mesh-sync-adr-110)。
 
-404 (unknown node):
+404（未知节点）：
 ```json
 {"error": "unknown_node", "node_id": 99}
 ```
 
-404 (node exists but hasn't synced yet):
+404（节点存在但尚未同步）：
 ```json
 {
     "error":   "no_sync",
@@ -760,11 +781,11 @@ WebSocket `sync` field. Field meanings are documented under
 }
 ```
 
-Useful for Home Assistant REST sensors, Prometheus exporters,
-automation rule probes, and curl debugging — anywhere you want
-one-shot mesh state without holding a WebSocket connection.
+适合 Home Assistant 的 REST 传感器、Prometheus exporter、
+自动化规则探测与 curl 调试 —— 凡是需要
+一次性拿到组网状态、又不想保持 WebSocket 连接的场合。
 
-### Example: Get Vital Signs
+### 示例：获取生命体征
 
 ```bash
 curl -s http://localhost:3000/api/v1/vital-signs | python -m json.tool
@@ -781,7 +802,7 @@ curl -s http://localhost:3000/api/v1/vital-signs | python -m json.tool
 }
 ```
 
-### Example: Get Pose
+### 示例：获取姿态
 
 ```bash
 curl -s http://localhost:3000/api/v1/pose/current | python -m json.tool
@@ -805,15 +826,16 @@ curl -s http://localhost:3000/api/v1/pose/current | python -m json.tool
 
 ---
 
-## WebSocket Streaming
+<a id="websocket-streaming"></a>
+## WebSocket 数据流
 
-Real-time sensing data is available via WebSocket.
+实时感知数据可通过 WebSocket 获取。
 
-**URL:** `ws://localhost:3000/ws/sensing` (same port as HTTP — recommended) or `ws://localhost:3001/ws/sensing` (dedicated WS port).
+**地址：** `ws://localhost:3000/ws/sensing`（与 HTTP 同端口 —— 推荐）或 `ws://localhost:3001/ws/sensing`（专用 WS 端口）。
 
-> **Note:** The `/ws/sensing` WebSocket endpoint is available on both the HTTP port (3000) and the dedicated WebSocket port (3001/8765). The web UI uses the HTTP port so only one port needs to be exposed. The dedicated WS port remains available for backward compatibility.
+> **说明：** `/ws/sensing` WebSocket 接口在 HTTP 端口（3000）和专用 WebSocket 端口（3001/8765）上都可用。Web 界面走 HTTP 端口，这样只需暴露一个端口。专用 WS 端口保留是为了向后兼容。
 
-### Python Example
+### Python 示例
 
 ```python
 import asyncio
@@ -833,7 +855,7 @@ async def stream():
 asyncio.run(stream())
 ```
 
-### JavaScript Example
+### JavaScript 示例
 
 ```javascript
 const ws = new WebSocket("ws://localhost:3001/ws/sensing");
@@ -847,18 +869,19 @@ ws.onmessage = (event) => {
 ws.onerror = (err) => console.error("WebSocket error:", err);
 ```
 
-### curl (single frame)
+### curl（单帧）
 
 ```bash
-# Requires wscat (npm install -g wscat)
+# 需要 wscat（npm install -g wscat）
 wscat -c ws://localhost:3001/ws/sensing
 ```
 
-### Per-node mesh sync (ADR-110)
+<a id="per-node-mesh-sync-adr-110"></a>
+### 逐节点组网同步（ADR-110）
 
-Since firmware **v0.7.0-esp32** + sensing-server iter 23, every
-`sensing_update` whose nodes participate in the [ADR-110](adr/ADR-110-esp32-c6-firmware-extension.md)
-ESP-NOW mesh carries an optional `sync` object per node:
+自固件 **v0.7.0-esp32** 与感知服务器第 23 轮起，
+凡节点参与 [ADR-110](adr/ADR-110-esp32-c6-firmware-extension.md) 组网的
+`sensing_update`，每个节点都会带一个可选的 `sync` 对象：
 
 ```json
 {
@@ -883,37 +906,37 @@ ESP-NOW mesh carries an optional `sync` object per node:
 }
 ```
 
-Field meanings:
+字段含义：
 
-| Field | Type | Meaning |
+| 字段 | 类型 | 含义 |
 |---|---|---|
-| `offset_us` | i64 | Smoothed local-vs-mesh clock offset in microseconds. Negative when this node is behind the leader. §A0.10 on the bench measured ~1.16 s boot delta between two C6 boards. |
-| `is_leader` | bool | True when this node is the elected mesh leader (lowest EUI-64 in the cohort). |
-| `is_valid` | bool | True when this node has heard a fresh leader beacon within the firmware's `VALID_WINDOW_MS = 3 s` freshness gate. |
-| `smoothed` | bool | True once the firmware-side EMA filter has seeded (after ~8 beacons ≈ 0.8 s of follower mode). |
-| `sequence` | u32 | High-water CSI sequence number stamped when this sync packet was emitted. Pair with the per-frame `sequence` field on incoming CSI to interpolate a mesh-aligned timestamp for any frame. |
-| `csi_fps_ema` | f64 | Per-node EMA of the observed CSI frame rate. Bench typical ≈ 10 Hz. |
-| `csi_fps_samples` | u32 | How many inter-frame deltas the EMA has seen. Treat values < 5 as "not yet trustworthy" and fall back to 20 Hz. |
-| `staleness_ms` | u64 (optional) | Milliseconds since the host last received a sync packet from this node ([iter 34](adr/ADR-110-esp32-c6-firmware-extension.md)). Fade UI badges after 5 000 ms; treat ≥ 9 000 ms as the same condition that the firmware's `c6_sync_espnow_is_valid()` reports as `false`. |
+| `offset_us` | i64 | 本机相对组网时钟的平滑后偏移，单位微秒。该节点落后于主节点时为负。台架 §A0.10 实测两块 C6 板启动相差约 1.16 s。 |
+| `is_leader` | bool | 该节点被选为组网主节点（组内 EUI-64 最小者）时为真。 |
+| `is_valid` | bool | 该节点在固件的 `VALID_WINDOW_MS = 3 s` 新鲜度窗口内收到过主节点信标时为真。 |
+| `smoothed` | bool | 固件侧 EMA 滤波器完成初始化后为真（约 8 个信标，跟随模式下约 0.8 s）。 |
+| `sequence` | u32 | 发出该同步包时打上的 CSI 序列号高水位。配合收到的 CSI 逐帧 `sequence` 字段，可为任意帧插值出与组网对齐的时间戳。 |
+| `csi_fps_ema` | f64 | 逐节点的 CSI 帧率 EMA。台架典型值约 10 Hz。 |
+| `csi_fps_samples` | u32 | EMA 已看到的帧间间隔数量。小于 5 时视为「尚不可信」，回退到 20 Hz。 |
+| `staleness_ms` | u64（可选） | 距主机上次收到该节点同步包的毫秒数（[第 34 轮](adr/ADR-110-esp32-c6-firmware-extension.md)）。超过 5 000 ms 时让界面徽标淡出；≥ 9 000 ms 时按固件 `c6_sync_espnow_is_valid()` 返回 `false` 的同一条件处理。 |
 
-**When `sync` is omitted entirely**: the node isn't on the mesh (or
-hasn't heard a peer yet). Non-ESP32 paths — multi-BSSID router scan,
-synthetic-RSSI fallback, simulation — also omit `sync`. Existing
-pre-iter-23 UI clients ignore the new field naturally because they
-don't read it.
+**完全不带 `sync` 时**：说明该节点不在组网里（或
+还没听到其他节点）。非 ESP32 路径 —— 多 BSSID 路由器扫描、
+合成 RSSI 回退、模拟 —— 同样不带 `sync`。第 23 轮之前的
+界面客户端本来就不读这个字段，因此会自然忽略它。
 
-**How to render this in a UI**:
-- `is_leader === true` → badge the node "Leader"
-- `is_valid === false` → grey out / "Sync lost"
-- `csi_fps_samples < 5` → label as "Calibrating" until ≥5 frames
-- `|offset_us|` trend → render a jitter histogram to show the §A0.10
-  EMA suppression working live
 
-**How to recover a mesh-aligned timestamp for any CSI frame from this
-node**: take the frame's own `sequence` u32, subtract `sync.sequence`,
-divide by `sync.csi_fps_ema` (or 20.0 if `csi_fps_samples < 5`),
-multiply by 1 000 000 µs — that's the mesh delta from the sync emit
-time. Use it to align multistatic frames from sibling boards.
+**界面上怎么呈现**：
+- `is_leader === true` → 给节点加「主节点」标记
+- `is_valid === false` → 置灰 / 「同步丢失」
+- `csi_fps_samples < 5` → 标为「校准中」，直到达到 5 帧
+- `|offset_us|` 趋势 → 画抖动直方图，用于展示 §A0.10 中
+  EMA 抑制在实时运行中的效果
+
+**如何从该节点任意一帧 CSI 还原与组网对齐的时间戳**：
+取该帧自身的 `sequence` u32，减去 `sync.sequence`，
+再除以 `sync.csi_fps_ema`（`csi_fps_samples < 5` 时用 20.0），
+乘以 1 000 000 µs —— 这就是相对同步包发出时刻的
+组网时间差。用它把同一批板子的多静态帧对齐。
 
 ---
 
@@ -1062,6 +1085,7 @@ Source: [`tools/ruview-mcp/`](../tools/ruview-mcp/README.md). Tracking issue: [#
 
 ---
 
+<a id="ruview-npm-toolkit-ruvnetruview"></a>
 ## RuView npm toolkit (`@ruvnet/ruview`)
 
 `@ruvnet/ruview` is RuView's operator toolkit on npm. It has no runtime
@@ -1086,6 +1110,7 @@ npx @ruvnet/ruview@0.9.1 doctor          # what works on this machine, with fixe
 In a terminal, commands print a formatted view. Pipes and `--json` print JSON,
 for scripts.
 
+<a id="hardware-from-the-command-line"></a>
 ### Hardware from the command line
 
 Run these on the machine the hardware is plugged into.
@@ -1129,6 +1154,7 @@ owns the radar, so read it over the network with `--source esphome`.
 - Only private-network addresses are accepted.
 - Encrypted or password-protected ESPHome APIs are reported as unsupported.
 
+<a id="mcp-for-agents-chatgpt-and-mcp-apps"></a>
 ### MCP for agents, ChatGPT and MCP Apps
 
 ```bash
@@ -1155,6 +1181,7 @@ Node captures, radar reads, device scans and doctor results render in the
 **RuView console**: a widget that ChatGPT and other MCP Apps hosts show inline,
 with a Refresh button that re-runs the tool.
 
+<a id="claude-code-mod-live-sensing-pane"></a>
 ### Claude Code mod: live sensing pane
 
 The package ships `ruview-live`, a Claude Code mod. `/ruview` opens a pane
@@ -1198,6 +1225,7 @@ The mod only runs the package's read-only CLI commands. Mods are early access:
 if `/ruview` is missing, start Claude Code with
 `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`.
 
+<a id="homecore-and-the-vitals-kernel"></a>
 ### Homecore and the vitals kernel
 
 ```bash
@@ -1220,6 +1248,7 @@ Design records:
 
 ---
 
+<a id="web-ui"></a>
 ## Web UI
 
 The built-in Three.js UI is served at `http://localhost:3000/ui/` (Docker) or the configured HTTP port.
@@ -1350,6 +1379,7 @@ python3 firmware/esp32-csi-node/provision.py \
 
 ---
 
+<a id="vital-sign-detection"></a>
 ## Vital Sign Detection
 
 The system extracts breathing rate and heart rate from CSI signal fluctuations using FFT peak detection.
@@ -1370,6 +1400,7 @@ The system extracts breathing rate and heart rate from CSI signal fluctuations u
 
 ---
 
+<a id="cli-reference"></a>
 ## CLI Reference
 
 The Rust sensing server binary accepts the following flags:
@@ -1421,6 +1452,7 @@ The Rust sensing server binary accepts the following flags:
 
 ---
 
+<a id="observatory-visualization"></a>
 ## Observatory Visualization
 
 The Observatory is an immersive Three.js visualization that renders WiFi sensing data as a cinematic 3D experience. It features room-scale props, wireframe human figures, WiFi signal animations, and a live data HUD.
@@ -1429,7 +1461,7 @@ The Observatory is an immersive Three.js visualization that renders WiFi sensing
 
 **Features:**
 
-| Feature | Description |
+| 特性 | 说明 |
 |---------|-------------|
 | Room scene | Furniture, walls, floor with emissive materials and 6-point lighting |
 | Wireframe figures | Up to 4 human skeletons with joint pulsation synced to breathing |
@@ -1452,6 +1484,7 @@ The Observatory is an immersive Three.js visualization that renders WiFi sensing
 
 ---
 
+<a id="loading-the-pretrained-model-from-hugging-face"></a>
 ## Loading the Pretrained Model from Hugging Face
 
 A pretrained CSI encoder + presence-detection head is published on Hugging Face at [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained). It was trained on 60,630 frames / 610,615 contrastive triplets (12.2M steps, final loss 0.065) and reports **82.3% held-out temporal-triplet accuracy** (the older "100% presence" figure was measured on a single-class recording and has been retracted) and ~164k embeddings/sec on an Apple M4 Pro.
@@ -1480,6 +1513,7 @@ levels. Read the label, not the headline ([ADR-187](adr/ADR-187-archive-v1-depre
 
 **Does it actually run, and can a single ESP32 do pose? ([#509](https://github.com/ruvnet/RuView/issues/509), [#1125](https://github.com/ruvnet/RuView/issues/1125))** Yes, it runs, and the results are reproducible: the deterministic signal-pipeline proof (`python archive/v1/data/proof/verify.py`, must print `VERDICT: PASS`), the committed pose training dump (`v2/crates/cog-pose-estimation/cog/artifacts/train_results.json`), and the auditable MM-Fi arena all back specific numbers. But a single-antenna, 56-subcarrier CSI stream at a 20-frame window does *not* carry the fine-grained spatial information the multi-antenna NIC research relies on — so the shippable pose accuracy the project stands behind today is the **MM-Fi benchmark number**, not a live single-ESP32 number. The path to a first reproducible on-device baseline (PCK@20 ≥ 35%) is tracked in [ADR-079](adr/ADR-079-camera-ground-truth-training.md) / [#645](https://github.com/ruvnet/RuView/issues/645).
 
+<a id="model-and-capture-compatibility"></a>
 ### Model and capture compatibility
 
 These artifacts share a pose objective, but not an input contract or adapter format. A checkpoint
@@ -1544,6 +1578,7 @@ See [RVF Model Containers](#rvf-model-containers) for the binary format the load
 
 ---
 
+<a id="adaptive-classifier"></a>
 ## Adaptive Classifier
 
 The adaptive classifier (ADR-048) learns your environment's specific WiFi signal patterns from labeled recordings. It replaces static threshold-based classification with a trained logistic regression model that uses 15 features (7 server-computed + 8 subcarrier-derived statistics).
@@ -1567,6 +1602,7 @@ Vital signs use additional stabilization:
 | HR max jump | 8 BPM/frame | Rejects noise spikes |
 | BR max jump | 2 BPM/frame | Rejects noise spikes |
 
+<a id="recording-training-data"></a>
 ### Recording Training Data
 
 Record labeled CSI sessions while performing distinct activities. Each recording captures full sensing frames (features + raw subcarrier amplitudes) at ~10-25 FPS.
@@ -1606,6 +1642,7 @@ Recordings are saved as JSONL files in `recordings/` under the server's `--data-
 | `*walking*` or `*moving*` | present_moving |
 | `*active*` or `*exercise*` | active |
 
+<a id="training-the-model"></a>
 ### Training the Model
 
 Train the adaptive classifier from your labeled recordings:
@@ -1628,6 +1665,7 @@ curl http://localhost:3000/api/v1/adaptive/status
 curl -X POST http://localhost:3000/api/v1/adaptive/unload
 ```
 
+<a id="using-the-trained-model"></a>
 ### Using the Trained Model
 
 Once trained, the adaptive model runs automatically:
@@ -1656,6 +1694,7 @@ Once trained, the adaptive model runs automatically:
 
 ---
 
+<a id="world-model-prediction-occworld"></a>
 ## World Model Prediction (OccWorld)
 
 RuView integrates [OccWorld](https://github.com/wzzheng/OccWorld) (ECCV 2024) to predict
@@ -1703,6 +1742,7 @@ class remapping and zero ego-poses. See ADR-147 Phase 3 for details.
 
 ---
 
+<a id="training-a-model"></a>
 ## Training a Model
 
 The training pipeline is implemented in pure Rust (7,832 lines, zero external ML dependencies).
@@ -1721,7 +1761,7 @@ Download the dataset files and place them in a `data/` directory.
 ### Step 2: Train
 
 ```bash
-# From source
+# 从源码运行
 ./target/release/sensing-server --train --dataset data/ --dataset-type mmfi --epochs 100 --save-rvf model.rvf
 
 # Via Docker (mount your data directory)
@@ -1780,6 +1820,7 @@ ADR-027 research components:
 
 See [ADR-027](adr/ADR-027-cross-environment-domain-generalization.md) for the full design.
 
+<a id="crv-signal-line-protocol"></a>
 ### CRV Signal-Line Protocol
 
 The CRV (Coordinate Remote Viewing) signal-line protocol (ADR-033) maps a 6-stage cognitive sensing methodology onto WiFi CSI processing. This enables structured anomaly classification and multi-person disambiguation.
@@ -1802,6 +1843,7 @@ See [ADR-033](adr/ADR-033-crv-signal-line-sensing-integration.md) for the full d
 
 ---
 
+<a id="rvf-model-containers"></a>
 ## RVF Model Containers
 
 The RuVector Format (RVF) packages a trained model into a single self-contained binary file.
@@ -1928,6 +1970,7 @@ Not every ADR-295–296 remediation item is preview-only. Three are live now:
 
 ---
 
+<a id="hardware-setup"></a>
 ## Hardware Setup
 
 ### Supported targets
@@ -1939,6 +1982,7 @@ Not every ADR-295–296 remediation item is preview-only. Three are live now:
 
 The same `firmware/esp32-csi-node` source tree builds for both. ESP-IDF picks up `sdkconfig.defaults.esp32c6` automatically when the target is set to `esp32c6`; otherwise it uses `sdkconfig.defaults` (S3). All C6-only modules are `#ifdef`-gated, so the S3 build is byte-identical to today.
 
+<a id="esp32-s3-mesh"></a>
 ### ESP32-S3 Mesh
 
 A 3-6 node ESP32-S3 mesh provides full CSI at 20 Hz. Total cost: ~$54 for a 3-node setup.
@@ -2175,6 +2219,7 @@ docker run -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 -p 5005:5005/udp \
 
 See [ADR-018](../docs/adr/ADR-018-esp32-dev-implementation.md), [ADR-029](../docs/adr/ADR-029-ruvsense-multistatic-sensing-mode.md), and [Tutorial #34](https://github.com/ruvnet/RuView/issues/34).
 
+<a id="intel-5300--atheros-nic"></a>
 ### Intel 5300 / Atheros NIC
 
 These research NICs provide full CSI on Linux with firmware/driver modifications.
@@ -2188,6 +2233,7 @@ These are advanced setups. See the respective driver documentation for installat
 
 ---
 
+<a id="camera-free-pose-training"></a>
 ## Camera-Free Pose Training
 
 RuView can train a 17-keypoint COCO pose model **without any camera** by fusing 10 sensor signals from the ESP32 nodes and Cognitum Seed:
@@ -2452,6 +2498,7 @@ node scripts/sleep-monitor.js --replay data/recordings/<recording>.csi.jsonl
 
 ---
 
+<a id="ruvllm-training-pipeline"></a>
 ## ruvllm Training Pipeline
 
 All training uses **ruvllm** — a Rust-native ML runtime. No Python, no PyTorch, no GPU drivers required. Runs on any machine with Node.js.
@@ -2493,6 +2540,7 @@ node scripts/benchmark-ruvllm.js --model models/csi-ruvllm
 
 ---
 
+<a id="docker-compose-multi-service"></a>
 ## Docker Compose (Multi-Service)
 
 For production deployments with both Rust and Python services:
@@ -2512,6 +2560,7 @@ The sensing server exits with code 64 when `RUVIEW_API_TOKEN` is unset. Without 
 
 ---
 
+<a id="testing-firmware-without-hardware-qemu"></a>
 ## Testing Firmware Without Hardware (QEMU)
 
 You can test the ESP32-S3 firmware on your computer without any physical hardware. The project uses **QEMU** — an emulator that pretends to be an ESP32-S3 chip, running the real firmware code inside a virtual machine on your PC.
@@ -2522,6 +2571,7 @@ This is useful when:
 - You're running automated tests in CI/CD
 - You want to simulate multiple ESP32 nodes talking to each other
 
+<a id="what-you-need"></a>
 ### What You Need
 
 **Required:**
@@ -2584,6 +2634,7 @@ bash scripts/qemu-cli.sh <command>
 | `status` | Show what's installed and ready |
 | `help` | Show all commands |
 
+<a id="your-first-test-run"></a>
 ### Your First Test Run
 
 The simplest way to test the firmware:
@@ -2614,6 +2665,7 @@ To give it more time (useful on slower machines):
 QEMU_TIMEOUT=120 bash scripts/qemu-esp32s3-test.sh
 ```
 
+<a id="understanding-the-test-output"></a>
 ### Understanding the Test Output
 
 The test runs 16 checks on the firmware's output. Here's what a successful run looks like:
@@ -2642,6 +2694,7 @@ The test runs 16 checks on the firmware's output. Here's what a successful run l
 | 2 | **FAIL** — something broke | Check the `[FAIL]` lines for what went wrong |
 | 3 | **FATAL** — can't even start | Usually a missing tool or build failure; check error messages |
 
+<a id="testing-multiple-nodes-at-once-swarm"></a>
 ### Testing Multiple Nodes at Once (Swarm)
 
 Real deployments use 3-8 ESP32 nodes. The **swarm configurator** lets you simulate multiple nodes on your computer, each with a different role:
@@ -2666,6 +2719,7 @@ python3 scripts/qemu_swarm.py --preset standard --dry-run
 
 **Note:** Multi-node testing with virtual bridges requires Linux and `sudo`. On other systems, nodes use a simpler networking mode where each node can reach the coordinator but not each other.
 
+<a id="swarm-presets"></a>
 ### Swarm Presets
 
 | Preset | Nodes | Duration | Best for |
@@ -2678,6 +2732,7 @@ python3 scripts/qemu_swarm.py --preset standard --dry-run
 | `ring_fault` | 4 | 75s | Fault tolerance testing |
 | `heterogeneous` | 5 | 90s | Mixed scenario testing |
 
+<a id="writing-your-own-swarm-config"></a>
 ### Writing Your Own Swarm Config
 
 Create a YAML file describing your test scenario:
@@ -2746,6 +2801,7 @@ Run your custom config:
 python3 scripts/qemu_swarm.py --config my_test.yaml
 ```
 
+<a id="debugging-firmware-in-qemu"></a>
 ### Debugging Firmware in QEMU
 
 If something goes wrong, you can attach a debugger to the emulated ESP32:
@@ -2765,6 +2821,7 @@ xtensa-esp-elf-gdb firmware/esp32-csi-node/build/esp32-csi-node.elf \
 
 Or use VS Code: open the project, press **F5**, and select **"QEMU ESP32-S3 Debug"**.
 
+<a id="running-the-full-test-suite"></a>
 ### Running the Full Test Suite
 
 For thorough validation before submitting a pull request:
@@ -2794,6 +2851,7 @@ All of these also run automatically in CI when you push changes to `firmware/`.
 
 ---
 
+<a id="troubleshooting"></a>
 ## Troubleshooting
 
 ### Docker: "no matching manifest for linux/arm64" on macOS
@@ -2941,6 +2999,7 @@ Install PyYAML: `pip install pyyaml`
 
 ---
 
+<a id="faq"></a>
 ## FAQ
 
 **Q: Do I need special hardware to try this?**
