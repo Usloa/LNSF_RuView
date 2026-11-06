@@ -3927,6 +3927,15 @@ mod esp32_frame_structure_tests {
 /// The field grid is 20×20 cells representing a top-down view of the room.
 /// Hotspots are derived from the subcarrier index (treated as an angular bin) so that
 /// subcarriers with the highest variance produce peaks at the corresponding directions.
+///
+/// With no subcarrier variances there is no geometry to place a heat map from, so
+/// this returns an **empty** field (`grid_size: [0, 0, 0]`, `values: []`) instead
+/// of a synthesised one. The radial base term below is not a measurement — it is
+/// a falloff anchored on the router — and on its own it normalises to a
+/// uniformly lit floor. That reads as a burst of signal that never happened: the
+/// ESP32 vitals-packet path carries no CSI amplitudes, and every one of its
+/// ~1 Hz frames used to flash the whole room. Consumers already treat an empty
+/// `values` as "no spatial field" and keep the last real one.
 fn generate_signal_field(
     _mean_rssi: f64,
     motion_score: f64,
@@ -3934,6 +3943,13 @@ fn generate_signal_field(
     signal_quality: f64,
     subcarrier_variances: &[f64],
 ) -> SignalField {
+    if subcarrier_variances.is_empty() {
+        return SignalField {
+            grid_size: [0, 0, 0],
+            values: Vec::new(),
+        };
+    }
+
     let grid = 20usize;
     let mut values = vec![0.0f64; grid * grid];
     let center = (grid as f64 - 1.0) / 2.0;
@@ -4013,6 +4029,50 @@ fn generate_signal_field(
     SignalField {
         grid_size: [grid, 1, grid],
         values,
+    }
+}
+
+#[cfg(test)]
+mod signal_field_no_subcarriers_tests {
+    //! A field needs per-subcarrier geometry to say *where* anything happened.
+    //! Without it, the radial base term alone normalises to a uniformly lit
+    //! floor, which the UI draws as the whole room lighting up — observed as a
+    //! once-per-second flash on the Live WiFi Sensing tab, because the ESP32
+    //! vitals-packet path calls this with no amplitudes at all.
+    use super::*;
+
+    #[test]
+    fn empty_subcarriers_yields_no_field() {
+        let field = generate_signal_field(-60.0, 0.8, 0.0, 1.0, &[]);
+        assert_eq!(
+            field.grid_size,
+            [0, 0, 0],
+            "no subcarrier data must publish no grid, not a 20x20 one"
+        );
+        assert!(
+            field.values.is_empty(),
+            "no subcarrier data must publish no values; got {} cells",
+            field.values.len()
+        );
+    }
+
+    #[test]
+    fn real_subcarriers_still_produce_a_localised_field() {
+        // 8 bins with a single strong outlier: the field must be 20x20,
+        // normalised to a peak of 1.0, and actually concentrated (not flat).
+        let variances = [1.0, 1.2, 0.9, 40.0, 1.1, 0.8, 1.3, 1.0];
+        let field = generate_signal_field(-60.0, 0.8, 0.0, 1.0, &variances);
+        assert_eq!(field.grid_size, [20, 1, 20]);
+        assert_eq!(field.values.len(), 400);
+
+        let max = field.values.iter().cloned().fold(0.0f64, f64::max);
+        assert!((max - 1.0).abs() < 1e-9, "field must normalise to 1.0, got {max}");
+
+        let mean = field.values.iter().sum::<f64>() / field.values.len() as f64;
+        assert!(
+            mean < 0.5,
+            "a localised hotspot must not wash out the floor; mean was {mean}"
+        );
     }
 }
 
