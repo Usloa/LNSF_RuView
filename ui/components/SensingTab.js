@@ -9,6 +9,17 @@
 import { sensingService } from '../services/sensing.service.js';
 import { GaussianSplatRenderer } from './gaussian-splats.js';
 
+// The sensing socket carries two different message shapes on one connection:
+// a ~40 Hz `sensing_update` (full frame) and a ~1 Hz per-node `edge_vitals`
+// (a legacy packet with its own schema). Only the former is a full frame.
+// Feeding the latter through the full-frame path blanked the entire panel once
+// a second — RSSI fell back to -80, every bar went to zero, the classification
+// read ABSENT, the node list read "No nodes detected" and the 3D body blob was
+// hidden — then the next full frame restored it. That is the flicker.
+const PAINT_INTERVAL_MS = 100;   // cap HUD repaint at 10 Hz
+const SPARK_INTERVAL_MS = 250;   // one sparkline sample per 250 ms => 15 s window
+const SPARK_MAX_SAMPLES = 60;
+
 export class SensingTab {
   /** @param {HTMLElement} container - the #sensing section element */
   constructor(container) {
@@ -18,6 +29,23 @@ export class SensingTab {
     this._unsubState = null;
     this._resizeObserver = null;
     this._threeLoaded = false;
+
+    // Latest edge_vitals per node. Kept so the packet is not discarded by the
+    // full-frame path; nothing renders it yet (that needs a UI decision).
+    this._vitals = new Map();
+
+    // Throttle state for the full-frame path.
+    this._pendingSensing = null;
+    this._paintTimer = null;
+    this._lastPaintAt = 0;
+
+    // Component-local sparkline buffer, sampled by time rather than per frame.
+    this._sparkSamples = [];
+    this._sparkLastAt = 0;
+
+    // Reused node-status rows, keyed by node_id (never rebuilt per frame).
+    this._nodeRows = new Map();
+    this._nodeEmptyMsg = null;
   }
 
   async init() {
@@ -192,6 +220,40 @@ export class SensingTab {
   }
 
   _onSensingData(data) {
+    if (!data) return;
+
+    // Dispatch by message type. Unknown/absent `type` still flows through as a
+    // full frame so older servers keep working; only packets we positively know
+    // to be a different shape are diverted.
+    const type = data.type;
+    if (type === 'edge_vitals') {
+      const id = data.node_id != null ? data.node_id : 'unknown';
+      this._vitals.set(id, data);
+      return;
+    }
+    if (type && type !== 'sensing_update') return;
+
+    // Coalesce to the newest frame at <=10 Hz. The trailing timer keeps the
+    // last frame from being dropped, so the panel never settles on stale values.
+    this._pendingSensing = data;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const since = now - this._lastPaintAt;
+    if (since >= PAINT_INTERVAL_MS) {
+      this._paintSensing();
+    } else if (!this._paintTimer) {
+      this._paintTimer = setTimeout(() => {
+        this._paintTimer = null;
+        this._paintSensing();
+      }, PAINT_INTERVAL_MS - since);
+    }
+  }
+
+  _paintSensing() {
+    const data = this._pendingSensing;
+    if (!data) return;
+    this._pendingSensing = null;
+    this._lastPaintAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
     // Update 3D view
     if (this.splatRenderer) {
       this.splatRenderer.update(data);
@@ -241,44 +303,65 @@ export class SensingTab {
 
   // ---- HUD update --------------------------------------------------------
 
+  // Every write below is conditional on the field actually being present. A
+  // missing field must leave the last known value on screen, never render a
+  // substitute (-80 dBm, 0 %, ABSENT) that reads as a fresh measurement.
   _updateHUD(data) {
-    const f = data.features || {};
-    const c = data.classification || {};
+    const f = data.features || null;
+    const c = data.classification || null;
 
     // Node count
-    const nodeCount = (data.nodes || []).length;
-    const countEl = this.container.querySelector('#sensingNodeCount');
-    if (countEl) countEl.textContent = String(nodeCount);
-
-    // RSSI
-    this._setText('sensingRssi', `${(f.mean_rssi || -80).toFixed(1)} dBm`);
-    this._setText('sensingSource', data.source || '');
-
-    // Bars (scale to 0-100%)
-    this._setBar('barVariance', f.variance, 10, 'valVariance', f.variance);
-    this._setBar('barMotion', f.motion_band_power, 0.5, 'valMotion', f.motion_band_power);
-    this._setBar('barBreath', f.breathing_band_power, 0.3, 'valBreath', f.breathing_band_power);
-    this._setBar('barSpectral', f.spectral_power, 2.0, 'valSpectral', f.spectral_power);
-
-    // Classification
-    const label = this.container.querySelector('#classLabel');
-    if (label) {
-      const level = (c.motion_level || 'absent').toUpperCase();
-      label.textContent = level;
-      label.className = 'sensing-class-label ' + (c.motion_level || 'absent');
+    if (Array.isArray(data.nodes)) {
+      const countEl = this.container.querySelector('#sensingNodeCount');
+      if (countEl) countEl.textContent = String(data.nodes.length);
     }
 
-    const confPct = ((c.confidence || 0) * 100).toFixed(0);
-    this._setBar('barConfidence', c.confidence, 1.0, 'valConfidence', confPct + '%');
+    if (f) {
+      if (f.mean_rssi != null) this._setText('sensingRssi', `${f.mean_rssi.toFixed(1)} dBm`);
 
-    // Details
-    this._setText('valDomFreq', (f.dominant_freq_hz || 0).toFixed(3) + ' Hz');
-    this._setText('valChangePoints', String(f.change_points || 0));
-    const srcLabel = (data.source === 'simulated' || data.source === 'simulate') ? 'sim' : data.source || 'live';
-    this._setText('valSampleRate', srcLabel);
+      // Bars (scale to 0-100%)
+      this._setBar('barVariance', f.variance, 10, 'valVariance', f.variance);
+      this._setBar('barMotion', f.motion_band_power, 0.5, 'valMotion', f.motion_band_power);
+      this._setBar('barBreath', f.breathing_band_power, 0.3, 'valBreath', f.breathing_band_power);
+      this._setBar('barSpectral', f.spectral_power, 2.0, 'valSpectral', f.spectral_power);
 
-    // Sparkline
+      if (f.dominant_freq_hz != null) {
+        this._setText('valDomFreq', f.dominant_freq_hz.toFixed(3) + ' Hz');
+      }
+      if (f.change_points != null) {
+        this._setText('valChangePoints', String(f.change_points));
+      }
+
+      // Sparkline sample (time-sampled, see _sampleSparkline)
+      if (f.mean_rssi != null) this._sampleSparkline(f.mean_rssi);
+    }
+
+    if (data.source != null) this._setText('sensingSource', data.source);
+
+    if (c) {
+      const label = this.container.querySelector('#classLabel');
+      if (label && c.motion_level) {
+        label.textContent = c.motion_level.toUpperCase();
+        label.className = 'sensing-class-label ' + c.motion_level;
+      }
+      if (c.confidence != null) {
+        this._setBar('barConfidence', c.confidence, 1.0, 'valConfidence',
+          (c.confidence * 100).toFixed(0) + '%');
+      }
+    }
+
+    const srcLabel = (data.source === 'simulated' || data.source === 'simulate') ? 'sim' : data.source;
+    if (srcLabel) this._setText('valSampleRate', srcLabel);
+
     this._drawSparkline();
+  }
+
+  _sampleSparkline(rssi) {
+    const now = Date.now();
+    if (now - this._sparkLastAt < SPARK_INTERVAL_MS) return;
+    this._sparkLastAt = now;
+    this._sparkSamples.push(rssi);
+    if (this._sparkSamples.length > SPARK_MAX_SAMPLES) this._sparkSamples.shift();
   }
 
   _setText(id, text) {
@@ -287,9 +370,12 @@ export class SensingTab {
   }
 
   _setBar(barId, value, maxVal, valId, displayVal) {
+    // A missing value must not collapse the bar to 0 % — that reads as a
+    // measurement of zero rather than as "no data in this frame".
+    if (value == null) return;
     const bar = this.container.querySelector('#' + barId);
     if (bar) {
-      const pct = Math.min(100, Math.max(0, ((value || 0) / maxVal) * 100));
+      const pct = Math.min(100, Math.max(0, (value / maxVal) * 100));
       bar.style.width = pct + '%';
     }
     if (valId && displayVal != null) {
@@ -302,7 +388,7 @@ export class SensingTab {
     const canvas = this.container.querySelector('#sensingSparkline');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const history = sensingService.getRssiHistory();
+    const history = this._sparkSamples;
     if (history.length < 2) return;
 
     const w = canvas.width;
@@ -328,53 +414,98 @@ export class SensingTab {
 
   // ---- Per-node panels ---------------------------------------------------
 
+  // Rows are created once per node_id and then updated in place. Rebuilding
+  // them per frame (as this used to) threw away and recreated every element
+  // ~40 times a second, which made the whole card flicker on its own.
   _updateNodePanels(data) {
     const container = this.container.querySelector('#nodeStatusContainer');
     if (!container) return;
-    const nodeFeatures = data.node_features || [];
+    // A frame that carries no per-node array says nothing about the nodes we
+    // already know about, so leave the card alone instead of emptying it.
+    if (!Array.isArray(data.node_features)) return;
+
+    const nodeFeatures = data.node_features;
     if (nodeFeatures.length === 0) {
+      if (this._nodeEmptyMsg && container.contains(this._nodeEmptyMsg)) return;
+      this._nodeRows.clear();
       container.textContent = '';
       const msg = document.createElement('div');
       msg.style.cssText = 'color:#888;font-size:12px;padding:8px;';
       msg.textContent = 'No nodes detected';
       container.appendChild(msg);
+      this._nodeEmptyMsg = msg;
       return;
     }
-    const NODE_COLORS = ['#00ccff', '#ff6600', '#00ff88', '#ff00cc', '#ffcc00', '#8800ff', '#00ffcc', '#ff0044'];
-    container.textContent = '';
-    for (const nf of nodeFeatures) {
-      const color = NODE_COLORS[nf.node_id % NODE_COLORS.length];
-      const statusColor = nf.stale ? '#888' : '#0f0';
 
-      const row = document.createElement('div');
-      row.style.cssText = `display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:3px solid ${color};`;
-
-      const idCol = document.createElement('div');
-      idCol.style.minWidth = '50px';
-      const nameEl = document.createElement('div');
-      nameEl.style.cssText = `font-size:11px;font-weight:600;color:${color};`;
-      nameEl.textContent = 'Node ' + nf.node_id;
-      const statusEl = document.createElement('div');
-      statusEl.style.cssText = `font-size:9px;color:${statusColor};`;
-      statusEl.textContent = nf.stale ? 'STALE' : 'ACTIVE';
-      idCol.appendChild(nameEl);
-      idCol.appendChild(statusEl);
-
-      const metricsCol = document.createElement('div');
-      metricsCol.style.cssText = 'flex:1;font-size:10px;color:#aaa;';
-      metricsCol.textContent = (nf.rssi_dbm || -80).toFixed(0) + ' dBm · var ' + (nf.features?.variance || 0).toFixed(1);
-
-      const classCol = document.createElement('div');
-      classCol.style.cssText = 'font-size:10px;font-weight:600;color:#ccc;';
-      const motion = (nf.classification?.motion_level || 'absent').toUpperCase();
-      const conf = ((nf.classification?.confidence || 0) * 100).toFixed(0);
-      classCol.textContent = motion + ' ' + conf + '%';
-
-      row.appendChild(idCol);
-      row.appendChild(metricsCol);
-      row.appendChild(classCol);
-      container.appendChild(row);
+    if (this._nodeEmptyMsg) {
+      this._nodeEmptyMsg.remove();
+      this._nodeEmptyMsg = null;
     }
+
+    const active = new Set();
+    for (const nf of nodeFeatures) {
+      active.add(nf.node_id);
+      let row = this._nodeRows.get(nf.node_id);
+      if (!row) {
+        row = this._createNodeRow(nf.node_id);
+        this._nodeRows.set(nf.node_id, row);
+        container.appendChild(row.el);
+      }
+
+      row.statusEl.textContent = nf.stale ? 'STALE' : 'ACTIVE';
+      row.statusEl.style.color = nf.stale ? '#888' : '#0f0';
+
+      // Only overwrite what the frame actually carries.
+      if (nf.rssi_dbm != null) {
+        const variance = nf.features?.variance;
+        row.metricsEl.textContent = nf.rssi_dbm.toFixed(0) + ' dBm' +
+          (variance != null ? ' · var ' + variance.toFixed(1) : '');
+      }
+      const level = nf.classification?.motion_level;
+      const conf = nf.classification?.confidence;
+      if (level || conf != null) {
+        row.classEl.textContent = (level ? level.toUpperCase() : '') +
+          (conf != null ? ' ' + (conf * 100).toFixed(0) + '%' : '');
+      }
+    }
+
+    for (const [id, row] of this._nodeRows) {
+      if (!active.has(id)) {
+        row.el.remove();
+        this._nodeRows.delete(id);
+      }
+    }
+  }
+
+  _createNodeRow(nodeId) {
+    const NODE_COLORS = ['#00ccff', '#ff6600', '#00ff88', '#ff00cc', '#ffcc00', '#8800ff', '#00ffcc', '#ff0044'];
+    const color = NODE_COLORS[nodeId % NODE_COLORS.length];
+
+    const el = document.createElement('div');
+    el.style.cssText = `display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:3px solid ${color};`;
+
+    const idCol = document.createElement('div');
+    idCol.style.minWidth = '50px';
+    const nameEl = document.createElement('div');
+    nameEl.style.cssText = `font-size:11px;font-weight:600;color:${color};`;
+    nameEl.textContent = 'Node ' + nodeId;
+    const statusEl = document.createElement('div');
+    statusEl.style.cssText = 'font-size:9px;color:#0f0;';
+    statusEl.textContent = 'ACTIVE';
+    idCol.appendChild(nameEl);
+    idCol.appendChild(statusEl);
+
+    const metricsEl = document.createElement('div');
+    metricsEl.style.cssText = 'flex:1;font-size:10px;color:#aaa;';
+
+    const classEl = document.createElement('div');
+    classEl.style.cssText = 'font-size:10px;font-weight:600;color:#ccc;';
+
+    el.appendChild(idCol);
+    el.appendChild(metricsEl);
+    el.appendChild(classEl);
+
+    return { el, statusEl, metricsEl, classEl };
   }
 
   // ---- Resize ------------------------------------------------------------
@@ -399,6 +530,10 @@ export class SensingTab {
     if (this._unsubData) this._unsubData();
     if (this._unsubState) this._unsubState();
     if (this._resizeObserver) this._resizeObserver.disconnect();
+    if (this._paintTimer) {
+      clearTimeout(this._paintTimer);
+      this._paintTimer = null;
+    }
     if (this.splatRenderer) this.splatRenderer.dispose();
     sensingService.stop();
   }

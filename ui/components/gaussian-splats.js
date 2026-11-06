@@ -236,6 +236,11 @@ export class GaussianSplatRenderer {
     geo.setAttribute('splatColor',  new THREE.BufferAttribute(colors, 3));
     geo.setAttribute('splatOpacity',new THREE.BufferAttribute(opacities, 1));
 
+    // Per-splat base size, fixed at construction. The breathing pulse scales
+    // these; it must not re-roll them, or every frame reshuffles the blob's
+    // point sizes and the cluster shimmers on its own.
+    this._bodyBaseSizes = Float32Array.from(sizes);
+
     const mat = new THREE.ShaderMaterial({
       vertexShader:   SPLAT_VERTEX,
       fragmentShader: SPLAT_FRAGMENT,
@@ -366,7 +371,7 @@ export class GaussianSplatRenderer {
             bClr[i * 3 + 2] = 0.4;
           }
 
-          bSize[i] = (2 + Math.random() * 2) * breathPulse;
+          bSize[i] = (this._bodyBaseSizes ? this._bodyBaseSizes[i] : 2) * breathPulse;
         } else {
           bOpac[i] = 0.0;
         }
